@@ -1,8 +1,7 @@
 # MATLAB file guide
 
-This guide explains the role of every MATLAB-related file in the repository in
-plain language. It is intended as an orientation document before the code is
-ported to Python.
+This guide explains the role of MATLAB-related file in the repository in
+plain language.
 
 ## Scientific vocabulary used by the code
 
@@ -308,30 +307,19 @@ restored on this Windows machine, although the numeric arrays remain readable.
 It should be treated as a historical reference rather than an exact baseline
 for every current script output.
 
-### `README.md`
+Its main configuration and results were:
+- Pumping period: 10 seconds
+- Pumped-volume parameter: 0.01 m³
+- Grid: 50 × 50 = 2,500 cells
+- Wells: 9
+- Source–observation pairs: 36
+- Inversion runtime: 94.46 seconds
+- Final objective value: 16.8406
 
-Provides the repository name and one-sentence description. It does not yet
-contain installation, execution, or scientific-workflow instructions.
-
-### `.gitignore`
-
-Currently ignores macOS `.DS_Store` metadata only. It does not ignore generated
-MATLAB result files, figures, caches, or temporary outputs.
-
-## Recommended reading order
-
-For understanding the project without getting lost in the numerical details:
-
-1. `testing_multifreq_analyt_blackkipp_comparison.m`
-2. `equigrid_setup.m`
-3. `OHT_create_inputs.m`
-4. `grid_idw.m`
-5. `OHT_run_distribKSs.m`
-6. `phasor_model_obssens.m`
-7. `phasor_model_form.m`
-8. `testing_inversion_2D_geostat.m`
-9. `ql_geostat_inv.m`
-10. `lin_geostat_inv.m`, `NLAP_eval.m`, and the covariance helpers
-
-This order moves from the scientific experiment down into the numerical solver,
-then back up into the tomography inversion.
+My Baseline run results difference:
+- True aquifer fields: exact match
+- Synthetic observations: maximum difference 2.08×10⁻¹⁷
+- Full phasor fields: maximum difference 2.66×10⁻¹⁵
+- Final estimated parameters: relative difference 1.64×10⁻⁶
+- Historical objective: 16.8405856
+- Recomputed objective: 16.8407116
