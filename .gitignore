@@ -1,2 +1,12 @@
 
 .DS_Store
+
+# Python development artifacts
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Generated validation outputs
+python_outputs/

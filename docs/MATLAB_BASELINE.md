@@ -271,8 +271,10 @@ Comparing the shared 10-second-period portion gives:
 - True parameter fields: exact match
 - Synthetic observations: maximum absolute difference `2.08e-17`
 - Full phasor field: maximum absolute difference `2.66e-15`
-- Initial sensitivity matrix: does not match; relative Frobenius difference
-  `1.07e3`
+- Initial sensitivity matrix: the saved matrix was evaluated at homogeneous
+  `ln(K) = -9`, `ln(Ss) = -9`, even though the later saved `params_init`
+  contains `ln(Ss) = -11`. Re-evaluating at the actual sensitivity state
+  reproduces the saved matrix.
 
 An earlier R2024a diagnostic run of the current code in a separate
 single-period configuration gave:
@@ -285,11 +287,34 @@ single-period configuration gave:
 - Current negative log-likelihood: `16.840711634263954`
 - Reference negative log-likelihood: `16.840585550630379`
 
-The forward-model baseline is therefore strongly reproduced. The sensitivity
-fixture is stale or was generated from a different intermediate configuration.
-The expected sensitivity baseline and authoritative inversion configuration
-should be confirmed with the mentor before they are used as Python acceptance
-criteria.
+The forward-model baseline is therefore strongly reproduced. Professor Cardiff
+subsequently confirmed that the 10-second-period workspace is sufficient for
+the first Python transcription.
+
+## Python P=10 transcription baseline
+
+The initial Python port uses NumPy/SciPy complex sparse matrices and preserves
+MATLAB/Fortran array ordering. Its regression suite gives:
+
+- Input structures: exact match
+- Synthetic observations: maximum absolute difference `5.20e-17`
+- Full phasor field: maximum absolute difference `4.44e-15`
+- Initial 72 by 5,000 sensitivity matrix: maximum absolute difference
+  `3.81e-21` at its actual saved state (`ln(K) = ln(Ss) = -9`)
+- Selected adjoint columns also agree with independent centered finite
+  differences to relative error below `3.0e-10`
+- Full Python P=10 inversion: eight iterations and about 18 seconds on this
+  machine
+- Final Python parameter image versus the historical MAT workspace: maximum
+  absolute difference `1.83e-4`, relative norm difference `7.38e-6`
+- Current seven-period Python workflow: completed 11 quasi-linear iterations
+  in `139.564 s`, produced 504 observation components, and generated both
+  estimated-property images successfully
+
+The small final-inversion difference is expected because MATLAB and SciPy use
+different MINRES and Nelder-Mead implementations. Forward fields and analytic
+Jacobians—the scientific inputs to the inversion—match essentially to floating-
+point precision.
 
 ## Known portability and maintenance issues
 
@@ -309,13 +334,11 @@ criteria.
 
 ## Questions for the mentor
 
-1. Should the authoritative inversion test use all seven periods or only the
-   10-second period stored in `testing_inversion_currtest.mat`?
-2. Should the primary truth field be the current checkerboard case or the
+1. Should the primary truth field be the current checkerboard case or the
    geostatistical realization implied by the script name?
-3. Is there a newer expected-results workspace for the current sensitivity
+2. Is there a newer expected-results workspace for the current seven-period sensitivity
    calculation?
-4. What numerical tolerances should define agreement for observations,
+3. What numerical tolerances should define agreement for observations,
    sensitivities, and final estimated parameter fields?
-5. Should generated figures and compact numerical baselines be committed for
+4. Should generated figures and compact numerical baselines be committed for
    automated cross-language regression tests?
