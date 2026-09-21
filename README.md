@@ -32,7 +32,7 @@ On Windows PowerShell:
 ```powershell
 py -3.10 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -e ".[test]"
+.\.venv\Scripts\python.exe -m pip install -e ".[test,benchmark]"
 ```
 
 On macOS or Linux:
@@ -40,7 +40,7 @@ On macOS or Linux:
 ```bash
 python3 -m venv .venv
 ./.venv/bin/python -m pip install --upgrade pip
-./.venv/bin/python -m pip install -e '.[test]'
+./.venv/bin/python -m pip install -e '.[test,benchmark]'
 ```
 
 ## Verify the installation
@@ -114,11 +114,52 @@ a long time. Run it only when needed:
 .\.venv\Scripts\python.exe examples\testing_sensitivity_fd_comparison.py --all-columns --workers 4
 ```
 
+### 4. Grid scaling and peak-memory benchmark
+
+This benchmark increases the number of cells along both axes. An `N×N` grid
+contains `2N²` inversion parameters because every cell has `ln(K)` and
+`ln(Ss)`. Each size runs in a fresh Python process while total resident memory
+is sampled.
+
+Run a short check first:
+
+```powershell
+.\.venv\Scripts\python.exe benchmarks\run_python_scaling.py --sizes 25 50
+```
+
+Run the complete scaling series used during development:
+
+```powershell
+.\.venv\Scripts\python.exe benchmarks\run_python_scaling.py --sizes 25 50 75 100 150 200
+```
+
+The script displays a table directly in the terminal. It also creates:
+
+- `python_outputs/scaling/python_scaling_results.md` — readable results table
+- `python_outputs/scaling/python_scaling_results.json` — complete raw results
+- one intermediate JSON file for each grid size
+
+The recorded columns include parameter count, Jacobian size, Jacobian runtime,
+linearized-inverse runtime, total scientific runtime, and peak process memory.
+The generated files are ignored by Git and can be safely deleted and recreated.
+
+To run one complete nonlinear inversion at a selected resolution instead:
+
+```powershell
+.\.venv\Scripts\python.exe examples\testing_inversion_2d_geostat.py --grid-cells 100
+```
+
+The cross-language MATLAB/Python benchmark is kept on the `dev` branch because
+this branch intentionally contains no MATLAB files. After cloning, it can be
+accessed with `git switch --track origin/dev`; see
+`docs/SCALING_BENCHMARK.md` there for the MATLAB comparison command.
+
 ## Repository layout
 
 - `src/oscillatory_tomography/` — reusable forward, inversion, covariance,
   grid, model, and utility modules
 - `examples/` — Python translations of the three top-level MATLAB workflows
+- `benchmarks/` — isolated Python scaling and peak-memory runner
 - `tests/` — portable unit and numerical finite-difference tests
 - `src/oscillatory_tomography/port_manifest.py` — mapping of all 26 original
   MATLAB filenames to their Python entry points
