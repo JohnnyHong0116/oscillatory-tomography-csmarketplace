@@ -162,9 +162,18 @@ The following result was measured on Johnny's laptop on September 21, 2026:
 | 150×150 | 45,000 | 72×45,000 | 24.719 | 217.0 | 5.3119 | 3.4229 | 11.1422 |
 | 200×200 | 80,000 | 72×80,000 | 43.945 | 329.1 | 11.3330 | 6.1468 | 24.0224 |
 
-The scientific total includes setup, two forward calculations, construction
-of the complete analytic Jacobian, and one linearized geostatistical inverse
-step. Runtime and peak memory will vary with hardware, operating system, and
+- **Raw Jacobian (MiB):** Memory occupied by the Jacobian array alone, without
+  Python, solver, sparse-matrix, or temporary-array overhead.
+- **Peak RSS (MiB):** Highest total physical memory used by the Python process
+  and its child processes during the benchmark.
+- **Jacobian (s):** Time required to calculate the complete analytic
+  sensitivity matrix for all observations and parameters.
+- **Linear inverse (s):** Time required for one linearized geostatistical
+  inverse solve after the Jacobian has been calculated.
+- **Scientific total (s):** Combined time for setup, two forward calculations,
+  Jacobian construction, and one linearized inverse step.
+
+Runtime and peak memory will vary with hardware, operating system, and
 installed numerical libraries, so another machine should regenerate the table
 with the command above.
 
