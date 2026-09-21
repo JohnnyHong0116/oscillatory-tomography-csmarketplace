@@ -78,3 +78,17 @@ def test_aperture_wrapper_chain_rule_with_finite_difference():
         - run_distributed_aperture(minus, domain, boundaries, experiments, 1)
     ) / (2 * epsilon)
     np.testing.assert_allclose(sensitivity[:, 10], finite_difference, atol=1e-10, rtol=1e-5)
+
+
+def test_parallel_frequency_groups_match_serial_results():
+    domain = equigrid_setup(np.array([-2, 2, 4]), np.array([-2, 2, 4]))
+    boundaries = Boundaries(np.array([1, 1, 1, 1, 0, 0]), np.zeros(6))
+    wells = np.array([[0.0, 0.0], [1.0, 1.0]])
+    tests = np.array(
+        [[2 * np.pi / 10, 1, 0.01, 2], [2 * np.pi / 100, 1, 0.001, 2]]
+    )
+    experiments = create_inputs(wells, tests, domain)
+    parameters = np.concatenate((np.full(16, -9.2), np.full(16, -10.2)))
+    serial = run_distributed_k_ss(parameters, domain, boundaries, experiments, 1)
+    parallel = run_distributed_k_ss(parameters, domain, boundaries, experiments, 1, workers=2)
+    np.testing.assert_allclose(parallel, serial, atol=0.0, rtol=0.0)

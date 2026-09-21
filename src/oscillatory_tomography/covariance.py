@@ -10,6 +10,9 @@ import numpy as np
 
 
 def _circulant_embedding(first_row: np.ndarray, grid_shape: tuple[int, ...]) -> np.ndarray:
+    # A stationary covariance on a regular grid is block Toeplitz.  Reflecting
+    # its interior entries (without repeating either endpoint) embeds it in a
+    # circulant array whose dimensions are 2*n-2 along each non-singleton axis.
     embedded = np.asarray(first_row).reshape(grid_shape, order="F")
     for axis, size in enumerate(grid_shape):
         if size > 1:
@@ -38,11 +41,15 @@ def toeplitz_matrix_math(
     if int(np.prod(grid_shape)) != row.size or len(grid_shape) not in (1, 2, 3):
         raise ValueError("grid_shape must describe the 1-D, 2-D, or 3-D first row")
     embedded = _circulant_embedding(row, grid_shape)
+    # The multidimensional FFT diagonalizes the circulant embedding, allowing
+    # covariance products to be evaluated without constructing a dense matrix.
     eigenvalues = np.fft.fftn(embedded)
     if operation == "e":
         return eigenvalues.reshape(-1, order="F")
     if operation == "r":
         generator = np.random.default_rng() if rng is None else rng
+        # One complex draw supplies two independent real Gaussian realizations,
+        # matching the compact construction used by the MATLAB routine.
         noise = generator.normal(size=embedded.shape) + 1j * generator.normal(size=embedded.shape)
         realization = np.fft.ifftn(np.sqrt(np.fft.fftn(embedded * embedded.size)) * noise)
         cropped = realization[tuple(slice(0, size) for size in grid_shape)].reshape(-1, order="F")
@@ -59,12 +66,16 @@ def toeplitz_matrix_math(
     result = np.empty_like(rhs, dtype=np.result_type(row, rhs, float))
     crop = tuple(slice(0, size) for size in grid_shape)
     for column in range(rhs.shape[1]):
+        # Zero-pad into the circulant domain, operate spectrally, then crop back
+        # to the original Toeplitz grid.  order="F" preserves MATLAB indexing.
         padded = np.zeros(embedded.shape, dtype=np.result_type(row, rhs))
         padded[crop] = rhs[:, column].reshape(grid_shape, order="F")
         transformed = np.fft.fftn(padded)
         if operation == "*":
             calculated = np.fft.ifftn(eigenvalues * transformed)
         else:
+            # This reproduces the original embedded spectral inverse.  Optional
+            # regularization protects callers from near-zero embedded modes.
             calculated = np.fft.ifftn(transformed / (eigenvalues + inverse_regularization))
         cropped = calculated[crop]
         if np.isrealobj(row) and np.isrealobj(rhs):
@@ -97,6 +108,8 @@ def covariance_product_k_ss(
     n_cells = int(np.prod(grid_shape))
     if rhs.shape[0] != 2 * n_cells:
         raise ValueError("vectors must have one K and one Ss block")
+    # K and Ss are independent prior fields in the original workflow, so the
+    # joint covariance is block diagonal and has no K/Ss cross-covariance term.
     result = np.vstack(
         (
             toeplitz_matrix_vector_product(covariance_rows[0], rhs[:n_cells, :], grid_shape),

@@ -18,7 +18,9 @@ from oscillatory_tomography import Boundaries, create_inputs, run_distributed_k_
 from oscillatory_tomography.grid import equigrid_setup
 
 
-def run_case(*, include_fields: bool = False) -> dict[str, np.ndarray | float | None]:
+def run_case(
+    *, include_fields: bool = False, workers: int = 1
+) -> dict[str, np.ndarray | float | None]:
     # Bounds of the domain, and number of cells in the discretization (last).
     domain = equigrid_setup(np.array([-300, 300, 300]), np.array([-300, 300, 300]))
 
@@ -46,10 +48,12 @@ def run_case(*, include_fields: bool = False) -> dict[str, np.ndarray | float | 
     # Perform all model runs. Output ordering is all real coefficients,
     # followed by all imaginary coefficients of the phasor.
     start = perf_counter()
-    simulated = run_distributed_k_ss(true_parameters, domain, boundaries, experiments, 1)
+    simulated = run_distributed_k_ss(
+        true_parameters, domain, boundaries, experiments, 1, workers=workers
+    )
     elapsed = perf_counter() - start
     simulated_fields = (
-        run_distributed_k_ss(true_parameters, domain, boundaries, experiments, 2)
+        run_distributed_k_ss(true_parameters, domain, boundaries, experiments, 2, workers=workers)
         if include_fields
         else None
     )
@@ -156,8 +160,9 @@ def main() -> None:
         action="store_true",
         help="also calculate the original full 90,000-cell phasor fields",
     )
+    parser.add_argument("--workers", type=int, default=1, help="parallel frequency-group solves")
     args = parser.parse_args()
-    result = run_case(include_fields=args.include_fields)
+    result = run_case(include_fields=args.include_fields, workers=args.workers)
     plot_comparison(result, args.output)
     print(f"Forward runtime: {result['elapsed']:.3f} s")
     print(f"Mean relative amplitude error: {result['mean_amplitude_error']:.16g}")

@@ -2,6 +2,9 @@
 
 The original MATLAB files remain unchanged. Python uses zero-based internal
 indices and explicit Fortran-order reshaping to preserve MATLAB cell ordering.
+All 26 upstream MATLAB source files are represented below. The mapping is also
+stored in `src/oscillatory_tomography/port_manifest.py`; an automated test fails
+if an original `.m` file lacks a Python entry point or names a missing function.
 
 | MATLAB source | Python counterpart | Status |
 |---|---|---|

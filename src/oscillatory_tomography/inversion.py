@@ -36,6 +36,8 @@ class ResidualStatistics:
 
 
 def _q_product(q: Covariance, values: np.ndarray) -> np.ndarray:
+    # Large regular-grid covariances are supplied as FFT-backed callables.  This
+    # keeps the inverse routines matrix-free while retaining dense-array support.
     if callable(q):
         rhs = np.asarray(values)
         if rhs.ndim == 1:
@@ -64,9 +66,12 @@ def linear_geostatistical_inverse(
     m = y.size
     p = x.shape[1]
 
+    # The geostatistical representer formulation works in observation space:
+    # QH' is reused both in Psi = HQH' + R and in the parameter reconstruction.
     qht = _q_product(parameter_covariance, h.T)
     psi = h @ qht + r
     phi = h @ x
+    # Solve for representer weights xi and drift coefficients beta together.
     saddle = np.block([[psi, phi], [phi.T, np.zeros((p, p))]])
     solution = np.linalg.solve(saddle, np.concatenate((y, np.zeros(p))))
     xi = solution[:m]
@@ -92,6 +97,9 @@ def geostatistical_residuals(
     m, p = y.size, x.shape[1]
     psi = h @ q @ h.T + r
     phi = h @ x
+    # Project away the unknown drift component before standardizing residuals.
+    # SciPy returns null-space vectors as columns; the transpose follows the
+    # row-basis convention used in geostat_resid_compute.m.
     p_basis = null_space(phi.T).T
     pyy = p_basis.T @ np.linalg.solve(p_basis @ psi @ p_basis.T, p_basis)
     transform = orth(pyy).T
@@ -99,6 +107,8 @@ def geostatistical_residuals(
     variances = np.diag(transform @ psi @ transform.T)
     standard_error = np.sqrt(variances)
     normalized = delta / standard_error
+    # q2 is the mean squared standardized residual after accounting for p drift
+    # coefficients; scaled_error also includes the residual covariance volume.
     q2 = float(np.sum(normalized**2) / (m - p))
     scaled_error = float(q2 * np.exp(np.sum(np.log(variances)) / (m - p)))
     return ResidualStatistics(delta, standard_error, normalized, scaled_error, q2)
@@ -117,11 +127,15 @@ def negative_log_a_posteriori(
 
     y = np.asarray(data, dtype=float).reshape(-1)
     s = np.asarray(parameters, dtype=float).reshape(-1)
+    # NLAP is the sum of a measurement-error-weighted data mismatch and a
+    # covariance-weighted departure from the current drift model X*beta.
     residual = y - np.asarray(forward_function(s)).reshape(-1)
     data_part = 0.5 * float(residual @ np.linalg.solve(error_covariance, residual))
     deviation = s - np.asarray(drift) @ np.asarray(beta).reshape(-1)
 
     if callable(parameter_covariance):
+        # Only Q*v is available for FFT-backed covariance operators.  MINRES
+        # obtains Q^-1*v iteratively without materializing or factoring Q.
         operator = LinearOperator(
             (deviation.size, deviation.size),
             matvec=lambda value: np.asarray(parameter_covariance(value)).reshape(-1),
@@ -186,6 +200,8 @@ def quasi_linear_geostatistical_inverse(
         # Preserve the original ql_geostat_inv.m behavior: beta_tilde stays
         # at beta_init while s_tilde advances between iterations.
         nlap = nlap_new
+        # Linearize the nonlinear forward model about the current parameter
+        # estimate, then solve the resulting geostatistical inverse problem.
         h_tilde = np.asarray(sensitivity_function(s_tilde), dtype=float)
         iterations += 1
         h_at_tilde = np.asarray(forward_function(s_tilde), dtype=float).reshape(-1)
@@ -196,6 +212,8 @@ def quasi_linear_geostatistical_inverse(
         candidate_nlap = objective(s_candidate, beta_candidate)
 
         if max_line_search > 0:
+            # Search along the joint (parameter, drift) update.  Nelder-Mead is
+            # retained here to match the unconstrained MATLAB fminsearch step.
             delta_s = s_candidate - s_tilde
             delta_beta = beta_candidate - beta_tilde
             start = 1.0 if candidate_nlap < nlap else 0.0
@@ -224,12 +242,15 @@ def quasi_linear_geostatistical_inverse(
             beta_hat = beta_candidate
             nlap_new = candidate_nlap
 
+        # Both the relative objective improvement and largest relative parameter
+        # change must remain significant for another outer iteration to run.
         objective_change = (nlap - nlap_new) / nlap if nlap != 0.0 else 0.0
         denominator = np.where(s_tilde != 0.0, np.abs(s_tilde), 1.0)
         parameter_change = float(np.max(np.abs(s_tilde - s_hat) / denominator))
         if progress is not None:
             progress(iterations, nlap_new)
 
+    # Return whichever of the previous or proposed iterates has lower NLAP.
     if nlap_new < nlap:
         final_parameters = s_hat
         final_beta = beta_hat

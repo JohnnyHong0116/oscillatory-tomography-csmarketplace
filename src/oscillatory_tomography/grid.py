@@ -25,6 +25,8 @@ def plaid_coord(
     else:
         x_grid, y_grid, z_grid = np.meshgrid(x, y, np.asarray(z, dtype=float), indexing="xy")
         grids = (x_grid, y_grid, z_grid)
+    # MATLAB linear indexing advances down the first array dimension.  Fortran
+    # order reproduces that layout when mesh arrays become coordinate columns.
     coordinates = np.column_stack([grid.reshape(-1, order="F") for grid in grids])
     return coordinates, grids
 
@@ -44,6 +46,7 @@ def equigrid_setup(
 
     if z_disc is None:
         z_disc = np.array([0.0, 1.0, 1.0])
+    # Domain coordinates describe cell faces, so n cells require n+1 values.
     return Domain(
         x=np.linspace(x_disc[0], x_disc[1], int(x_disc[2]) + 1),
         y=np.linspace(y_disc[0], y_disc[1], int(y_disc[2]) + 1),
@@ -134,6 +137,8 @@ def grid_idw(
             ]
         )
         inverse_distance = np.empty_like(squared_distance)
+        # MATLAB substitutes 1/eps for an infinite exact-location weight.  Once
+        # normalized, that grid point receives effectively all of the weight.
         exact = squared_distance == 0.0
         inverse_distance[exact] = 1.0 / np.finfo(float).eps
         inverse_distance[~exact] = 1.0 / np.sqrt(squared_distance[~exact])
@@ -191,6 +196,8 @@ def create_inputs(
     for group in groups:
         omega = float(np.real(group[0, 0]))
         if group.shape[1] == 4:
+            # Collapse repeated observation and pumping configurations so one
+            # PDE solution can serve every test that shares the same frequency.
             observation_wells, observation_map = np.unique(
                 group[:, 3].astype(int) - 1, return_inverse=True
             )
@@ -208,6 +215,8 @@ def create_inputs(
             inflows_2 = well_weights[:, pump_rows[:, 2].astype(int) - 1].astype(complex)
             inflows = inflows_1.multiply(pump_rows[:, 1]) + inflows_2.multiply(pump_rows[:, 3])
 
+        # Each test stores indices into the compact stimulus and observation
+        # matrices.  These indices are zero-based only inside the Python model.
         tests = np.column_stack((pump_map, observation_map)).astype(int)
         experiments.append(
             Experiment(

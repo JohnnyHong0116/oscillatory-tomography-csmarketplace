@@ -10,3 +10,4 @@ __pycache__/
 
 # Generated validation outputs
 python_outputs/
+benchmark_outputs/

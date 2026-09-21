@@ -38,6 +38,22 @@ class _BoundaryFace:
     value: float
 
 
+@dataclass(frozen=True)
+class PreparedPhasorModel:
+    """Frequency-independent matrices and geometry shared by experiments.
+
+    Keeping the derivative geometry here avoids repeating the most expensive
+    assembly work when a test case contains several pumping periods.
+    """
+
+    steady: sparse.csc_matrix
+    omega_part: sparse.csc_matrix
+    boundary_rhs: sparse.csc_matrix
+    edges: list[_Edge]
+    boundary_faces: list[_BoundaryFace]
+    cell_volume: np.ndarray
+
+
 def _as_3d(values: np.ndarray, shape: tuple[int, int, int], name: str) -> np.ndarray:
     array = np.asarray(values, dtype=float)
     if array.size != int(np.prod(shape)):
@@ -161,11 +177,23 @@ def phasor_model_form(
     term is returned without omega, so callers form ``A + omega * Aomega``.
     """
 
+    edges, boundary_faces, cell_volume = _geometry(domain, boundaries, conductivity)
+    return _form_from_geometry(domain, specific_storage, edges, boundary_faces, cell_volume)
+
+
+def _form_from_geometry(
+    domain: Domain,
+    specific_storage: np.ndarray,
+    edges: list[_Edge],
+    boundary_faces: list[_BoundaryFace],
+    cell_volume: np.ndarray,
+) -> tuple[sparse.csc_matrix, sparse.csc_matrix, sparse.csc_matrix]:
+    """Assemble sparse matrices from already-computed geometry."""
+
     dx, dy, dz = np.diff(domain.x), np.diff(domain.y), np.diff(domain.z)
     shape = (len(dy), len(dx), len(dz))
     n_cells = int(np.prod(shape))
     Ss = _as_3d(specific_storage, shape, "specific_storage").reshape(-1, order="F")
-    edges, boundary_faces, cell_volume = _geometry(domain, boundaries, conductivity)
 
     rows: list[int] = []
     cols: list[int] = []
@@ -173,6 +201,8 @@ def phasor_model_form(
     diagonal = np.zeros(n_cells)
 
     for edge in edges:
+        # Flux leaving either cell enters the other, producing equal positive
+        # diagonal terms and equal negative off-diagonal conductances.
         diagonal[edge.p] += edge.conductance
         diagonal[edge.q] += edge.conductance
         rows.extend((edge.p, edge.q))
@@ -181,6 +211,7 @@ def phasor_model_form(
 
     bbc = np.zeros(n_cells)
     for face in boundary_faces:
+        # A prescribed head adds conductance to A and conductance*head to b.
         diagonal[face.p] += face.conductance
         bbc[face.p] += face.conductance * face.value
 
@@ -188,9 +219,33 @@ def phasor_model_form(
     cols.extend(range(n_cells))
     data.extend(diagonal)
     steady = sparse.csc_matrix((data, (rows, cols)), shape=(n_cells, n_cells))
+    # Oscillatory storage contributes i*omega*Ss*volume.  NumPy/SciPy natively
+    # preserve this complex matrix arithmetic; no real/imaginary workaround is
+    # required compared with MATLAB.
     omega_part = sparse.diags(1j * Ss * cell_volume, format="csc")
     boundary_rhs = sparse.csc_matrix(bbc[:, None])
     return steady, omega_part, boundary_rhs
+
+
+def prepare_phasor_model(
+    domain: Domain,
+    boundaries: Boundaries,
+    conductivity: np.ndarray,
+    specific_storage: np.ndarray,
+) -> PreparedPhasorModel:
+    """Precompute matrices shared by every frequency in one model run.
+
+    The MATLAB wrappers rebuild these frequency-independent quantities for
+    each omega group. Reusing them is the first targeted Python optimization.
+    """
+
+    edges, boundary_faces, cell_volume = _geometry(domain, boundaries, conductivity)
+    steady, omega_part, boundary_rhs = _form_from_geometry(
+        domain, specific_storage, edges, boundary_faces, cell_volume
+    )
+    return PreparedPhasorModel(
+        steady, omega_part, boundary_rhs, edges, boundary_faces, cell_volume
+    )
 
 
 def phasor_model_obssens(
@@ -202,6 +257,7 @@ def phasor_model_obssens(
     *,
     compute_field: bool = False,
     compute_sensitivities: bool = False,
+    prepared: PreparedPhasorModel | None = None,
 ) -> tuple[np.ndarray, np.ndarray | None, tuple[np.ndarray, np.ndarray] | None]:
     """Simulate complex observations and optionally calculate sensitivities.
 
@@ -209,10 +265,14 @@ def phasor_model_obssens(
     higher-level forward wrapper applies the chain rule for log parameters.
     """
 
-    steady, omega_part, boundary_rhs = phasor_model_form(
-        domain, boundaries, conductivity, specific_storage
-    )
+    if prepared is None:
+        prepared = prepare_phasor_model(domain, boundaries, conductivity, specific_storage)
+    steady = prepared.steady
+    omega_part = prepared.omega_part
+    boundary_rhs = prepared.boundary_rhs
     system = (steady + float(experiment.omega) * omega_part).tocsc()
+    # Factor A(omega) once, then solve every distinct stimulus at this frequency
+    # as multiple right-hand sides in a single call.
     solver = splu(system)
     stims = experiment.stims.tocsc()
     obs = experiment.obs.tocsc()
@@ -222,6 +282,8 @@ def phasor_model_obssens(
     tests = np.asarray(experiment.tests, dtype=int)
     simulated = np.empty(tests.shape[0], dtype=complex)
     for test_number, (stim_type, obs_type) in enumerate(tests):
+        # Sparse interpolation weights turn cell-centered complex heads into the
+        # requested well observation for each pump/observation test pairing.
         simulated[test_number] = complex((obs[:, obs_type].T @ phi[:, stim_type]).item())
 
     sensitivities: tuple[np.ndarray, np.ndarray] | None = None
@@ -229,7 +291,9 @@ def phasor_model_obssens(
         dx, dy, dz = np.diff(domain.x), np.diff(domain.y), np.diff(domain.z)
         shape = (len(dy), len(dx), len(dz))
         n_cells = int(np.prod(shape))
-        edges, boundary_faces, cell_volume = _geometry(domain, boundaries, conductivity)
+        edges = prepared.edges
+        boundary_faces = prepared.boundary_faces
+        cell_volume = prepared.cell_volume
 
         # MATLAB uses A.' here.  SciPy's .T is likewise non-conjugating.
         adjoint = splu(system.T.tocsc()).solve(obs.toarray())
@@ -268,6 +332,8 @@ def phasor_model_obssens(
             lam = adjoint[:, obs_type]
             h_k[test_number, :] = np.asarray(lam.T @ residual_derivative).reshape(-1)
 
+            # d(A*phi-b)/dSs is i*omega*volume*phi; implicit differentiation
+            # contributes the leading minus sign before the adjoint product.
             storage_rhs = -1j * float(experiment.omega) * cell_volume * field
             h_ss[test_number, :] = lam * storage_rhs
 

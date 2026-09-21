@@ -6,10 +6,12 @@ the MATLAB workflow, while the phasor solver itself receives physical values.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+
 import numpy as np
 
 from .models import Boundaries, Domain, Experiment
-from .phasor import phasor_model_obssens
+from .phasor import phasor_model_obssens, prepare_phasor_model
 
 
 def run_distributed_k_ss(
@@ -18,6 +20,8 @@ def run_distributed_k_ss(
     boundaries: Boundaries,
     experiments: list[Experiment],
     mode: int = 1,
+    *,
+    workers: int = 1,
 ) -> np.ndarray:
     """Run the forward model in one of the original MATLAB output modes.
 
@@ -30,6 +34,8 @@ def run_distributed_k_ss(
     if parameters.size % 2:
         raise ValueError("params must contain equal-sized ln(K) and ln(Ss) fields")
     n_cells = parameters.size // 2
+    # Inversions operate in log space so K and Ss remain positive.  Exponentiate
+    # only at the solver boundary, exactly as OHT_run_distribKSs.m does.
     conductivity = np.exp(parameters[:n_cells])
     specific_storage = np.exp(parameters[n_cells:])
 
@@ -37,9 +43,15 @@ def run_distributed_k_ss(
     fields: list[np.ndarray] = []
     h_k_parts: list[np.ndarray] = []
     h_ss_parts: list[np.ndarray] = []
+    # Geometry and material matrices do not change between pumping periods;
+    # prepare them once and reuse them for every frequency-specific solve.
+    prepared = prepare_phasor_model(domain, boundaries, conductivity, specific_storage)
 
-    for experiment in experiments:
-        simulated, field, sensitivities = phasor_model_obssens(
+    if workers < 1:
+        raise ValueError("workers must be at least 1")
+
+    def run_experiment(experiment: Experiment):
+        return phasor_model_obssens(
             domain,
             boundaries,
             experiment,
@@ -47,16 +59,33 @@ def run_distributed_k_ss(
             specific_storage,
             compute_field=mode == 2,
             compute_sensitivities=mode == 3,
+            prepared=prepared,
         )
-        observations.append(simulated)
-        if field is not None:
-            fields.append(field)
-        if sensitivities is not None:
-            h_k_parts.append(sensitivities[0])
-            h_ss_parts.append(sensitivities[1])
+
+    if workers == 1 or len(experiments) == 1:
+        experiment_results = map(run_experiment, experiments)
+    else:
+        # Each frequency group is independent after preparation, so it is safe
+        # to solve groups concurrently.  executor.map preserves input ordering.
+        executor = ThreadPoolExecutor(max_workers=workers)
+        experiment_results = executor.map(run_experiment, experiments)
+
+    try:
+        for simulated, field, sensitivities in experiment_results:
+            observations.append(simulated)
+            if field is not None:
+                fields.append(field)
+            if sensitivities is not None:
+                h_k_parts.append(sensitivities[0])
+                h_ss_parts.append(sensitivities[1])
+    finally:
+        if workers > 1 and len(experiments) > 1:
+            executor.shutdown()
 
     if mode == 1:
         combined = np.concatenate(observations)
+        # MATLAB inversion vectors store all real observations first, followed
+        # by all imaginary observations; do not interleave complex components.
         return np.concatenate((combined.real, combined.imag))
 
     if mode == 2:
@@ -98,6 +127,7 @@ def run_amplitude_distributed_k(
     observation_parts: list[np.ndarray] = []
     field_parts: list[np.ndarray] = []
     sensitivity_parts: list[np.ndarray] = []
+    prepared = prepare_phasor_model(domain, boundaries, conductivity, storage)
 
     for experiment in experiments:
         observations, field, sensitivities = phasor_model_obssens(
@@ -108,6 +138,7 @@ def run_amplitude_distributed_k(
             storage,
             compute_field=mode in (2, 3),
             compute_sensitivities=mode == 3,
+            prepared=prepared,
         )
         if mode == 1:
             observation_parts.append(np.abs(observations))
@@ -119,6 +150,8 @@ def run_amplitude_distributed_k(
             log_k_sensitivity = sensitivities[0] * conductivity[None, :]
             amplitude = np.abs(observations)
             safe_amplitude = np.where(amplitude == 0.0, np.finfo(float).eps, amplitude)
+            # For z=a+ib, d|z|/dp=(a*da/dp+b*db/dp)/|z|.  The epsilon guard
+            # makes this derivative finite when a simulated amplitude is zero.
             sensitivity_parts.append(
                 observations.real[:, None] / safe_amplitude[:, None] * log_k_sensitivity.real
                 + observations.imag[:, None] / safe_amplitude[:, None] * log_k_sensitivity.imag
@@ -157,12 +190,15 @@ def run_distributed_aperture(
         raise ValueError("water_properties must contain density, viscosity, compressibility, and gravity")
     density, viscosity, compressibility, gravity = properties
     aperture = np.exp(np.asarray(params, dtype=float).reshape(-1))
+    # Parallel-plate fracture physics: transmissivity follows the cubic law,
+    # while fracture storage is linear in hydraulic aperture.
     transmissivity = density * gravity * aperture**3 / (12.0 * viscosity)
     storage = density * gravity * compressibility * aperture
 
     observations_parts: list[np.ndarray] = []
     fields: list[np.ndarray] = []
     sensitivities_parts: list[np.ndarray] = []
+    prepared = prepare_phasor_model(domain, boundaries, transmissivity, storage)
     for experiment in experiments:
         observations, field, sensitivities = phasor_model_obssens(
             domain,
@@ -172,6 +208,7 @@ def run_distributed_aperture(
             storage,
             compute_field=mode == 2,
             compute_sensitivities=mode == 3,
+            prepared=prepared,
         )
         observations_parts.append(observations)
         if field is not None:

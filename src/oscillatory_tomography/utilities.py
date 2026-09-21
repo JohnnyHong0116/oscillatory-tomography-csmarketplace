@@ -32,6 +32,8 @@ def compute_covariance_nd(
 ) -> np.ndarray:
     """Compute an isotropic covariance matrix, porting ``compute_Q_nD.m``."""
 
+    # Stationarity/isotropy reduces the covariance input to pairwise distance;
+    # the caller supplies the actual kernel and its parameters.
     distances = euclidean_distance(unknown_coordinates)
     return np.asarray(covariance_function(distances, covariance_parameters))
 
@@ -49,8 +51,11 @@ def image_to_field(
         pixels = np.asarray(image, dtype=float)
         if pixels.ndim == 2:
             pixels = np.repeat(pixels[:, :, None], 3, axis=2)
+    # The MATLAB helper uses the arithmetic mean of RGB channels as brightness,
+    # then maps black->black_value and white->white_value linearly.
     brightness = pixels[:, :, :3].sum(axis=2) / 3.0
     field = brightness / 255.0 * (white_value - black_value) + black_value
+    # Image rows run top-to-bottom, whereas model y coordinates run bottom-up.
     return np.flipud(field)
 
 
@@ -74,6 +79,8 @@ def rotate_2d(points: np.ndarray, clockwise_angle_degrees: float) -> np.ndarray:
     values = np.asarray(points, dtype=float)
     if values.ndim != 2 or values.shape[1] != 2:
         raise ValueError("points must have shape (n, 2)")
+    # Standard rotation matrices are counter-clockwise, hence the negative sign
+    # for this function's clockwise-angle convention.
     angle = np.deg2rad(-clockwise_angle_degrees)
     rotation = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
     return values @ rotation.T

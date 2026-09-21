@@ -27,3 +27,5 @@ The regression tests read `testing_inversion_currtest.mat` and compare Python
 against the saved MATLAB inputs, observations, fields, and sensitivities.
 See `docs/MATLAB_BASELINE.md` for validation results and known limitations.
 See `docs/PYTHON_PORT_STATUS.md` for the file-by-file translation map.
+See `docs/PERFORMANCE_BENCHMARK.md` for MATLAB/Python correctness, CPU-time,
+wall-time, memory, and optimization measurements.
