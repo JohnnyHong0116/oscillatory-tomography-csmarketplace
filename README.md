@@ -13,7 +13,7 @@ From PowerShell:
 
 ```powershell
 py -3.10 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[test]"
+.\.venv\Scripts\python.exe -m pip install -e ".[test,benchmark]"
 .\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\python.exe examples\testing_inversion_2d_geostat.py
 .\.venv\Scripts\python.exe examples\testing_multifreq_analyt_blackkipp_comparison.py
@@ -29,3 +29,5 @@ See `docs/MATLAB_BASELINE.md` for validation results and known limitations.
 See `docs/PYTHON_PORT_STATUS.md` for the file-by-file translation map.
 See `docs/PERFORMANCE_BENCHMARK.md` for MATLAB/Python correctness, CPU-time,
 wall-time, memory, and optimization measurements.
+See `docs/SCALING_BENCHMARK.md` for the 1,250-to-80,000-parameter inversion
+scaling and peak-memory comparison.

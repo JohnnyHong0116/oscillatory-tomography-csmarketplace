@@ -169,3 +169,11 @@ matlab -batch "addpath('benchmarks'); matlab_p10_benchmark"
 Generated raw benchmark arrays and JSON files are stored under the ignored
 `benchmark_outputs/` directory. They can be regenerated from the committed
 benchmark scripts; large binary outputs are not committed.
+
+## Parameter and memory scaling follow-up
+
+The follow-up benchmark varies the original 2-D inversion grid from 25×25 to
+200×200 cells (1,250 to 80,000 unknown parameters), compares one Jacobian and
+linearized inverse step in both languages, and externally samples peak process
+memory. See [`SCALING_BENCHMARK.md`](SCALING_BENCHMARK.md) for the complete
+method, results, interpretation, and reproduction command.

@@ -29,13 +29,19 @@ from oscillatory_tomography.grid import dimdist
 def build_case(
     periods: np.ndarray | None = None,
     truth: str = "checkerboard",
+    grid_cells: int = 50,
 ) -> dict[str, object]:
     """Describe the setup for the forward models."""
 
+    if grid_cells < 2:
+        raise ValueError("grid_cells must be at least 2")
+
     # PARAMETERS: Associated with domain and testing setup.
     domain = Domain(
-        x=np.arange(-50.0, 50.0 + 2.0, 2.0),
-        y=np.arange(-50.0, 50.0 + 2.0, 2.0),
+        # The original MATLAB case uses 50 cells in each direction. Making
+        # this count configurable supports controlled inversion-scaling tests.
+        x=np.linspace(-50.0, 50.0, grid_cells + 1),
+        y=np.linspace(-50.0, 50.0, grid_cells + 1),
         z=np.array([0.0, 1.0]),
     )
 
@@ -90,9 +96,14 @@ def build_case(
     # For synthetic problem: true parameter field statistics. The MATLAB
     # default is checkerboard; its second branch is a geostatistical field.
     if truth == "checkerboard":
-        checkerboard = np.sign(np.sin(np.pi * x_grid / x_check_length)) * np.sign(
-            np.sin(np.pi * y_grid / y_check_length)
-        )
+        x_wave = np.sin(np.pi * x_grid / x_check_length)
+        y_wave = np.sin(np.pi * y_grid / y_check_length)
+        # At an exact checkerboard boundary sin(pi*x/L) is mathematically zero,
+        # but MATLAB and NumPy can round its sign differently. Snap those tiny
+        # values to zero so parameterized grids remain cross-language identical.
+        x_wave[np.abs(x_wave) < 1e-12] = 0.0
+        y_wave[np.abs(y_wave) < 1e-12] = 0.0
+        checkerboard = np.sign(x_wave) * np.sign(y_wave)
         ln_k_true_grid = ln_k_mean + checkerboard * ln_k_jump
         ln_ss_true_grid = ln_ss_mean + checkerboard * ln_ss_jump
     elif truth == "geostatistical":
@@ -177,10 +188,16 @@ def main() -> None:
         help="use the current MATLAB periods 10, 50, 100, 200, 400, 800, and 1600 s",
     )
     parser.add_argument("--truth", choices=("checkerboard", "geostatistical"), default="checkerboard")
+    parser.add_argument(
+        "--grid-cells",
+        type=int,
+        default=50,
+        help="number of cells along x and y (default: original 50-by-50 grid)",
+    )
     parser.add_argument("--output", type=Path, default=Path("python_outputs/p10_inversion.png"))
     args = parser.parse_args()
     periods = np.array([10, 50, 100, 200, 400, 800, 1600], dtype=float) if args.all_periods else None
-    case = build_case(periods=periods, truth=args.truth)
+    case = build_case(periods=periods, truth=args.truth, grid_cells=args.grid_cells)
     forward = lambda parameters: run_distributed_k_ss(
         parameters, case["domain"], case["boundaries"], case["experiments"], 1
     )
