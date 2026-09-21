@@ -61,7 +61,7 @@ def build_case(
     # sorted by angular frequency and pumping well (the first two columns).
     volume = 0.01
     if periods is None:
-        periods = np.array([10.0])  # Professor-approved baseline stored in the .mat file.
+        periods = np.array([10.0])  # Professor-selected baseline period.
     test_rows: list[list[float]] = []
     for period in periods:
         for pump in range(1, len(well_locs) + 1):

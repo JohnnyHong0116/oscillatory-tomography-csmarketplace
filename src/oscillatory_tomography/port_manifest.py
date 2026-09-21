@@ -1,10 +1,8 @@
 """Machine-readable map from every original MATLAB file to its Python port.
 
-The manifest is intentionally explicit.  It lets the test suite detect a new
-or renamed MATLAB source file that has not yet been reviewed for translation,
-and confirms that the named Python function actually exists in its target
-module.  Benchmark-only MATLAB files under ``benchmarks/`` are not originals
-and therefore are not included here.
+The manifest is intentionally explicit. It records the 26 source files in the
+upstream MATLAB repository and lets this Python-only branch confirm that each
+named Python function still exists in its target module.
 """
 
 from __future__ import annotations

@@ -11,11 +11,11 @@ from oscillatory_tomography.port_manifest import MATLAB_PORTS
 REPOSITORY = Path(__file__).resolve().parents[1]
 
 
-def test_every_original_matlab_file_has_a_python_counterpart():
-    # Original scientific MATLAB sources live at repository root.  MATLAB
-    # benchmark drivers under benchmarks/ were added during the Python port.
-    matlab_sources = {path.name for path in REPOSITORY.glob("*.m")}
-    assert set(MATLAB_PORTS) == matlab_sources
+def test_manifest_records_all_26_original_matlab_entry_points():
+    # The Python-only branch intentionally omits the source .m files. Keep the
+    # audited upstream file count and unique MATLAB names as stable metadata.
+    assert len(MATLAB_PORTS) == 26
+    assert all(name.endswith(".m") for name in MATLAB_PORTS)
 
 
 def test_every_manifest_entry_names_a_real_python_function():
