@@ -143,6 +143,31 @@ The recorded columns include parameter count, Jacobian size, Jacobian runtime,
 linearized-inverse runtime, total scientific runtime, and peak process memory.
 The generated files are ignored by Git and can be safely deleted and recreated.
 
+#### Recorded Python result
+
+The following result was measured on Johnny's laptop on September 21, 2026:
+
+- Windows 11
+- Intel Core Ultra 9 185H
+- 31.42 GiB system memory
+- Python 3.10.11, NumPy 2.2.6, and SciPy 1.15.3
+- Peak process-tree resident memory sampled every 10 ms
+
+| Grid | Parameters | Jacobian shape | Raw Jacobian (MiB) | Peak RSS (MiB) | Jacobian (s) | Linear inverse (s) | Scientific total (s) |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 25×25 | 1,250 | 72×1,250 | 0.687 | 97.8 | 0.0929 | 0.0321 | 0.1466 |
+| 50×50 | 5,000 | 72×5,000 | 2.747 | 109.1 | 0.3939 | 0.0717 | 0.5230 |
+| 75×75 | 11,250 | 72×11,250 | 6.180 | 125.0 | 0.9363 | 0.4220 | 1.5912 |
+| 100×100 | 20,000 | 72×20,000 | 10.986 | 150.2 | 2.1862 | 0.5998 | 3.6452 |
+| 150×150 | 45,000 | 72×45,000 | 24.719 | 217.0 | 5.3119 | 3.4229 | 11.1422 |
+| 200×200 | 80,000 | 72×80,000 | 43.945 | 329.1 | 11.3330 | 6.1468 | 24.0224 |
+
+The scientific total includes setup, two forward calculations, construction
+of the complete analytic Jacobian, and one linearized geostatistical inverse
+step. Runtime and peak memory will vary with hardware, operating system, and
+installed numerical libraries, so another machine should regenerate the table
+with the command above.
+
 To run one complete nonlinear inversion at a selected resolution instead:
 
 ```powershell
