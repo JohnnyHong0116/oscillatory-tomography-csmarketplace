@@ -1,7 +1,6 @@
 """P=10 Python transcription of ``testing_inversion_2D_geostat.m``.
 
-This is the professor-approved first transcription case.  It retains the
-scientific setup and section comments from the MATLAB script while replacing
+It retains the scientific setup and section comments from the MATLAB script while replacing
 MATLAB plotting and matrix syntax with NumPy, SciPy, and Matplotlib.
 """
 
