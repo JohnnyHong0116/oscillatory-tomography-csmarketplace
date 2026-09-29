@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { StepId, TestCaseType, ModelConfig, AnalysisResult } from './types/aquifer';
 import { BLACK_KIPP_CONFIG, DEFAULT_INVERSION_CONFIG } from './data/presets';
 
@@ -18,6 +18,7 @@ import { DocumentationModal } from './components/modals/DocumentationModal';
 import { AboutModal } from './components/modals/AboutModal';
 
 export default function App() {
+  const workspaceRef = useRef<HTMLElement>(null);
   const [currentStep, setCurrentStep] = useState<StepId>(1);
   const [completedSteps, setCompletedSteps] = useState<Set<StepId>>(new Set());
   const [testCase, setTestCase] = useState<TestCaseType>('inversion_10s');
@@ -33,6 +34,13 @@ export default function App() {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isDocsOpen, setIsDocsOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+
+  // The central workspace owns the page scroll. Reset it whenever workflow
+  // navigation mounts a new step so buttons near the previous step's footer
+  // do not leave the next screen positioned at its bottom.
+  useLayoutEffect(() => {
+    workspaceRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [currentStep]);
 
   const handleSelectTestCase = (tc: TestCaseType) => {
     if (tc === 'field_data') return;
@@ -94,7 +102,7 @@ export default function App() {
         />
 
         {/* Central Workspace */}
-        <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <main ref={workspaceRef} className="flex-1 flex flex-col min-w-0 overflow-y-auto">
           {/* Top Workflow Stepper */}
           <WorkflowStepper
             currentStep={currentStep}

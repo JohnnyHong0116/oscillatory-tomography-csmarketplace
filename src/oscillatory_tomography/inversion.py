@@ -169,8 +169,9 @@ def quasi_linear_geostatistical_inverse(
 ) -> InversionResult:
     """Run Kitanidis' quasi-linear geostatistical method.
 
-    Defaults mirror ``ql_geostat_inv.m``.  The optional progress callback
-    receives ``(iteration, NLAP)`` after each accepted iteration.
+    Defaults mirror ``ql_geostat_inv.m``. The optional progress callback
+    receives ``(iteration, trial_NLAP)`` after each outer gradient evaluation;
+    the final trial can be rejected when the preceding iterate has lower NLAP.
     """
 
     y = np.asarray(data, dtype=float).reshape(-1)

@@ -80,7 +80,7 @@ function markdown(config: ModelConfig, result: AnalysisResult) {
     `- Grid: ${config.gridNx} x ${config.gridNy} (${config.gridNx * config.gridNy} cells)`,
     `- Wells: ${config.wells.length}`, `- Tests: ${config.tests.length}`, `- Response pairs: ${result.pairs.length}`,
     `- Solver runtime: ${result.runtimeSeconds.toFixed(3)} s`,
-    `- Accepted inversion iterations: ${result.iterations}`,
+    `- Outer inversion iterations: ${result.iterations}`,
     `- Final objective: ${result.objective?.toPrecision(7) ?? 'N/A'}`, '',
     '## Diagnostics', '',
     `- Complex response RMSE: ${diagnostics?.responseRmse.toExponential(5) ?? 'N/A'}`,

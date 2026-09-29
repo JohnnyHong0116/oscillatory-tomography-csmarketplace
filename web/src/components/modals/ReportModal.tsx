@@ -39,7 +39,7 @@ export const ReportModal: React.FC<Props> = ({ isOpen, onClose, config, result }
         </div>
         <section><h2 className="font-bold mb-2">Experiment settings</h2>
           <p>Domain: x {config.minX}–{config.maxX} m, y {config.minY}–{config.maxY} m. Initial ln(K): {config.initialLnK}; initial ln(Ss): {config.initialLnSs}. Data error variance: {config.dataErrorVar} m².</p>
-          {result.mode === 'inversion' && <p>Accepted inverse iterations: {result.iterations}; final objective: {result.objective?.toPrecision(5)}.</p>}
+          {result.mode === 'inversion' && <p>Outer inversion iterations: {result.iterations}; final retained objective: {result.objective?.toPrecision(5)}.</p>}
         </section>
         <section><h2 className="font-bold mb-2">Test configuration</h2>
           <div className="space-y-1">{config.tests.map((test) => <p key={test.id}>{test.name}: pump {config.wells.find((well) => well.id === test.pumpingWellId)?.name}; observe {test.observationWellIds.map((id) => config.wells.find((well) => well.id === id)?.name).join(', ')}; period {test.pumpingPeriod ?? config.pumpingPeriod} s.</p>)}</div>

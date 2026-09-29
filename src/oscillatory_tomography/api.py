@@ -222,7 +222,12 @@ def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
     sensitivity_fields = None
     objective_history: list[dict] = []
     if truth is not None:
-        measured = predicted.copy()
+        # Preserve exact parity with the original P=10 script, which creates
+        # the complete 36-pair synthetic data vector in one joint forward
+        # call. The per-test solves above remain useful for truthful progress
+        # reporting, but tiny floating-point ordering differences from
+        # concatenating those solves should not become inversion input.
+        measured = forward(truth)
         true_fields = {
             "lnK": _field(truth[:n_cells], request.gridNy, request.gridNx),
             "lnSs": _field(truth[n_cells:], request.gridNy, request.gridNx),

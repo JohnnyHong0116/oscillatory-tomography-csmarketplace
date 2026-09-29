@@ -2,11 +2,15 @@
 
 import math
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from oscillatory_tomography.api import AnalyzeRequest, analyze, app
+from oscillatory_tomography.api import AnalyzeRequest, _checkerboard_truth, analyze, app
+from oscillatory_tomography.forward import run_distributed_k_ss
+from oscillatory_tomography.grid import create_inputs
+from oscillatory_tomography.models import Boundaries, Domain
 
 
 def request_payload() -> dict:
@@ -75,6 +79,43 @@ def test_baseline_iteration_budget_is_allowed_and_bounded():
     payload["maxIterations"] = 51
     with pytest.raises(ValidationError):
         AnalyzeRequest.model_validate(payload)
+
+
+def test_synthetic_demo_uses_joint_baseline_observation_vector():
+    payload = request_payload()
+    payload["analysisMode"] = "synthetic_demo"
+    payload["tests"][1]["pumpingPeriod"] = 10
+    request = AnalyzeRequest.model_validate(payload)
+    result = analyze(request)
+
+    # The synthetic measurements are the original workflow's joint forward
+    # response, rather than a concatenation of independently solved tests.
+    measured = np.r_[
+        [pair["measured"]["real"] for pair in result["pairs"]],
+        [pair["measured"]["imag"] for pair in result["pairs"]],
+    ]
+    domain = Domain(
+        x=np.linspace(request.minX, request.maxX, request.gridNx + 1),
+        y=np.linspace(request.minY, request.maxY, request.gridNy + 1),
+        z=np.array([0.0, 1.0]),
+    )
+    sides = ("west", "east", "south", "north", "bottom", "top")
+    boundaries = Boundaries(
+        types=np.array([int(request.boundaries[side] == "constant_head") for side in sides]),
+        values=np.zeros(6),
+    )
+    well_index = {well.id: index + 1 for index, well in enumerate(request.wells)}
+    rows = np.asarray([
+        (2 * np.pi / test.pumpingPeriod, well_index[test.pumpingWellId], test.pumpingRate, well_index[observation_id])
+        for test in request.tests
+        for observation_id in test.observationWellIds
+    ])
+    experiments = create_inputs(
+        np.array([[well.x, well.y] for well in request.wells]), rows, domain,
+    )
+    truth = _checkerboard_truth(domain)
+    expected = run_distributed_k_ss(truth, domain, boundaries, experiments, 1)
+    np.testing.assert_allclose(measured, expected, rtol=0, atol=0)
 
 
 def test_inversion_returns_fields_from_measured_phasors():

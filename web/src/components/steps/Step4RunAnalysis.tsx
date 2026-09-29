@@ -19,6 +19,7 @@ export const Step4RunAnalysis: React.FC<Props> = ({ config, onResult, onExplore,
   const [ready, setReady] = useState(false);
   const controller = useRef<AbortController | null>(null);
   const lastEvent = useRef('');
+  const consoleRef = useRef<HTMLDivElement>(null);
   const tests = config.tests;
   const activeTest = tests.find((test) => test.id === selectedTestId) ?? tests[0];
   const pairs = tests.flatMap((test) => test.observationWellIds.map((wellId) => ({ test, wellId })));
@@ -30,6 +31,10 @@ export const Step4RunAnalysis: React.FC<Props> = ({ config, onResult, onExplore,
     const timer = window.setInterval(() => setElapsed((Date.now() - started) / 1000), 100);
     return () => window.clearInterval(timer);
   }, [running]);
+  useEffect(() => {
+    const consoleElement = consoleRef.current;
+    if (consoleElement) consoleElement.scrollTop = consoleElement.scrollHeight;
+  }, [events]);
 
   const run = async () => {
     setError(null); setProgress(null); setCompleted([]); setEvents([]); setElapsed(0); setReady(false);
@@ -102,7 +107,7 @@ export const Step4RunAnalysis: React.FC<Props> = ({ config, onResult, onExplore,
       </div>
     </div>
 
-    <div className="bg-[#0A0A0A] rounded-xl text-white overflow-hidden"><div className="bg-[#181818] p-3 flex gap-2 text-xs font-bold"><Terminal size={16} className="text-[#C5050C]" /> Execution console ({events.length} events)</div><div className="p-3 font-mono text-xs max-h-44 overflow-auto" aria-label="Solver events">{events.length ? events.map((event, index) => <div key={index} className="py-1"><span className="text-[#6B7280]">[{event.time}]</span> <span className="text-[#F87171]">[{index === events.length - 1 ? 'ACTIVE' : 'DONE'}]</span> <span className="text-[#E5E7EB]">{event.message}</span></div>) : <span className="text-[#888]">No solver events yet.</span>}</div></div>
+    <div className="bg-[#0A0A0A] rounded-xl text-white overflow-hidden"><div className="bg-[#181818] p-3 flex gap-2 text-xs font-bold"><Terminal size={16} className="text-[#C5050C]" /> Execution console ({events.length} events)</div><div ref={consoleRef} className="p-3 font-mono text-xs max-h-44 overflow-auto" role="log" aria-live="polite" aria-relevant="additions" aria-label="Solver events">{events.length ? events.map((event, index) => <div key={index} className="py-1"><span className="text-[#6B7280]">[{event.time}]</span> <span className="text-[#F87171]">[{index === events.length - 1 ? 'ACTIVE' : 'DONE'}]</span> <span className="text-[#E5E7EB]">{event.message}</span></div>) : <span className="text-[#888]">No solver events yet.</span>}</div></div>
     {error && <p role="alert" className="text-sm text-[#9B0000] bg-[#FEF2F2] p-3 rounded-md">{error}</p>}
     <div className="flex justify-between gap-3"><button onClick={onPrev} disabled={running} className="flex items-center gap-2 px-4 py-2 border rounded-md text-sm disabled:opacity-50"><ArrowLeft size={16} /> Back to review</button><div className="flex gap-2">{ready && <button onClick={onExplore} className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#15803D] text-white font-semibold text-sm">Explore results <ArrowRight size={16} /></button>}<button onClick={run} disabled={running} className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#C5050C] text-white font-semibold text-sm disabled:opacity-50">{running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}{running ? 'Solving…' : ready ? 'Run again' : config.testCase === 'black_kipp' ? 'Run comparison' : analysisMode === 'synthetic_demo' ? 'Run original P=10 inversion' : analysisMode === 'measured_inversion' ? 'Run measured inversion' : 'Run forward model'}</button></div></div>
   </div>;
