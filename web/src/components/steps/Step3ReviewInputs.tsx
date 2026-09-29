@@ -106,7 +106,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
       id: 'missing-tests',
       type: 'error',
       title: 'No Tomography Tests Configured',
-      message: 'At least 1 tomography test is required before running inversion analysis.',
+      message: 'At least one pumping test is required before running analysis.',
     });
   } else {
     tests.forEach((t) => {
@@ -732,7 +732,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
               : 'bg-[#C5050C] hover:bg-[#9B0000] text-white'
           }`}
         >
-          <span>Run Tomographic Analysis</span>
+          <span>{testCase === 'black_kipp' ? 'Run Black–Kipp Comparison' : 'Run Tomographic Analysis'}</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>

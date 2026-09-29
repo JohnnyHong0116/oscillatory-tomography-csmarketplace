@@ -101,6 +101,22 @@ export interface AnalysisPair {
   predicted: { real: number; imag: number; amplitude: number; phaseDegrees: number };
   measured: { real: number; imag: number } | null;
   residualAmplitude: number | null;
+  analytical?: { amplitude: number; phaseDegrees: number };
+  numericalPhaseDegrees?: number;
+  amplitudeRelativeError?: number;
+  phaseErrorDegrees?: number;
+}
+
+export interface AnalysisProgress {
+  status: 'queued' | 'running' | 'complete' | 'failed';
+  stage: string;
+  percent: number;
+  testId: string | null;
+  message: string;
+  result: AnalysisResult | null;
+  error: string | null;
+  completedTestIds: string[];
+  events: string[];
 }
 
 export interface AnalysisResult {

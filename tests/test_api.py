@@ -80,3 +80,67 @@ def test_inversion_returns_fields_from_measured_phasors():
     assert inverse["iterations"] >= 1
     assert len(inverse["fields"]["lnK"]) == 5
     assert max(item["residualAmplitude"] for item in inverse["pairs"]) < 1e-3
+
+
+def test_black_kipp_returns_analytical_comparison():
+    payload = request_payload()
+    payload["testCase"] = "black_kipp"
+    result = analyze(AnalyzeRequest.model_validate(payload))
+    assert result["mode"] == "forward"
+    assert all(math.isfinite(item["analytical"]["amplitude"]) for item in result["pairs"])
+    assert all(0 <= item["phaseErrorDegrees"] <= 180 for item in result["pairs"])
+    payload["observations"] = []
+    with pytest.raises(ValidationError, match="forward-model comparison"):
+        AnalyzeRequest.model_validate(payload)
+
+
+def test_job_reports_real_completion_events():
+    import time
+
+    client = TestClient(app)
+    job_id = client.post("/api/v1/jobs", json=request_payload()).json()["jobId"]
+    for _ in range(100):
+        state = client.get(f"/api/v1/jobs/{job_id}").json()
+        if state["status"] in ("complete", "failed"):
+            break
+        time.sleep(0.05)
+    assert state["status"] == "complete", state["error"]
+    assert state["completedTestIds"] == ["t1", "t2"]
+    assert len(state["result"]["pairs"]) == 3
+
+
+def test_inverse_progress_reports_solver_iterations():
+    payload = request_payload()
+    forward = analyze(AnalyzeRequest.model_validate(payload))
+    payload["observations"] = [
+        {"testId": item["testId"], "wellId": item["observationWellId"],
+         "real": item["predicted"]["real"], "imag": item["predicted"]["imag"]}
+        for item in forward["pairs"]
+    ]
+    stages = []
+    analyze(AnalyzeRequest.model_validate(payload), lambda stage, percent, test_id, message: stages.append((stage, percent, test_id)))
+    assert [item[2] for item in stages if item[0] == "forward" and item[2] is not None] == ["t1", "t1", "t2", "t2"]
+    assert any(item[0] == "inversion" for item in stages)
+    assert stages[-1][:2] == ("complete", 100)
+
+
+def test_inverse_job_serializes_estimated_field():
+    import time
+
+    payload = request_payload()
+    forward = analyze(AnalyzeRequest.model_validate(payload))
+    payload["observations"] = [
+        {"testId": item["testId"], "wellId": item["observationWellId"],
+         "real": item["predicted"]["real"], "imag": item["predicted"]["imag"]}
+        for item in forward["pairs"]
+    ]
+    client = TestClient(app)
+    job_id = client.post("/api/v1/jobs", json=payload).json()["jobId"]
+    for _ in range(100):
+        state = client.get(f"/api/v1/jobs/{job_id}").json()
+        if state["status"] in ("complete", "failed"):
+            break
+        time.sleep(0.05)
+    assert state["status"] == "complete", state["error"]
+    assert state["result"]["mode"] == "inversion"
+    assert len(state["result"]["fields"]["lnK"]) == payload["gridNy"]

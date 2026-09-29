@@ -36,6 +36,14 @@ inverse solver and returns estimated ln(K) and ln(Ss) grids, predictions,
 residuals, iteration count, and objective value. The UI CSV header is
 `testId,wellId,real,imag`.
 
+The run screen uses `POST /api/v1/jobs` followed by `GET /api/v1/jobs/{id}`.
+This local single-process queue reports actual completed forward tests and
+inversion iterations, but does not support cancellation or survive a server
+restart. Black–Kipp mode performs forward solves and adds the analytical
+amplitude, phase, and errors for each pair. Its web preset is a reduced
+interactive subset of the full Python/MATLAB benchmark, not a claim of
+300×300-grid numerical equivalence.
+
 The API limits grids to 3–60 cells per axis, 30 wells, 30 tests, and 100
 test-observation pairs. These are application bounds, not scientific limits of
 the package; they keep synchronous local HTTP requests manageable. Larger
@@ -44,15 +52,15 @@ jobs should use an asynchronous worker and persistent result storage.
 ## Current scope and next work
 
 - The React results table, CSV, and report all read the same API result.
-- The Black–Kipp analytical example is still run through the Python CLI, not
-  through the web API. Its card is disabled in React.
+- Both P=10 tomography and Black–Kipp have working web presets and plotted
+  solver responses. Spatial field plots appear only after inversion.
 - Raw pressure time-series ingestion, phase extraction, uncertainty fields,
   long-running job control, and persistent experiments are future work.
 - `maxIterations`, data error variance, and correlation lengths affect the
   inversion. A forward-only run uses the initial ln(K)/ln(Ss) fields.
-- The UI calls the API synchronously. Closing the browser aborts the client
-  request, but the server computation may continue until its current solve
-  finishes. Do not treat browser cancellation as solver cancellation.
+- The UI polls an in-process solver job. Closing the browser stops polling,
+  but does not stop the Python solve. Do not treat browser navigation as solver
+  cancellation.
 
 ## Verification
 

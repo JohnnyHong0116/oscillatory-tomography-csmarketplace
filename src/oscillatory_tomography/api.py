@@ -9,9 +9,13 @@ from __future__ import annotations
 
 from pathlib import Path
 from time import perf_counter
-from typing import Literal
+from typing import Callable, Literal
+from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
+from uuid import uuid4
 
 import numpy as np
+from scipy.special import kv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -52,6 +56,7 @@ class ObservationInput(ApiModel):
 
 
 class AnalyzeRequest(ApiModel):
+    testCase: Literal["inversion_10s", "black_kipp"] = "inversion_10s"
     minX: float
     maxX: float
     minY: float
@@ -97,16 +102,26 @@ class AnalyzeRequest(ApiModel):
             if len(set(test.observationWellIds)) != len(test.observationWellIds) or not set(test.observationWellIds) <= set(well_ids):
                 raise ValueError(f"{test.name} has invalid observation wells")
             pairs.update((test.id, well_id) for well_id in test.observationWellIds)
+            if self.testCase == "black_kipp":
+                pump = self.wells[well_ids.index(test.pumpingWellId)]
+                if any((self.wells[well_ids.index(obs_id)].x, self.wells[well_ids.index(obs_id)].y) == (pump.x, pump.y)
+                       for obs_id in test.observationWellIds if obs_id in well_ids):
+                    raise ValueError("Black-Kipp analytical comparison requires a nonzero pump-observer distance")
         if len(pairs) > 100:
             raise ValueError("At most 100 test-observation pairs are supported")
         if self.observations is not None:
+            if self.testCase == "black_kipp":
+                raise ValueError("Black-Kipp is a forward-model comparison; measurements belong to tomography inversion")
             observed_pairs = [(item.testId, item.wellId) for item in self.observations]
             if len(observed_pairs) != len(pairs) or set(observed_pairs) != pairs:
                 raise ValueError("Supply exactly one real/imag observation for every test-observation pair")
         return self
 
 
-def analyze(request: AnalyzeRequest) -> dict:
+Progress = Callable[[str, int, str | None, str], None]
+
+
+def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
     """Translate UI IDs to MATLAB-style well numbers and solve the model."""
     started = perf_counter()
     wells = request.wells
@@ -136,12 +151,27 @@ def analyze(request: AnalyzeRequest) -> dict:
     n_cells = request.gridNx * request.gridNy
     initial = np.r_[np.full(n_cells, request.initialLnK), np.full(n_cells, request.initialLnSs)]
     forward = lambda params: run_distributed_k_ss(params, domain, boundaries, experiments, 1)
-    predicted = forward(initial)
+    # Solve each configured pumping test separately. This produces truthful
+    # per-test completion events for the run screen while retaining the joint
+    # experiment for the subsequent inversion and final prediction.
+    predicted = np.empty(2 * len(ordered_rows), dtype=float)
+    for test_number, test in enumerate(request.tests):
+        positions = [i for i, (mapped_test, _) in enumerate(ordered_mapping) if mapped_test.id == test.id]
+        if progress:
+            progress("forward", 5 + int(60 * test_number / len(request.tests)), test.id, f"Solving {test.name}")
+        subset = create_inputs(np.array([[well.x, well.y] for well in wells]), ordered_rows[positions], domain)
+        values = run_distributed_k_ss(initial, domain, boundaries, subset, 1)
+        predicted[positions] = values[:len(positions)]
+        predicted[np.asarray(positions) + len(ordered_rows)] = values[len(positions):]
+        if progress:
+            progress("forward", 5 + int(60 * (test_number + 1) / len(request.tests)), test.id, f"Completed {test.name}")
     mode = "forward"
     iterations = 0
     objective = None
     fields = None
     if request.observations is not None:
+        if progress:
+            progress("inversion", 66, None, "Starting joint geostatistical inversion")
         by_pair = {(item.testId, item.wellId): item for item in request.observations}
         actual = [by_pair[(test.id, well.id)] for test, well in ordered_mapping]
         measured = np.r_[[item.real for item in actual], [item.imag for item in actual]]
@@ -156,6 +186,7 @@ def analyze(request: AnalyzeRequest) -> dict:
             drift, request.dataErrorVar * np.eye(measured.size), covariance,
             forward, lambda params: run_distributed_k_ss(params, domain, boundaries, experiments, 3),
             max_gradient_evaluations=request.maxIterations,
+            progress=(lambda iteration, nlap: progress("inversion", min(95, 66 + int(29 * iteration / request.maxIterations)), None, f"Iteration {iteration}: objective {nlap:.5g}")) if progress else None,
         )
         predicted = forward(inverted.parameters)
         fields = {
@@ -185,9 +216,29 @@ def analyze(request: AnalyzeRequest) -> dict:
             "measured": measured_pair,
             "residualAmplitude": None if measured_pair is None else float(abs(complex(measured_pair["real"], measured_pair["imag"]) - phasor)),
         })
+        if request.testCase == "black_kipp":
+            # Cardiff-corrected Black-Kipp solution used by the Python example.
+            # Unit aquifer thickness makes exp(lnK) transmissivity and exp(lnSs)
+            # storativity for this 2-D model.
+            radius = pairs[-1]["distanceMeters"]
+            transmissivity = np.exp(request.initialLnK)
+            storativity = np.exp(request.initialLnSs)
+            u = np.sqrt((2 * np.pi / test.pumpingPeriod) * storativity * radius**2 / (2 * transmissivity))
+            analytical = test.pumpingRate / (2 * np.pi * transmissivity) * kv(0, u + 1j * u)
+            analytical_phase = float(np.mod(-np.angle(analytical, deg=True), 360))
+            # The comparison script defines phase delay as -arg(response),
+            # whereas the generic API phasor field keeps the raw argument.
+            numerical_phase = float(np.mod(-np.angle(phasor, deg=True), 360))
+            phase_error = abs(analytical_phase - numerical_phase)
+            pairs[-1]["analytical"] = {"amplitude": float(abs(analytical)), "phaseDegrees": analytical_phase}
+            pairs[-1]["numericalPhaseDegrees"] = numerical_phase
+            pairs[-1]["amplitudeRelativeError"] = float(abs(abs(phasor) - abs(analytical)) / abs(analytical))
+            pairs[-1]["phaseErrorDegrees"] = min(phase_error, 360 - phase_error)
     test_order = {test.id: position for position, test in enumerate(request.tests)}
     observation_order = {(test.id, well_id): position for test in request.tests for position, well_id in enumerate(test.observationWellIds)}
     pairs.sort(key=lambda pair: (test_order[pair["testId"]], observation_order[(pair["testId"], pair["observationWellId"])]))
+    if progress:
+        progress("complete", 100, None, "Solver results ready")
     return {"mode": mode, "pairs": pairs, "fields": fields, "iterations": iterations,
             "objective": objective, "runtimeSeconds": perf_counter() - started,
             "grid": {"nx": request.gridNx, "ny": request.gridNy}}
@@ -208,6 +259,58 @@ def analyze_endpoint(request: AnalyzeRequest) -> dict:
         return analyze(request)
     except (ValueError, np.linalg.LinAlgError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+# Local, in-process jobs let the UI poll real solver progress. This intentionally
+# does not promise durable storage or cancellation; deployment with multiple
+# workers needs a persistent queue instead of this single-process adapter.
+_executor = ThreadPoolExecutor(max_workers=1)
+_jobs: dict[str, dict] = {}
+_jobs_lock = Lock()
+
+
+@app.post("/api/v1/jobs", status_code=202)
+def start_job(request: AnalyzeRequest) -> dict[str, str]:
+    job_id = uuid4().hex
+    with _jobs_lock:
+        # Retain a bounded history, never evict a queued/running job.
+        finished = [key for key, job in _jobs.items() if job["status"] in ("complete", "failed")]
+        for key in finished[:-20]:
+            del _jobs[key]
+        _jobs[job_id] = {"status": "queued", "stage": "queued", "percent": 0,
+                         "testId": None, "message": "Waiting for solver", "result": None, "error": None,
+                         "completedTestIds": [], "events": []}
+
+    def update(stage: str, percent: int, test_id: str | None, message: str) -> None:
+        with _jobs_lock:
+            job = _jobs[job_id]
+            job.update(status="running", stage=stage, percent=percent,
+                       testId=test_id, message=message)
+            job["events"].append(message)
+            if stage == "forward" and message.startswith("Completed ") and test_id:
+                job["completedTestIds"].append(test_id)
+
+    def work() -> None:
+        try:
+            update("setup", 2, None, "Preparing solver inputs")
+            result = analyze(request, update)
+            with _jobs_lock:
+                _jobs[job_id].update(status="complete", stage="complete", percent=100, result=result)
+        except Exception as exc:
+            with _jobs_lock:
+                _jobs[job_id].update(status="failed", stage="failed", error=str(exc), message="Solver failed")
+
+    _executor.submit(work)
+    return {"jobId": job_id}
+
+
+@app.get("/api/v1/jobs/{job_id}")
+def get_job(job_id: str) -> dict:
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="Unknown job")
+        return dict(job)
 
 
 # A production frontend build can be served by the same process. The local

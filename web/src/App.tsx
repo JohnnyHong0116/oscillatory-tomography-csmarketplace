@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StepId, TestCaseType, ModelConfig, AnalysisResult } from './types/aquifer';
-import { DEFAULT_INVERSION_CONFIG } from './data/presets';
+import { BLACK_KIPP_CONFIG, DEFAULT_INVERSION_CONFIG } from './data/presets';
 
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
@@ -35,10 +35,13 @@ export default function App() {
   const [isAboutOpen, setIsAboutOpen] = useState(false);
 
   const handleSelectTestCase = (tc: TestCaseType) => {
-    if (tc !== 'inversion_10s') return;
+    if (tc === 'field_data') return;
     setTestCase(tc);
     setResult(null);
-    setConfig(DEFAULT_INVERSION_CONFIG);
+    const preset = tc === 'black_kipp' ? BLACK_KIPP_CONFIG : DEFAULT_INVERSION_CONFIG;
+    setConfig(preset);
+    setSelectedTestId(preset.tests[0].id);
+    setCompletedSteps(new Set());
   };
 
   const handleStepComplete = (step: StepId) => {
@@ -137,8 +140,8 @@ export default function App() {
                 onResult={(nextResult) => {
                   setResult(nextResult);
                   handleStepComplete(4);
-                  setCurrentStep(5);
                 }}
+                onExplore={() => setCurrentStep(5)}
                 onPrev={handlePrevStep}
               />
             )}

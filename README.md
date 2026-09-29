@@ -38,10 +38,14 @@ For a single-process production-style run, use `npm run build` in `web/`,
 then start the Python API. The built app is served at
 <http://127.0.0.1:8000/>.
 
-The web workflow computes genuine forward phasors for configured pumping
-tests. It performs geostatistical inversion only when a complete CSV of
-measured real/imaginary phasors is supplied. The Black–Kipp workflow remains
-available as a Python example but is not yet wired into the web interface.
+The web workflow offers the P=10 multi-test tomography preset and a bounded
+Black–Kipp analytical-comparison preset. Both compute genuine Python forward
+phasors. The tomography case performs geostatistical inversion only when a
+complete CSV of measured real/imaginary phasors is supplied. The run screen
+polls solver-reported stages and per-test completion; its percentages are
+milestones, not a prediction of remaining wall-clock time. The Black–Kipp web
+preset uses 60×60 cells and nine periods so it can run interactively; run the
+Python example below for the full original 300×300/20-period benchmark.
 
 NumPy and SciPy handle the complex-valued dense and sparse matrix operations
 directly. MATLAB/Fortran array ordering is preserved explicitly where model

@@ -74,13 +74,13 @@ export const Step1SelectTestCase: React.FC<Step1Props> = ({
                   Primary Inversion Workflow
                 </span>
                 <h3 className="text-base font-bold leading-tight text-[#121212]">
-                  2-D Multi-Test Tomography
+                  P = 10 s Multi-Test Tomography
                 </h3>
               </div>
             </div>
 
             <p className="text-xs leading-relaxed text-[#4B4F52]">
-              Run multiple pumping tests with test-specific periods. Measured complex responses enable estimation of ln(K) and ln(S_s).
+              Interactive adaptation of the original P = 10 s geostatistical case. Run multiple pumping tests; measured complex responses enable estimation of ln(K) and ln(S_s).
             </p>
 
             <div className="space-y-2 pt-2 border-t border-[#D6DADD]">
@@ -123,7 +123,8 @@ export const Step1SelectTestCase: React.FC<Step1Props> = ({
 
         {/* Card 2: Multi-frequency Black–Kipp Analytical Comparison */}
         <div
-          className={`relative rounded-xl border-2 p-5 transition-all flex flex-col justify-between opacity-60 ${
+          onClick={() => onSelectTestCase('black_kipp')}
+          className={`relative rounded-xl border-2 p-5 cursor-pointer transition-all flex flex-col justify-between ${
             selectedTestCase === 'black_kipp'
               ? 'bg-[#FEF2F2]/40 text-[#121212] border-[#C5050C] shadow-md ring-2 ring-[#C5050C]/10'
               : 'bg-white text-[#121212] border-[#D6DADD] hover:border-[#A7ADB1] hover:shadow-xs'
@@ -158,7 +159,7 @@ export const Step1SelectTestCase: React.FC<Step1Props> = ({
             </div>
 
             <p className="text-xs leading-relaxed text-[#4B4F52]">
-              Frequency-response benchmarking over multiple pumping periods P in [2s, 720s], comparing finite-difference numerical output against exact Black–Kipp analytical formulas.
+              Frequency-response benchmarking over nine pumping periods from 10 to 10,000 s, comparing the numerical solver with the Black–Kipp analytical solution.
             </p>
 
             <div className="space-y-2 pt-2 border-t border-[#D6DADD]">
@@ -167,10 +168,10 @@ export const Step1SelectTestCase: React.FC<Step1Props> = ({
               </div>
               <ul className="space-y-1.5 text-xs text-[#121212]">
                 {[
-                  'Runs sweeps across 9 distinct pumping periods (P = 2s - 720s)',
+                  'Runs a nine-period interactive subset of the MATLAB sweep',
                   'Compares numerical vs exact analytical amplitude attenuation',
                   'Compares numerical vs analytical phase delay Δφ',
-                  'Estimates effective Transmissivity T_eff, Storativity S_eff, Diffusivity D',
+                  'Plots numerical and analytical amplitude and phase by well',
                 ].map((feature, i) => (
                   <li key={i} className="flex items-start space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 bg-[#C5050C]" />
@@ -183,13 +184,13 @@ export const Step1SelectTestCase: React.FC<Step1Props> = ({
 
           <div className="pt-5 mt-4 border-t border-[#D6DADD] flex items-center justify-between">
             <span className="text-[11px] font-mono text-[#6B7074]">
-              Analytical comparison · planned
+              60×60 cells · 5 wells · 9 periods
             </span>
             <button
-              disabled
-              className="flex items-center space-x-1.5 bg-[#E1E5E7] text-[#6B7074] px-3.5 py-1.5 rounded text-xs font-bold cursor-not-allowed"
+              onClick={(event) => { event.stopPropagation(); onSelectTestCase('black_kipp'); onNext(); }}
+              className="flex items-center space-x-1.5 bg-[#C5050C] hover:bg-[#9B0000] text-white px-3.5 py-1.5 rounded text-xs font-bold"
             >
-              <span>Not yet connected</span>
+              <span>Load Configuration</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>

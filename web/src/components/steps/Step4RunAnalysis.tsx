@@ -1,66 +1,102 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Loader2, Play } from 'lucide-react';
-import { AnalysisResult, ModelConfig } from '../../types/aquifer';
+import { Activity, ArrowLeft, ArrowRight, CheckCircle2, Clock3, Loader2, Play, Terminal } from 'lucide-react';
+import { AnalysisProgress, AnalysisResult, ModelConfig } from '../../types/aquifer';
 import { parseObservations, runAnalysis } from '../../api/analysis';
 
-interface Props {
-  config: ModelConfig;
-  onResult: (result: AnalysisResult) => void;
-  onPrev: () => void;
-}
+interface Props { config: ModelConfig; onResult: (result: AnalysisResult) => void; onExplore: () => void; onPrev: () => void }
+type Event = { time: string; message: string };
 
-export const Step4RunAnalysis: React.FC<Props> = ({ config, onResult, onPrev }) => {
+export const Step4RunAnalysis: React.FC<Props> = ({ config, onResult, onExplore, onPrev }) => {
   const [csv, setCsv] = useState('');
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<AnalysisProgress | null>(null);
+  const [completed, setCompleted] = useState<string[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [selectedTestId, setSelectedTestId] = useState(config.tests[0]?.id ?? '');
+  const [elapsed, setElapsed] = useState(0);
+  const [ready, setReady] = useState(false);
   const controller = useRef<AbortController | null>(null);
-  const pairs = config.tests.flatMap((test) => test.observationWellIds.map((wellId) => ({ test, wellId })));
+  const lastEvent = useRef('');
+  const tests = config.tests;
+  const activeTest = tests.find((test) => test.id === selectedTestId) ?? tests[0];
+  const pairs = tests.flatMap((test) => test.observationWellIds.map((wellId) => ({ test, wellId })));
 
   useEffect(() => () => controller.current?.abort(), []);
+  useEffect(() => {
+    if (!running) return;
+    const started = Date.now();
+    const timer = window.setInterval(() => setElapsed((Date.now() - started) / 1000), 100);
+    return () => window.clearInterval(timer);
+  }, [running]);
 
   const run = async () => {
-    setError(null);
+    setError(null); setProgress(null); setCompleted([]); setEvents([]); setElapsed(0); setReady(false);
+    lastEvent.current = '';
     try {
-      const observations = parseObservations(csv, config);
+      const observations = config.testCase === 'black_kipp' ? null : parseObservations(csv, config);
       controller.current = new AbortController();
       setRunning(true);
-      const result = await runAnalysis(config, observations, controller.current.signal);
+      const result = await runAnalysis(config, observations, controller.current.signal, (update) => {
+        setProgress(update);
+        if (update.testId) setSelectedTestId(update.testId);
+        setCompleted(update.completedTestIds);
+        const key = `${update.stage}:${update.message}`;
+        if (key !== lastEvent.current) {
+          lastEvent.current = key;
+          setEvents(update.events.map((message) => ({ time: new Date().toLocaleTimeString(), message })));
+        }
+      });
       onResult(result);
+      setReady(true);
     } catch (cause) {
-      if ((cause as Error).name !== 'AbortError') {
-        setError(cause instanceof Error ? cause.message : 'Analysis failed');
-      }
-    } finally {
-      setRunning(false);
-      controller.current = null;
-    }
+      if ((cause as Error).name !== 'AbortError') setError(cause instanceof Error ? cause.message : 'Analysis failed');
+    } finally { setRunning(false); controller.current = null; }
   };
 
-  return <div className="max-w-5xl mx-auto space-y-5 py-2">
-    <div className="bg-white border border-[#D6DADD] rounded-xl p-6">
-      <div className="text-xs font-semibold text-[#C5050C] mb-2">Step 4 · Python solver</div>
-      <h2 className="text-xl font-bold">Run analysis</h2>
-      <p className="text-sm text-[#4B4F52] mt-2">
-        Run the periodic groundwater model for {config.tests.length} {config.tests.length === 1 ? 'test' : 'tests'} and {pairs.length} {pairs.length === 1 ? 'pumping/observation pair' : 'pumping/observation pairs'}.
-        {' '}Supply measured complex phasors to estimate ln(K) and ln(Ss) with geostatistical inversion.
-      </p>
+  const mapSize = 260, padding = 28;
+  const sx = (x: number) => padding + (x - config.minX) / (config.maxX - config.minX) * (mapSize - 2 * padding);
+  const sy = (y: number) => mapSize - padding - (y - config.minY) / (config.maxY - config.minY) * (mapSize - 2 * padding);
+
+  return <div className="max-w-6xl mx-auto space-y-5 py-2">
+    <div className="bg-white border border-[#D6DADD] rounded-xl p-5 flex flex-wrap justify-between gap-3">
+      <div><div className="text-xs font-semibold text-[#C5050C] mb-1">Step 4 · Python solver</div>
+        <h2 className="text-xl font-bold">Run {config.testCase === 'black_kipp' ? 'Black–Kipp comparison' : 'multi-test tomography'}</h2>
+        <p className="text-xs text-[#4B4F52] mt-1">{tests.length} pumping tests · {pairs.length} observation responses. Progress below comes from completed solver stages.</p></div>
+      <div className="flex items-center gap-2 text-xs font-mono text-[#4B4F52]"><Clock3 size={15} /> {elapsed.toFixed(1)} s elapsed</div>
     </div>
-    <div className="bg-white border border-[#D6DADD] rounded-xl p-6 space-y-4">
-      <div><h3 className="font-bold">Optional measured phasors</h3>
-        <p className="text-xs text-[#4B4F52] mt-1">Paste one real and imaginary response for every test/observation pair. Leave empty for forward predictions only. Values are complex head responses in meters.</p>
-      </div>
-      <textarea aria-label="Measured phasors CSV" className="w-full min-h-36 border border-[#A7ADB1] rounded-md p-3 font-mono text-xs focus-ring"
-        placeholder={'testId,wellId,real,imag\ntest-1,w-2,0.001,-0.002'} value={csv} onChange={(event) => setCsv(event.target.value)} disabled={running} />
-      <details className="text-xs text-[#4B4F52]"><summary className="cursor-pointer font-semibold">Required pairs for this configuration</summary>
-        <div className="mt-2 max-h-48 overflow-y-auto font-mono">{pairs.map(({ test, wellId }) => <div key={`${test.id}-${wellId}`}>{test.id},{wellId},real,imag</div>)}</div>
-      </details>
-      {error && <p role="alert" className="text-sm text-[#9B0000] bg-[#FEF2F2] p-3 rounded-md">{error}</p>}
-      <div className="flex justify-between gap-3">
-        <button onClick={onPrev} disabled={running} className="flex items-center gap-2 px-4 py-2 border rounded-md text-sm disabled:opacity-50"><ArrowLeft size={16} /> Back to review</button>
-        <button onClick={run} disabled={running} className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#C5050C] text-white font-semibold text-sm disabled:opacity-50">
-          {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}{running ? 'Solving…' : csv.trim() ? 'Run inversion' : 'Run forward model'}{!running && <ArrowRight size={16} />}
-        </button>
+
+    {config.testCase !== 'black_kipp' && <div className="bg-white border border-[#D6DADD] rounded-xl p-5 space-y-2">
+      <h3 className="font-bold text-sm">Measured phasors for inversion <span className="font-normal text-[#6B7074]">(optional)</span></h3>
+      <p className="text-xs text-[#4B4F52]">Leave empty for forward predictions. To invert, provide one measured complex head response in meters for every test/observation pair.</p>
+      <textarea aria-label="Measured phasors CSV" className="w-full min-h-28 border border-[#A7ADB1] rounded-md p-3 font-mono text-xs focus-ring" placeholder={'testId,wellId,real,imag\ntest-1,w-2,0.001,-0.002'} value={csv} onChange={(event) => setCsv(event.target.value)} disabled={running} />
+      <details className="text-xs"><summary className="cursor-pointer font-semibold">Required pair IDs</summary><div className="mt-2 max-h-32 overflow-auto font-mono">{pairs.map(({ test, wellId }) => <div key={`${test.id}-${wellId}`}>{test.id},{wellId},real,imag</div>)}</div></details>
+    </div>}
+
+    <div className="bg-[#121212] rounded-xl p-5 text-white space-y-4" aria-live="polite">
+      <div className="flex flex-wrap justify-between gap-2"><div><div className="text-xs text-[#F87171] font-bold uppercase">{progress?.stage ?? 'Ready to run'}</div><h3 className="font-bold">Experiment progress</h3></div><div className="text-lg font-mono font-bold">{progress ? `${progress.percent}%` : '—'}</div></div>
+      <div className="h-3 bg-[#333] rounded-full overflow-hidden" role="progressbar" aria-valuenow={progress?.percent ?? 0} aria-valuemin={0} aria-valuemax={100}><div className="h-full bg-[#C5050C] transition-all" style={{ width: `${progress?.percent ?? 0}%` }} /></div>
+      <div className="grid sm:grid-cols-2 gap-4 text-xs"><div><div className="font-bold mb-1">Forward tests · {completed.length}/{tests.length}</div><div className="h-2 bg-[#333] rounded-full"><div className="h-full bg-[#2563EB] rounded-full transition-all" style={{ width: `${100 * completed.length / Math.max(1, tests.length)}%` }} /></div></div><div><div className="font-bold">Current stage</div><div className="text-[#CCC]">{progress?.message ?? 'Waiting for you to start the solver'}</div></div></div>
+    </div>
+
+    <div className="grid lg:grid-cols-[minmax(0,1fr)_300px] gap-5">
+      <div className="bg-white border border-[#D6DADD] rounded-xl p-4"><h3 className="text-sm font-bold mb-3">Test execution queue</h3><div className="space-y-2 max-h-80 overflow-auto">{tests.map((test, index) => {
+        const done = completed.includes(test.id);
+        const active = running && progress?.testId === test.id && !done;
+        return <button key={test.id} type="button" onClick={() => setSelectedTestId(test.id)} className={`w-full text-left flex items-center justify-between gap-2 border rounded-lg p-3 text-xs ${selectedTestId === test.id ? 'border-[#C5050C] bg-[#FEF2F2]' : 'border-[#D6DADD]'}`}>
+          <span className="flex items-center gap-2"><span className="font-mono font-bold">{index + 1}.</span><span><strong>{test.name}</strong><br /><span className="text-[#6B7074]">Pump {config.wells.find((well) => well.id === test.pumpingWellId)?.name} → {test.observationWellIds.length} {test.observationWellIds.length === 1 ? 'observer' : 'observers'} · P={test.pumpingPeriod ?? config.pumpingPeriod}s</span></span></span>
+          <span className="whitespace-nowrap">{done ? <CheckCircle2 size={17} className="text-green-700" aria-label="Complete" /> : active ? <Loader2 size={17} className="animate-spin text-[#C5050C]" aria-label="Running" /> : 'Queued'}</span>
+        </button>;
+      })}</div></div>
+      <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-4 text-white"><div className="flex items-center gap-2 text-xs font-bold mb-2"><Activity size={15} className="text-[#C5050C]" /> {activeTest?.name} well diagram</div>
+        <svg viewBox={`0 0 ${mapSize} ${mapSize}`} className="w-full" role="img" aria-label={`Pumping and observation wells for ${activeTest?.name}`}><rect x={padding} y={padding} width={mapSize - 2 * padding} height={mapSize - 2 * padding} fill="#181818" stroke="#555" />
+          {config.wells.map((well) => { const pump = well.id === activeTest?.pumpingWellId; const observe = activeTest?.observationWellIds.includes(well.id); return <g key={well.id}><circle cx={sx(well.x)} cy={sy(well.y)} r={pump ? 7 : 5} fill={pump ? '#C5050C' : observe ? '#2563EB' : '#777'} stroke="white" strokeWidth="1.5" /><text x={sx(well.x) + 9} y={sy(well.y) - 7} fill="white" fontSize="10">{well.name}{pump ? ' pump' : ''}</text></g>; })}</svg>
+        <div className="flex gap-4 text-[10px] text-[#CCC]"><span className="flex items-center gap-1"><i className="w-2 h-2 rounded-full bg-[#C5050C]" /> Pumping</span><span className="flex items-center gap-1"><i className="w-2 h-2 rounded-full bg-[#2563EB]" /> Observation</span></div>
       </div>
     </div>
+
+    <div className="bg-[#0A0A0A] rounded-xl text-white overflow-hidden"><div className="bg-[#181818] p-3 flex gap-2 text-xs font-bold"><Terminal size={16} className="text-[#C5050C]" /> Solver events</div><div className="p-3 font-mono text-xs max-h-36 overflow-auto" aria-label="Solver events">{events.length ? events.map((event, index) => <div key={index} className="py-0.5"><span className="text-[#888]">[{event.time}]</span> {event.message}</div>) : <span className="text-[#888]">No solver events yet.</span>}</div></div>
+    {error && <p role="alert" className="text-sm text-[#9B0000] bg-[#FEF2F2] p-3 rounded-md">{error}</p>}
+    <div className="flex justify-between gap-3"><button onClick={onPrev} disabled={running} className="flex items-center gap-2 px-4 py-2 border rounded-md text-sm disabled:opacity-50"><ArrowLeft size={16} /> Back to review</button><div className="flex gap-2">{ready && <button onClick={onExplore} className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#15803D] text-white font-semibold text-sm">Explore results <ArrowRight size={16} /></button>}<button onClick={run} disabled={running} className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#C5050C] text-white font-semibold text-sm disabled:opacity-50">{running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}{running ? 'Solving…' : ready ? 'Run again' : config.testCase === 'black_kipp' ? 'Run comparison' : csv.trim() ? 'Run inversion' : 'Run forward model'}</button></div></div>
   </div>;
 };

@@ -24,7 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
   const getTestCaseLabel = (tc: TestCaseType) => {
     switch (tc) {
       case 'inversion_10s':
-        return '2-D Multi-Test Tomography';
+        return 'P = 10 s Multi-Test Tomography';
       case 'black_kipp':
         return 'Multi-frequency Black–Kipp Comparison';
       case 'field_data':

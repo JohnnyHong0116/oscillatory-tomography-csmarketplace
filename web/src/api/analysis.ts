@@ -1,4 +1,4 @@
-import { AnalysisResult, ComplexObservation, ModelConfig } from '../types/aquifer';
+import { AnalysisProgress, AnalysisResult, ComplexObservation, ModelConfig } from '../types/aquifer';
 
 // During local development Parcel runs on 1234 and Python on 8000. A built
 // frontend served by FastAPI uses the same origin and needs no special URL.
@@ -10,12 +10,14 @@ export async function runAnalysis(
   config: ModelConfig,
   observations: ComplexObservation[] | null,
   signal: AbortSignal,
+  onProgress: (progress: AnalysisProgress) => void,
 ): Promise<AnalysisResult> {
-  const response = await fetch(`${apiOrigin}/api/v1/analyze`, {
+  const response = await fetch(`${apiOrigin}/api/v1/jobs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     signal,
     body: JSON.stringify({
+      testCase: config.testCase,
       minX: config.minX,
       maxX: config.maxX,
       minY: config.minY,
@@ -46,7 +48,26 @@ export async function runAnalysis(
     const detail = payload.detail;
     throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
   }
-  return payload as AnalysisResult;
+  const jobId = payload.jobId as string;
+  while (true) {
+    // Polling exposes server-reported milestones. It never estimates solver
+    // progress from a timer or claims that client abort stops Python work.
+    await new Promise<void>((resolve, reject) => {
+      const timeout = window.setTimeout(() => { signal.removeEventListener('abort', abort); resolve(); }, 400);
+      const abort = () => { window.clearTimeout(timeout); reject(new DOMException('Aborted', 'AbortError')); };
+      signal.addEventListener('abort', abort, { once: true });
+      if (signal.aborted) abort();
+    });
+    const statusResponse = await fetch(`${apiOrigin}/api/v1/jobs/${jobId}`, { signal });
+    if (!statusResponse.ok) throw new Error('Could not read solver job status');
+    const progress = await statusResponse.json() as AnalysisProgress;
+    onProgress(progress);
+    if (progress.status === 'failed') throw new Error(progress.error || 'Solver failed');
+    if (progress.status === 'complete') {
+      if (!progress.result) throw new Error('Solver completed without results');
+      return progress.result;
+    }
+  }
 }
 
 /** Parse a pasted CSV table with a header and one row per test/well pair. */

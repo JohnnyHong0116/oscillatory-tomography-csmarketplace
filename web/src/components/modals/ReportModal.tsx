@@ -16,8 +16,8 @@ export const ReportModal: React.FC<Props> = ({ isOpen, onClose, config, result }
         </div>
       </div>
       <div className="p-7 space-y-6 text-sm">
-        <div><h1 className="text-2xl font-bold">Oscillatory tomography analysis</h1>
-          <p className="text-[#4B4F52] mt-2">{result.mode === 'inversion' ? 'Geostatistical inversion using supplied measured phasors' : 'Forward model predictions from initial ln(K) and ln(Ss)'}</p></div>
+        <div><h1 className="text-2xl font-bold">{config.testCase === 'black_kipp' ? 'Black–Kipp analytical comparison' : 'Oscillatory tomography analysis'}</h1>
+          <p className="text-[#4B4F52] mt-2">{config.testCase === 'black_kipp' ? 'Finite-difference forward responses compared with the Black–Kipp analytical solution' : result.mode === 'inversion' ? 'Geostatistical inversion using supplied measured phasors' : 'Forward model predictions from initial ln(K) and ln(Ss)'}</p></div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-[#F7F7F7] p-4 rounded">
           <div>Tests<br /><strong>{config.tests.length}</strong></div><div>Wells<br /><strong>{config.wells.length}</strong></div>
           <div>Grid<br /><strong>{config.gridNx} × {config.gridNy}</strong></div><div>Solver runtime<br /><strong>{result.runtimeSeconds.toFixed(2)} s</strong></div>
@@ -30,9 +30,9 @@ export const ReportModal: React.FC<Props> = ({ isOpen, onClose, config, result }
           <div className="space-y-1">{config.tests.map((test) => <p key={test.id}>{test.name}: pump {config.wells.find((well) => well.id === test.pumpingWellId)?.name}; observe {test.observationWellIds.map((id) => config.wells.find((well) => well.id === id)?.name).join(', ')}; period {test.pumpingPeriod ?? config.pumpingPeriod} s.</p>)}</div>
         </section>
         <section><h2 className="font-bold mb-2">Computed complex responses</h2>
-          <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr><th>Test</th><th>Pump → observe</th><th>Real (m)</th><th>Imag (m)</th><th>Amplitude (m)</th><th>Phase (°)</th>{result.mode === 'inversion' && <th>Residual (m)</th>}</tr></thead>
+          <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr><th>Test</th><th>Pump → observe</th><th>Real (m)</th><th>Imag (m)</th><th>Amplitude (m)</th><th>{config.testCase === 'black_kipp' ? 'Phase delay (°)' : 'Phase (°)'}</th>{result.mode === 'inversion' && <th>Residual (m)</th>}{config.testCase === 'black_kipp' && <><th>Analytical amp (m)</th><th>Amp error</th><th>Phase error (°)</th></>}</tr></thead>
             <tbody>{result.pairs.map((pair) => <tr key={`${pair.testId}-${pair.observationWellId}`} className="border-t">
-              <td>{pair.testName}</td><td>{pair.pumpingWellName} → {pair.observationWellName}</td><td>{pair.predicted.real.toExponential(3)}</td><td>{pair.predicted.imag.toExponential(3)}</td><td>{pair.predicted.amplitude.toExponential(3)}</td><td>{pair.predicted.phaseDegrees.toFixed(1)}</td>{result.mode === 'inversion' && <td>{pair.residualAmplitude?.toExponential(3)}</td>}
+              <td>{pair.testName}</td><td>{pair.pumpingWellName} → {pair.observationWellName}</td><td>{pair.predicted.real.toExponential(3)}</td><td>{pair.predicted.imag.toExponential(3)}</td><td>{pair.predicted.amplitude.toExponential(3)}</td><td>{(config.testCase === 'black_kipp' ? pair.numericalPhaseDegrees ?? 0 : pair.predicted.phaseDegrees).toFixed(1)}</td>{result.mode === 'inversion' && <td>{pair.residualAmplitude?.toExponential(3)}</td>}{config.testCase === 'black_kipp' && <><td>{pair.analytical?.amplitude.toExponential(3)}</td><td>{((pair.amplitudeRelativeError ?? 0) * 100).toFixed(1)}%</td><td>{pair.phaseErrorDegrees?.toFixed(1)}</td></>}
             </tr>)}</tbody></table></div>
         </section>
         <p className="text-xs text-[#6B7074]">Results are from the Python solver. The model assumes one horizontal layer with unit thickness and no flow through its top and bottom.</p>
