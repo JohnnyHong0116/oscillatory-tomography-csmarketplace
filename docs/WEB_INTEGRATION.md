@@ -43,14 +43,13 @@ This local single-process queue reports actual completed forward tests and
 inversion iterations, but does not support cancellation or survive a server
 restart. Black–Kipp mode performs forward solves and adds analytical amplitude,
 phase, errors, and effective diffusivity/transmissivity/storativity for each
-pair. Its web preset is a reduced
-interactive subset of the full Python/MATLAB benchmark, not a claim of
-300×300-grid numerical equivalence.
+pair. Its web preset is the full 300×300, 20-period Python/MATLAB benchmark.
 
-The API limits grids to 3–60 cells per axis, 30 wells, 30 tests, and 100
-test-observation pairs. These are application bounds, not scientific limits of
-the package; they keep synchronous local HTTP requests manageable. Larger
-jobs should use an asynchronous worker and persistent result storage.
+The API limits tomography inversion grids to 3–60 cells per axis and permits
+the Black–Kipp forward benchmark up to 300×300. Both workflows allow at most
+30 wells, 30 tests, and 100 test-observation pairs. These are application
+bounds, not scientific limits of the package. Larger inversion jobs should use
+an asynchronous worker and persistent result storage.
 
 ## Current scope and next work
 

@@ -159,7 +159,7 @@ export const Step1SelectTestCase: React.FC<Step1Props> = ({
             </div>
 
             <p className="text-xs leading-relaxed text-[#4B4F52]">
-              Frequency-response benchmarking over nine pumping periods from 10 to 10,000 s, comparing the numerical solver with the Black–Kipp analytical solution.
+              Full baseline frequency-response benchmark over 20 logarithmically spaced pumping periods from 10 to 10,000 s, comparing the numerical solver with the Black–Kipp analytical solution.
             </p>
 
             <div className="space-y-2 pt-2 border-t border-[#D6DADD]">
@@ -168,7 +168,7 @@ export const Step1SelectTestCase: React.FC<Step1Props> = ({
               </div>
               <ul className="space-y-1.5 text-xs text-[#121212]">
                 {[
-                  'Runs a nine-period interactive subset of the MATLAB sweep',
+                  'Runs all 20 periods on the original 300 × 300 grid',
                   'Compares numerical vs exact analytical amplitude attenuation',
                   'Compares numerical vs analytical phase delay Δφ',
                   'Plots amplitude, phase, and three effective properties',
@@ -184,7 +184,7 @@ export const Step1SelectTestCase: React.FC<Step1Props> = ({
 
           <div className="pt-5 mt-4 border-t border-[#D6DADD] flex items-center justify-between">
             <span className="text-[11px] font-mono text-[#6B7074]">
-              60×60 cells · 5 wells · 9 periods
+              300×300 cells · 5 wells · 20 periods
             </span>
             <button
               onClick={(event) => { event.stopPropagation(); onSelectTestCase('black_kipp'); onNext(); }}

@@ -80,6 +80,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
   const jacobianEntries = totalObs * unknownParams;
   const bytesPerFloat = 8;
   const estimatedMemoryMB = Math.round((jacobianEntries * bytesPerFloat / (1024 * 1024)) * 10) / 10;
+  const forwardStateMemoryMB = Math.round((unknownParams * bytesPerFloat / (1024 * 1024)) * 10) / 10;
 
   const issues: ValidationIssue[] = [];
 
@@ -95,12 +96,13 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
     }
   });
 
-  if (gridNx < 3 || gridNy < 3 || gridNx > 60 || gridNy > 60) {
+  const maximumGridAxis = testCase === 'black_kipp' ? 300 : 60;
+  if (gridNx < 3 || gridNy < 3 || gridNx > maximumGridAxis || gridNy > maximumGridAxis) {
     issues.push({
       id: 'invalid-grid',
       type: 'error',
       title: 'Invalid Grid Dimensions',
-      message: 'The current API supports 3–60 cells along each axis.',
+      message: `This workflow supports 3–${maximumGridAxis} cells along each axis.`,
     });
   }
 
@@ -166,14 +168,14 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
     issues.push({ id: 'boundaries', type: 'error', title: 'Unsupported Boundaries', message: 'Use no-flow top and bottom and at least one horizontal constant-head boundary.' });
   }
 
-  if (estimatedMemoryMB > 100) {
+  if (testCase !== 'black_kipp' && estimatedMemoryMB > 100) {
     issues.push({
       id: 'high-memory',
       type: 'warning',
       title: 'High Memory Allocation Warning',
       message: `The raw sensitivity matrix is about ${estimatedMemoryMB} MB; solver memory usage will be higher.`,
     });
-  } else {
+  } else if (testCase !== 'black_kipp') {
     issues.push({
       id: 'optimal-memory',
       type: 'info',
@@ -650,15 +652,15 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
               <dd className="font-bold text-[#121212]">{totalObs} phasor components</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-[#6B7074] font-sans">Sensitivity Jacobian Size:</dt>
+              <dt className="text-[#6B7074] font-sans">{testCase === 'black_kipp' ? 'Forward Model Coefficients:' : 'Sensitivity Jacobian Size:'}</dt>
               <dd className="font-bold text-[#121212]">
-                {totalObs} × {unknownParams}
+                {testCase === 'black_kipp' ? unknownParams : `${totalObs} × ${unknownParams}`}
               </dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-[#6B7074] font-sans">Raw Jacobian Size:</dt>
+              <dt className="text-[#6B7074] font-sans">{testCase === 'black_kipp' ? 'Two Parameter Fields:' : 'Raw Jacobian Size:'}</dt>
               <dd className="font-bold text-[#15803D]">
-                ~{estimatedMemoryMB} MB
+                ~{testCase === 'black_kipp' ? forwardStateMemoryMB : estimatedMemoryMB} MB
               </dd>
             </div>
           </dl>

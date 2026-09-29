@@ -28,13 +28,19 @@ export const DEFAULT_INVERSION_CONFIG: ModelConfig = {
   maxIterations: 30,
 };
 
-/** Interactive subset of the MATLAB Black-Kipp sweep (same wells and physics,
- *  fewer periods and cells so it runs locally during a web demo). */
+/** Exact discretization and period sampling from the MATLAB/Python
+ *  Black-Kipp baseline. This is intentionally heavier than the inversion
+ *  demo: 90,000 cells and 20 logarithmically spaced pumping periods. */
+const BLACK_KIPP_PERIODS = Array.from(
+  { length: 20 },
+  (_, index) => 10 ** (1 + (3 * index) / 19),
+);
+
 export const BLACK_KIPP_CONFIG: ModelConfig = {
   ...DEFAULT_INVERSION_CONFIG,
   testCase: 'black_kipp',
   minX: -300, maxX: 300, minY: -300, maxY: 300,
-  gridNx: 60, gridNy: 60,
+  gridNx: 300, gridNy: 300,
   pumpingPeriod: 10, pumpingRate: 0.001,
   wells: [
     { id: 'w-1', name: 'W1', x: 0, y: 0 },
@@ -43,8 +49,10 @@ export const BLACK_KIPP_CONFIG: ModelConfig = {
     { id: 'w-4', name: 'W4', x: 0, y: -90 },
     { id: 'w-5', name: 'W5', x: -120, y: 0 },
   ],
-  tests: [10, 20, 50, 100, 200, 400, 800, 1600, 10000].map((period, index) => ({
-    id: `period-${period}`, name: `P = ${period} s`, pumpingWellId: 'w-1',
+  tests: BLACK_KIPP_PERIODS.map((period, index) => ({
+    id: `period-${index + 1}`,
+    name: `P = ${period < 100 ? period.toFixed(2) : period < 1000 ? period.toFixed(1) : period.toFixed(0)} s`,
+    pumpingWellId: 'w-1',
     observationWellIds: ['w-2', 'w-3', 'w-4', 'w-5'],
     pumpingPeriod: period, pumpingRate: 0.001, status: 'pending' as const,
   })),

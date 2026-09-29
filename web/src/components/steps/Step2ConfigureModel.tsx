@@ -806,7 +806,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                   <input
                     type="number"
                     min="10"
-                    max="100"
+                    max={config.testCase === 'black_kipp' ? 300 : 60}
                     value={config.gridNx}
                     onChange={(e) => handleDomainChange('gridNx', parseInt(e.target.value) || 40)}
                     className="w-full bg-white border border-[#D6DADD] rounded px-2.5 py-1.5 text-xs text-[#121212] font-mono focus:border-[#C5050C] outline-none"
@@ -820,7 +820,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                   <input
                     type="number"
                     min="10"
-                    max="100"
+                    max={config.testCase === 'black_kipp' ? 300 : 60}
                     value={config.gridNy}
                     onChange={(e) => handleDomainChange('gridNy', parseInt(e.target.value) || 40)}
                     className="w-full bg-white border border-[#D6DADD] rounded px-2.5 py-1.5 text-xs text-[#121212] font-mono focus:border-[#C5050C] outline-none"

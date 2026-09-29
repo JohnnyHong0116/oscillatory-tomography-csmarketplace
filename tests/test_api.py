@@ -147,6 +147,47 @@ def test_black_kipp_returns_analytical_comparison():
         AnalyzeRequest.model_validate(payload)
 
 
+def test_black_kipp_p10_matches_300_by_300_baseline():
+    """Guard the direct P=10/W2 values from the translated MATLAB example."""
+    payload = request_payload()
+    payload.update({
+        "testCase": "black_kipp",
+        "minX": -300,
+        "maxX": 300,
+        "minY": -300,
+        "maxY": 300,
+        "gridNx": 300,
+        "gridNy": 300,
+        "initialLnK": math.log(3e-4),
+        "initialLnSs": math.log(1e-5),
+        "wells": [
+            {"id": "w-1", "name": "W1", "x": 0, "y": 0},
+            {"id": "w-2", "name": "W2", "x": 0, "y": 30},
+        ],
+        "tests": [{
+            "id": "period-1", "name": "P = 10 s", "pumpingWellId": "w-1",
+            "observationWellIds": ["w-2"], "pumpingPeriod": 10, "pumpingRate": 0.001,
+        }],
+        "boundaries": {"west": "constant_head", "east": "constant_head", "south": "constant_head", "north": "constant_head", "top": "no_flow", "bottom": "no_flow"},
+    })
+    pair = analyze(AnalyzeRequest.model_validate(payload))["pairs"][0]
+    assert pair["predicted"]["real"] == pytest.approx(-0.013843188100569937, rel=1e-10)
+    assert pair["predicted"]["imag"] == pytest.approx(0.003921367395389121, rel=1e-10)
+    assert pair["predicted"]["amplitude"] == pytest.approx(0.014387876112803514, rel=1e-10)
+    assert pair["numericalPhaseDegrees"] == pytest.approx(195.81586356220473, rel=1e-10)
+    assert pair["analytical"]["amplitude"] == pytest.approx(0.014520175444200966, rel=1e-10)
+    assert pair["analytical"]["phaseDegrees"] == pytest.approx(197.39087099732427, rel=1e-10)
+
+
+def test_large_grid_is_reserved_for_black_kipp_forward_baseline():
+    payload = request_payload()
+    payload["gridNx"] = payload["gridNy"] = 61
+    with pytest.raises(ValidationError, match="inversion grids"):
+        AnalyzeRequest.model_validate(payload)
+    payload["testCase"] = "black_kipp"
+    assert AnalyzeRequest.model_validate(payload).gridNx == 61
+
+
 def test_job_reports_real_completion_events():
     import time
 

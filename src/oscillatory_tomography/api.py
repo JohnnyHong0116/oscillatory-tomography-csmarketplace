@@ -63,8 +63,11 @@ class AnalyzeRequest(ApiModel):
     maxX: float
     minY: float
     maxY: float
-    gridNx: int = Field(ge=3, le=60)
-    gridNy: int = Field(ge=3, le=60)
+    # The inversion workflow remains intentionally bounded to 60x60 because
+    # its dense covariance/Jacobian work grows much faster than a forward
+    # solve. Black-Kipp baseline parity needs the original 300x300 grid.
+    gridNx: int = Field(ge=3, le=300)
+    gridNy: int = Field(ge=3, le=300)
     wells: list[WellInput] = Field(min_length=2, max_length=30)
     tests: list[TestInput] = Field(min_length=1, max_length=30)
     boundaries: dict[Literal["west", "east", "south", "north", "top", "bottom"], Literal["constant_head", "no_flow"]]
@@ -85,6 +88,8 @@ class AnalyzeRequest(ApiModel):
             raise ValueError("Domain maxima must exceed minima")
         if set(self.boundaries) != {"west", "east", "south", "north", "top", "bottom"}:
             raise ValueError("All six boundary conditions are required")
+        if self.testCase != "black_kipp" and (self.gridNx > 60 or self.gridNy > 60):
+            raise ValueError("Tomography inversion grids are limited to 60 x 60 cells")
         if not any(self.boundaries[side] == "constant_head" for side in ("west", "east", "south", "north")):
             raise ValueError("At least one horizontal constant-head boundary is required")
         if self.boundaries["top"] != "no_flow" or self.boundaries["bottom"] != "no_flow":

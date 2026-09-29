@@ -39,7 +39,7 @@ then start the Python API. The built app is served at
 <http://127.0.0.1:8000/>.
 
 The web workflow offers the original 50×50, nine-well, 36-response P=10
-tomography experiment and a bounded Black–Kipp analytical-comparison preset.
+tomography experiment and the full 300×300, 20-period Black–Kipp analytical-comparison baseline.
 The P=10 screen defaults to a clearly labelled synthetic demo: it generates
 the checkerboard truth, calculates observations with the Python forward model,
 and runs the joint geostatistical inversion. The explorer displays true and
