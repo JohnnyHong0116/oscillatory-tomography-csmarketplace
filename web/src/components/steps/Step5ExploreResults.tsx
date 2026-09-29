@@ -33,8 +33,12 @@ export const Step5ExploreResults: React.FC<Props> = ({ config, result, onOpenRep
   const [tab, setTab] = useState<InversionTab | BlackKippTab>(blackKipp ? 'responses' : result.fields ? 'fields' : 'responses');
   const visible = result.pairs.filter((pair) => scope === 'all' || pair.testId === scope);
   const scopes = [{ id: 'all', label: blackKipp ? `All periods (${config.tests.length})` : `Combined joint inversion (${config.tests.length} tests)` }, ...config.tests.map((test) => ({ id: test.id, label: test.name }))];
-  const inversionTabs: { id: InversionTab; label: string }[] = [
-    { id: 'fields', label: 'Parameter fields' }, { id: 'errors', label: 'Field error' }, { id: 'sensitivity', label: 'Sensitivity coverage' }, { id: 'responses', label: 'Observation fit' }, { id: 'residuals', label: 'Residuals & convergence' },
+  const inversionTabs: { id: InversionTab; label: string; provenance: 'baseline' | 'derived' }[] = [
+    { id: 'fields', label: 'Parameter fields', provenance: 'baseline' },
+    { id: 'errors', label: 'Field error', provenance: 'derived' },
+    { id: 'sensitivity', label: 'Sensitivity coverage', provenance: 'derived' },
+    { id: 'responses', label: 'Observation fit', provenance: 'derived' },
+    { id: 'residuals', label: 'Residuals & convergence', provenance: 'derived' },
   ];
   const blackKippTabs: { id: BlackKippTab; label: string }[] = [{ id: 'responses', label: 'Response comparison' }, { id: 'properties', label: 'Effective properties' }, { id: 'errors', label: 'Error diagnostics' }];
   const tabs = blackKipp ? blackKippTabs : inversionTabs.filter((item) => result.fields || !['fields', 'errors', 'sensitivity', 'residuals'].includes(item.id));
@@ -50,7 +54,7 @@ export const Step5ExploreResults: React.FC<Props> = ({ config, result, onOpenRep
     <div className="bg-[#111] rounded-xl p-3 flex flex-wrap items-center gap-2 text-white"><span className="text-xs font-bold mr-auto">Inversion scope</span>{scopes.map((item) => <button key={item.id} onClick={() => setScope(item.id)} className={`px-3 py-2 rounded-md text-xs font-semibold ${scope === item.id ? 'bg-[#4169E1]' : 'bg-[#202020] hover:bg-[#303030]'}`}>{item.label}</button>)}</div>
 
     <section className="bg-white border border-[#D6DADD] rounded-xl p-5 space-y-5">
-      <div className="flex flex-wrap gap-1 border-b pb-3">{tabs.map((item) => <button key={item.id} onClick={() => setTab(item.id)} className={`px-3 py-2 rounded-md text-xs font-bold ${tab === item.id ? 'bg-[#FEF2F2] text-[#B42318] border border-[#FECACA]' : 'text-[#3F4448] hover:bg-[#F1F2F3]'}`}>{item.label}</button>)}</div>
+      <div className="flex flex-wrap gap-1 border-b pb-3">{tabs.map((item) => <button key={item.id} onClick={() => setTab(item.id)} className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-bold ${tab === item.id ? 'bg-[#FEF2F2] text-[#B42318] border border-[#FECACA]' : 'text-[#3F4448] hover:bg-[#F1F2F3]'}`}><span>{item.label}</span>{!blackKipp && 'provenance' in item && <span className={`rounded-full px-1.5 py-0.5 text-[8px] uppercase tracking-wide ${item.provenance === 'baseline' ? 'bg-[#E7F5EA] text-[#287A3D]' : 'bg-[#E9EEF9] text-[#365A9D]'}`}>{item.provenance === 'baseline' ? 'Original baseline' : 'Derived diagnostic'}</span>}</button>)}</div>
 
       {!blackKipp && tab === 'fields' && result.fields && result.trueFields && <><div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-[#111] rounded-xl p-5"><FieldHeatmap title="True ln(K)" subtitle="m/s · synthetic checkerboard" values={result.trueFields.lnK} config={config} /><FieldHeatmap title="True ln(Ss)" subtitle="1/m · synthetic checkerboard" values={result.trueFields.lnSs} config={config} /><FieldHeatmap title="Estimated ln(K)" subtitle="joint geostatistical inversion" values={result.fields.lnK} config={config} /><FieldHeatmap title="Estimated ln(Ss)" subtitle="joint geostatistical inversion" values={result.fields.lnSs} config={config} /></div><p className="text-xs text-[#5F6368]">These are the four solver fields from the original P=10 workflow. The scope selector filters response diagnostics; parameter fields remain the joint estimate from all configured tests.</p></>}
       {!blackKipp && tab === 'fields' && result.fields && !result.trueFields && <div className="grid sm:grid-cols-2 gap-5 bg-[#111] rounded-xl p-5"><FieldHeatmap title="Estimated ln(K)" subtitle="m/s" values={result.fields.lnK} config={config} /><FieldHeatmap title="Estimated ln(Ss)" subtitle="1/m" values={result.fields.lnSs} config={config} /></div>}
