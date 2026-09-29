@@ -49,7 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
                 Aquifer Imaging Studio
               </h1>
               <span className="bg-[#2A2A2A] text-[#E1E5E7] border border-[#3A3A3A] text-[10px] font-mono font-medium px-1.5 py-0.2 rounded">
-                v1.1.0-proto
+                v1.1.0
               </span>
             </div>
             <p className="text-[11px] text-[#A7ADB1] font-medium mt-0.5">
