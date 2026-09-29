@@ -55,6 +55,8 @@ jobs should use an asynchronous worker and persistent result storage.
 ## Current scope and next work
 
 - The React results table, CSV, and report all read the same API result.
+- The report exporter uses one canonical report object for PDF, DOCX,
+  Markdown, HTML, plain-text, and JSON downloads.
 - Both P=10 tomography and Black–Kipp have working web presets and plotted
   solver responses. The P=10 synthetic demo produces the original four-field
   comparison plus error, sensitivity, residual, and convergence views.

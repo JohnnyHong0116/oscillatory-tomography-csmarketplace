@@ -1,12 +1,22 @@
-import React from 'react';
-import { X, Printer } from 'lucide-react';
+import React, { useState } from 'react';
+import { Download, Loader2, Printer, X } from 'lucide-react';
 import { AnalysisResult, ModelConfig } from '../../types/aquifer';
+import { exportReport, REPORT_FORMATS, ReportFormat } from '../../reporting/reportExport';
 
 interface Props { isOpen: boolean; onClose: () => void; config: ModelConfig; result: AnalysisResult | null }
 
 /** The report reads the same result object as the results screen and CSV. */
 export const ReportModal: React.FC<Props> = ({ isOpen, onClose, config, result }) => {
+  const [format, setFormat] = useState<ReportFormat>('pdf');
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   if (!isOpen || !result) return null;
+  const download = async () => {
+    setExportError(null); setExporting(true);
+    try { await exportReport(format, config, result); }
+    catch (cause) { setExportError(cause instanceof Error ? cause.message : 'Could not create report'); }
+    finally { setExporting(false); }
+  };
   return <div role="dialog" aria-modal="true" aria-label="Analysis report" className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
     <div className="bg-white rounded-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
       <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center print:hidden">
@@ -16,6 +26,11 @@ export const ReportModal: React.FC<Props> = ({ isOpen, onClose, config, result }
         </div>
       </div>
       <div className="p-7 space-y-6 text-sm">
+        <section className="print:hidden border border-[#D6DADD] rounded-xl p-4 bg-[#F7F7F7]">
+          <div className="flex flex-wrap items-end gap-3"><label className="flex-1 min-w-64"><span className="block font-bold text-xs mb-1">Download report format</span><select aria-label="Report format" value={format} onChange={(event) => setFormat(event.target.value as ReportFormat)} className="w-full bg-white border border-[#A7ADB1] rounded-md px-3 py-2.5 focus-ring">{REPORT_FORMATS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button onClick={download} disabled={exporting} className="flex items-center justify-center gap-2 min-w-44 px-4 py-2.5 rounded-md bg-[#C5050C] text-white font-bold disabled:opacity-60">{exporting ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}{exporting ? 'Creating report…' : 'Download report'}</button></div>
+          <p className="text-xs text-[#5F6368] mt-2">{REPORT_FORMATS.find((option) => option.value === format)?.description}</p>
+          {exportError && <p role="alert" className="text-xs text-[#9B0000] mt-2">{exportError}</p>}
+        </section>
         <div><h1 className="text-2xl font-bold">{config.testCase === 'black_kipp' ? 'Black–Kipp analytical comparison' : 'Oscillatory tomography analysis'}</h1>
           <p className="text-[#4B4F52] mt-2">{config.testCase === 'black_kipp' ? 'Finite-difference forward responses compared with the Black–Kipp analytical solution' : result.analysisMode === 'synthetic_demo' ? 'Original P=10 checkerboard synthetic experiment and joint geostatistical inversion' : result.mode === 'inversion' ? 'Geostatistical inversion using supplied measured phasors' : 'Forward model predictions from initial ln(K) and ln(Ss)'}</p></div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-[#F7F7F7] p-4 rounded">

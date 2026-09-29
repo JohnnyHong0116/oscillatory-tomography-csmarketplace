@@ -49,6 +49,9 @@ measurement modes remain available. The Black–Kipp explorer includes amplitude
 and phase comparisons plus the effective transmissivity, storativity, and
 diffusivity calculations from the translated example. Run progress is based on
 solver-reported milestones rather than a predicted wall-clock percentage.
+The report preview can export the complete run as PDF, Word (`.docx`),
+Markdown, standalone HTML, plain text, or structured JSON. PDF and Word
+generation are loaded only when selected so they do not delay the main UI.
 
 NumPy and SciPy handle the complex-valued dense and sparse matrix operations
 directly. MATLAB/Fortran array ordering is preserved explicitly where model
