@@ -17,6 +17,7 @@ import {
   HelpCircle,
   Edit2,
   Check,
+  X,
 } from 'lucide-react';
 import { ModelConfig, Well, BoundaryCondition, TomographyTest } from '../../types/aquifer';
 
@@ -43,6 +44,11 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
   const [newWellName, setNewWellName] = useState(`W${config.wells.length + 1}`);
   const [newWellX, setNewWellX] = useState(60);
   const [newWellY, setNewWellY] = useState(60);
+  const [editingWellId, setEditingWellId] = useState<string | null>(null);
+  const [editWellName, setEditWellName] = useState('');
+  const [editWellX, setEditWellX] = useState(0);
+  const [editWellY, setEditWellY] = useState(0);
+  const [editWellError, setEditWellError] = useState<string | null>(null);
 
   // Active test being edited/visualized in "Configure Tests" sub-tab
   const [internalActiveTestId, setInternalActiveTestId] = useState<string>(config.tests[0]?.id || 'test-1');
@@ -119,6 +125,49 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
     onChangeConfig({ ...config, wells: updated });
   };
 
+  const handleStartEditingWell = (well: Well) => {
+    setSelectedWellId(well.id);
+    setEditingWellId(well.id);
+    setEditWellName(well.name);
+    setEditWellX(well.x);
+    setEditWellY(well.y);
+    setEditWellError(null);
+  };
+
+  const handleCancelEditingWell = () => {
+    setEditingWellId(null);
+    setEditWellError(null);
+  };
+
+  const handleSaveWell = () => {
+    if (!editingWellId) return;
+    const name = editWellName.trim();
+    if (!name) {
+      setEditWellError('Enter a label for this well.');
+      return;
+    }
+    if (config.wells.some((well) => well.id !== editingWellId && well.name.trim().toLowerCase() === name.toLowerCase())) {
+      setEditWellError(`A well named ${name} already exists.`);
+      return;
+    }
+    if (!Number.isFinite(editWellX) || !Number.isFinite(editWellY)) {
+      setEditWellError('Enter valid numeric X and Y coordinates.');
+      return;
+    }
+    const halfCellX = (config.maxX - config.minX) / (2 * config.gridNx);
+    const halfCellY = (config.maxY - config.minY) / (2 * config.gridNy);
+    const minReachableX = config.minX + halfCellX;
+    const maxReachableX = config.maxX - halfCellX;
+    const minReachableY = config.minY + halfCellY;
+    const maxReachableY = config.maxY - halfCellY;
+    if (editWellX < minReachableX || editWellX > maxReachableX || editWellY < minReachableY || editWellY > maxReachableY) {
+      setEditWellError(`Coordinates must stay within the solver cell centers: X ${minReachableX} to ${maxReachableX} m and Y ${minReachableY} to ${maxReachableY} m.`);
+      return;
+    }
+    handleUpdateWell(editingWellId, { name, x: editWellX, y: editWellY });
+    handleCancelEditingWell();
+  };
+
   const handleAddWell = () => {
     const id = `w-${crypto.randomUUID()}`;
     const name = newWellName || `W${config.wells.length + 1}`;
@@ -162,6 +211,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
       wells: updatedWells,
       tests: updatedTests,
     });
+    if (editingWellId === id) handleCancelEditingWell();
     if (selectedWellId === id) setSelectedWellId(updatedWells[0]?.id || null);
   };
 
@@ -484,6 +534,8 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                       <div
                         key={w.id}
                         onClick={() => setSelectedWellId(w.id)}
+                        onDoubleClick={() => handleStartEditingWell(w)}
+                        title="Double-click to edit this well"
                         className={`p-2.5 rounded-lg border text-xs cursor-pointer transition flex items-center justify-between ${
                           isSelected
                             ? 'bg-[#121212] border-[#121212] text-white shadow-xs'
@@ -506,6 +558,23 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                             ({w.x}m, {w.y}m)
                           </span>
                           <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartEditingWell(w);
+                            }}
+                            className={`p-1 rounded transition ${
+                              isSelected
+                                ? 'hover:bg-[#2A2A2A] text-[#A7ADB1] hover:text-white'
+                                : 'hover:bg-[#F1F2F3] text-[#6B7074] hover:text-[#121212]'
+                            }`}
+                            aria-label={`Edit ${w.name}`}
+                            title={`Edit ${w.name}`}
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteWell(w.id);
@@ -525,8 +594,70 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                   })}
                 </div>
 
+                {/* Existing Well Editor */}
+                {editingWellId && (
+                  <div className="bg-[#FFF8F8] border border-[#F3B8BB] p-3 rounded-lg space-y-2 mt-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-xs font-bold text-[#121212] flex items-center space-x-1.5">
+                        <Edit2 className="w-3.5 h-3.5 text-[#C5050C]" />
+                        <span>Edit Well Position</span>
+                      </div>
+                      <span className="text-[10px] text-[#6B7074]">Well ID and test assignments are preserved</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div>
+                        <label htmlFor="edit-well-name" className="block text-[10px] font-semibold text-[#6B7074] mb-0.5">Label</label>
+                        <input
+                          id="edit-well-name"
+                          type="text"
+                          value={editWellName}
+                          onChange={(event) => { setEditWellName(event.target.value); setEditWellError(null); }}
+                          onKeyDown={(event) => { if (event.key === 'Enter') handleSaveWell(); if (event.key === 'Escape') handleCancelEditingWell(); }}
+                          className="w-full bg-white border border-[#D6DADD] rounded px-2 py-1 text-xs text-[#121212] font-semibold focus:border-[#C5050C] outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="edit-well-x" className="block text-[10px] font-semibold text-[#6B7074] mb-0.5">X Position (m)</label>
+                        <input
+                          id="edit-well-x"
+                          type="number"
+                          step="0.1"
+                          value={editWellX}
+                          onChange={(event) => { setEditWellX(Number(event.target.value)); setEditWellError(null); }}
+                          onKeyDown={(event) => { if (event.key === 'Enter') handleSaveWell(); if (event.key === 'Escape') handleCancelEditingWell(); }}
+                          className="w-full bg-white border border-[#D6DADD] rounded px-2 py-1 text-xs text-[#121212] font-mono focus:border-[#C5050C] outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="edit-well-y" className="block text-[10px] font-semibold text-[#6B7074] mb-0.5">Y Position (m)</label>
+                        <input
+                          id="edit-well-y"
+                          type="number"
+                          step="0.1"
+                          value={editWellY}
+                          onChange={(event) => { setEditWellY(Number(event.target.value)); setEditWellError(null); }}
+                          onKeyDown={(event) => { if (event.key === 'Enter') handleSaveWell(); if (event.key === 'Escape') handleCancelEditingWell(); }}
+                          className="w-full bg-white border border-[#D6DADD] rounded px-2 py-1 text-xs text-[#121212] font-mono focus:border-[#C5050C] outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {editWellError && <p role="alert" className="text-[10px] text-[#9B0000]">{editWellError}</p>}
+
+                    <div className="flex justify-end gap-2">
+                      <button type="button" onClick={handleCancelEditingWell} className="flex items-center gap-1 rounded border border-[#D6DADD] bg-white px-3 py-1.5 text-xs font-semibold text-[#121212] hover:bg-[#F1F2F3]">
+                        <X className="w-3.5 h-3.5" /> Cancel
+                      </button>
+                      <button type="button" onClick={handleSaveWell} className="flex items-center gap-1 rounded bg-[#121212] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#2A2A2A]">
+                        <Check className="w-3.5 h-3.5 text-[#7ED38C]" /> Save Changes
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Add Well Form */}
-                <div className="bg-[#F7F7F7] border border-[#D6DADD] p-3 rounded-lg space-y-2 mt-3">
+                {!editingWellId && <div className="bg-[#F7F7F7] border border-[#D6DADD] p-3 rounded-lg space-y-2 mt-3">
                   <div className="text-xs font-bold text-[#121212] flex items-center space-x-1.5">
                     <Plus className="w-3.5 h-3.5 text-[#C5050C]" />
                     <span>Add New Well Position</span>
@@ -572,7 +703,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add Well Position to Map</span>
                   </button>
-                </div>
+                </div>}
               </div>
             </div>
 
@@ -884,6 +1015,10 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedWellId(well.id);
+                        }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          handleStartEditingWell(well);
                         }}
                         className={`transition-transform select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                       >
