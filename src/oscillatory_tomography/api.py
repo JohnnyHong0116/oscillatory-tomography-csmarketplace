@@ -1,8 +1,10 @@
 """HTTP adapter for the existing scientific solver.
 
-The API accepts physical well coordinates and per-test roles. It never invents
-measurements: without supplied complex observations it returns forward-model
-predictions, and only runs an inversion when every selected pair has data.
+The API supports three explicit workflows: a forward prediction, an inversion
+of uploaded measurements, and the original P=10 synthetic checkerboard demo.
+The synthetic workflow is deliberately labelled and returns both truth and
+estimated fields so the web application can reproduce the diagnostic figures
+from the MATLAB/Python examples without presenting generated data as field data.
 """
 
 from __future__ import annotations
@@ -72,6 +74,7 @@ class AnalyzeRequest(ApiModel):
     corrLengthX: float = Field(gt=0)
     corrLengthY: float = Field(gt=0)
     maxIterations: int = Field(ge=1, le=10)
+    analysisMode: Literal["forward", "synthetic_demo", "measured_inversion"] = "forward"
     observations: list[ObservationInput] | None = None
 
     @model_validator(mode="after")
@@ -115,10 +118,49 @@ class AnalyzeRequest(ApiModel):
             observed_pairs = [(item.testId, item.wellId) for item in self.observations]
             if len(observed_pairs) != len(pairs) or set(observed_pairs) != pairs:
                 raise ValueError("Supply exactly one real/imag observation for every test-observation pair")
+        if self.analysisMode == "measured_inversion" and self.observations is None:
+            raise ValueError("Measured inversion requires a complete observation CSV")
+        if self.analysisMode != "measured_inversion" and self.observations is not None:
+            raise ValueError("Uploaded observations may only be used in measured inversion mode")
+        if self.analysisMode == "synthetic_demo" and self.testCase != "inversion_10s":
+            raise ValueError("The synthetic checkerboard demo is only available for the P=10 inversion case")
         return self
 
 
 Progress = Callable[[str, int, str | None, str], None]
+
+
+def _field(values: np.ndarray, ny: int, nx: int) -> list[list[float]]:
+    """Serialize a Fortran-ordered parameter vector using the solver grid."""
+    return values.reshape((ny, nx), order="F").tolist()
+
+
+def _checkerboard_truth(domain: Domain) -> np.ndarray:
+    """Recreate the heterogeneous truth used by testing_inversion_2d_geostat.py."""
+    coordinates, _ = plaid_cellcenter_coord(domain)
+    x_wave = np.sin(np.pi * coordinates[:, 0] / 10)
+    y_wave = np.sin(np.pi * coordinates[:, 1] / 10)
+    x_wave[np.abs(x_wave) < 1e-12] = 0
+    y_wave[np.abs(y_wave) < 1e-12] = 0
+    checker = np.sign(x_wave) * np.sign(y_wave)
+    return np.r_[-9.2 + checker, -11.2 + 0.05 * checker]
+
+
+def _response_diagnostics(measured: np.ndarray | None, predicted: np.ndarray) -> dict | None:
+    if measured is None:
+        return None
+    count = predicted.size // 2
+    measured_complex = measured[:count] + 1j * measured[count:]
+    predicted_complex = predicted[:count] + 1j * predicted[count:]
+    residual = predicted_complex - measured_complex
+    measured_amplitude = np.abs(measured_complex)
+    amplitude_relative = np.abs(np.abs(predicted_complex) - measured_amplitude) / np.maximum(measured_amplitude, 1e-30)
+    phase_error = np.angle(predicted_complex / np.where(np.abs(measured_complex) > 0, measured_complex, 1), deg=True)
+    return {
+        "responseRmse": float(np.sqrt(np.mean(np.abs(residual) ** 2))),
+        "meanAmplitudeRelativeError": float(np.mean(amplitude_relative)),
+        "phaseRmseDegrees": float(np.sqrt(np.mean(phase_error ** 2))),
+    }
 
 
 def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
@@ -150,54 +192,86 @@ def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
     experiments = create_inputs(np.array([[well.x, well.y] for well in wells]), ordered_rows, domain)
     n_cells = request.gridNx * request.gridNy
     initial = np.r_[np.full(n_cells, request.initialLnK), np.full(n_cells, request.initialLnSs)]
+    truth = _checkerboard_truth(domain) if request.analysisMode == "synthetic_demo" else None
+    simulation_parameters = truth if truth is not None else initial
     forward = lambda params: run_distributed_k_ss(params, domain, boundaries, experiments, 1)
     # Solve each configured pumping test separately. This produces truthful
     # per-test completion events for the run screen while retaining the joint
     # experiment for the subsequent inversion and final prediction.
     predicted = np.empty(2 * len(ordered_rows), dtype=float)
+    inversion_requested = request.analysisMode in ("synthetic_demo", "measured_inversion")
+    forward_span = 40 if inversion_requested else 88
     for test_number, test in enumerate(request.tests):
         positions = [i for i, (mapped_test, _) in enumerate(ordered_mapping) if mapped_test.id == test.id]
         if progress:
-            progress("forward", 5 + int(60 * test_number / len(request.tests)), test.id, f"Solving {test.name}")
+            progress("forward", 5 + int(forward_span * test_number / len(request.tests)), test.id, f"Solving {test.name}")
         subset = create_inputs(np.array([[well.x, well.y] for well in wells]), ordered_rows[positions], domain)
-        values = run_distributed_k_ss(initial, domain, boundaries, subset, 1)
+        values = run_distributed_k_ss(simulation_parameters, domain, boundaries, subset, 1)
         predicted[positions] = values[:len(positions)]
         predicted[np.asarray(positions) + len(ordered_rows)] = values[len(positions):]
         if progress:
-            progress("forward", 5 + int(60 * (test_number + 1) / len(request.tests)), test.id, f"Completed {test.name}")
+            progress("forward", 5 + int(forward_span * (test_number + 1) / len(request.tests)), test.id, f"Completed {test.name}")
     mode = "forward"
     iterations = 0
     objective = None
     fields = None
-    if request.observations is not None:
-        if progress:
-            progress("inversion", 66, None, "Starting joint geostatistical inversion")
+    true_fields = None
+    error_fields = None
+    sensitivity_fields = None
+    objective_history: list[dict] = []
+    if truth is not None:
+        measured = predicted.copy()
+        true_fields = {
+            "lnK": _field(truth[:n_cells], request.gridNy, request.gridNx),
+            "lnSs": _field(truth[n_cells:], request.gridNy, request.gridNx),
+        }
+    elif request.observations is not None:
         by_pair = {(item.testId, item.wellId): item for item in request.observations}
         actual = [by_pair[(test.id, well.id)] for test, well in ordered_mapping]
         measured = np.r_[[item.real for item in actual], [item.imag for item in actual]]
+    else:
+        measured = None
+
+    if inversion_requested:
+        if progress:
+            progress("inversion", 48, None, "Starting joint geostatistical inversion")
         coordinates, _ = plaid_cellcenter_coord(domain)
         distances = dimdist(coordinates[0:1], coordinates)[0]
         correlation = np.exp(-np.sqrt((distances[:, 0] / request.corrLengthX) ** 2 + (distances[:, 1] / request.corrLengthY) ** 2))
         covariance_rows = (4.0 * correlation, 0.1 * correlation)
         covariance = lambda values: covariance_product_k_ss(covariance_rows, values, (request.gridNy, request.gridNx))
         drift = np.block([[np.ones((n_cells, 1)), np.zeros((n_cells, 1))], [np.zeros((n_cells, 1)), np.ones((n_cells, 1))]])
+        def report_iteration(iteration: int, nlap: float) -> None:
+            objective_history.append({"iteration": iteration, "objective": float(nlap)})
+            if progress:
+                progress("inversion", min(96, 48 + int(48 * iteration / request.maxIterations)), None,
+                         f"Iteration {iteration}: objective {nlap:.5g}")
+
         inverted = quasi_linear_geostatistical_inverse(
             measured, initial, np.array([request.initialLnK, request.initialLnSs]),
             drift, request.dataErrorVar * np.eye(measured.size), covariance,
             forward, lambda params: run_distributed_k_ss(params, domain, boundaries, experiments, 3),
             max_gradient_evaluations=request.maxIterations,
-            progress=(lambda iteration, nlap: progress("inversion", min(95, 66 + int(29 * iteration / request.maxIterations)), None, f"Iteration {iteration}: objective {nlap:.5g}")) if progress else None,
+            progress=report_iteration,
         )
         predicted = forward(inverted.parameters)
         fields = {
-            "lnK": inverted.parameters[:n_cells].reshape((request.gridNy, request.gridNx), order="F").tolist(),
-            "lnSs": inverted.parameters[n_cells:].reshape((request.gridNy, request.gridNx), order="F").tolist(),
+            "lnK": _field(inverted.parameters[:n_cells], request.gridNy, request.gridNx),
+            "lnSs": _field(inverted.parameters[n_cells:], request.gridNy, request.gridNx),
+        }
+        if truth is not None:
+            error_fields = {
+                "lnK": _field(inverted.parameters[:n_cells] - truth[:n_cells], request.gridNy, request.gridNx),
+                "lnSs": _field(inverted.parameters[n_cells:] - truth[n_cells:], request.gridNy, request.gridNx),
+            }
+        sensitivity = np.asarray(inverted.sensitivity)
+        sensitivity_fields = {
+            "lnK": _field(np.log10(np.sqrt(np.sum(sensitivity[:, :n_cells] ** 2, axis=0)) + 1e-30), request.gridNy, request.gridNx),
+            "lnSs": _field(np.log10(np.sqrt(np.sum(sensitivity[:, n_cells:] ** 2, axis=0)) + 1e-30), request.gridNy, request.gridNx),
         }
         mode = "inversion"
         iterations = inverted.iterations
         objective = inverted.nlap
-    else:
-        measured = None
 
     count = len(ordered_mapping)
     pairs = []
@@ -234,12 +308,33 @@ def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
             pairs[-1]["numericalPhaseDegrees"] = numerical_phase
             pairs[-1]["amplitudeRelativeError"] = float(abs(abs(phasor) - abs(analytical)) / abs(analytical))
             pairs[-1]["phaseErrorDegrees"] = min(phase_error, 360 - phase_error)
+            phase_radians = max(np.deg2rad(numerical_phase), 1e-12)
+            coefficients = (-0.12665, 2.8642, -0.47779, 0.16586, -0.076402, 0.03089)
+            log_phase = np.log(phase_radians)
+            rasmussen_sum = sum(coefficient * log_phase**power for power, coefficient in enumerate(coefficients))
+            omega = 2 * np.pi / test.pumpingPeriod
+            diffusivity = omega * radius**2 / np.exp(rasmussen_sum)
+            u_estimate = np.sqrt(omega * radius**2 / (2 * diffusivity))
+            estimated_transmissivity = test.pumpingRate / (2 * np.pi * abs(phasor)) * abs(kv(0, u_estimate * (1 + 1j)))
+            pairs[-1]["effectiveProperties"] = {
+                "diffusivityM2PerSecond": float(diffusivity),
+                "transmissivityM2PerSecond": float(estimated_transmissivity),
+                "storativity": float(estimated_transmissivity / diffusivity),
+            }
     test_order = {test.id: position for position, test in enumerate(request.tests)}
     observation_order = {(test.id, well_id): position for test in request.tests for position, well_id in enumerate(test.observationWellIds)}
     pairs.sort(key=lambda pair: (test_order[pair["testId"]], observation_order[(pair["testId"], pair["observationWellId"])]))
     if progress:
         progress("complete", 100, None, "Solver results ready")
-    return {"mode": mode, "pairs": pairs, "fields": fields, "iterations": iterations,
+    diagnostics = _response_diagnostics(measured, predicted)
+    if diagnostics is not None and truth is not None and fields is not None:
+        diagnostics.update(
+            lnKFieldRmse=float(np.sqrt(np.mean((np.asarray(fields["lnK"]) - np.asarray(true_fields["lnK"])) ** 2))),
+            lnSsFieldRmse=float(np.sqrt(np.mean((np.asarray(fields["lnSs"]) - np.asarray(true_fields["lnSs"])) ** 2))),
+        )
+    return {"mode": mode, "analysisMode": request.analysisMode, "pairs": pairs, "fields": fields,
+            "trueFields": true_fields, "errorFields": error_fields, "sensitivityFields": sensitivity_fields,
+            "objectiveHistory": objective_history, "diagnostics": diagnostics, "iterations": iterations,
             "objective": objective, "runtimeSeconds": perf_counter() - started,
             "grid": {"nx": request.gridNx, "ny": request.gridNy}}
 

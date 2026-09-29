@@ -69,6 +69,22 @@
   animation: hydraulicWave 2.4s cubic-bezier(0.1, 0.5, 0.3, 1) 1.6s infinite;
 }
 
+@keyframes solverPulseBar {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(145%); }
+}
+
+.solver-pulse-bar {
+  animation: solverPulseBar 1.35s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-hydraulic-wave-1,
+  .animate-hydraulic-wave-2,
+  .animate-hydraulic-wave-3,
+  .solver-pulse-bar { animation: none; }
+}
+
 /* Links accessibility */
 a.accessible-link, .accessible-link {
   color: #1D4ED8;

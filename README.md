@@ -38,14 +38,17 @@ For a single-process production-style run, use `npm run build` in `web/`,
 then start the Python API. The built app is served at
 <http://127.0.0.1:8000/>.
 
-The web workflow offers the P=10 multi-test tomography preset and a bounded
-Black–Kipp analytical-comparison preset. Both compute genuine Python forward
-phasors. The tomography case performs geostatistical inversion only when a
-complete CSV of measured real/imaginary phasors is supplied. The run screen
-polls solver-reported stages and per-test completion; its percentages are
-milestones, not a prediction of remaining wall-clock time. The Black–Kipp web
-preset uses 60×60 cells and nine periods so it can run interactively; run the
-Python example below for the full original 300×300/20-period benchmark.
+The web workflow offers the original 50×50, nine-well, 36-response P=10
+tomography experiment and a bounded Black–Kipp analytical-comparison preset.
+The P=10 screen defaults to a clearly labelled synthetic demo: it generates
+the checkerboard truth, calculates observations with the Python forward model,
+and runs the joint geostatistical inversion. The explorer displays true and
+estimated ln(K)/ln(Ss), field errors, final-Jacobian sensitivity coverage,
+response fits, residuals, and the objective history. Forward-only and uploaded
+measurement modes remain available. The Black–Kipp explorer includes amplitude
+and phase comparisons plus the effective transmissivity, storativity, and
+diffusivity calculations from the translated example. Run progress is based on
+solver-reported milestones rather than a predicted wall-clock percentage.
 
 NumPy and SciPy handle the complex-valued dense and sparse matrix operations
 directly. MATLAB/Fortran array ordering is preserved explicitly where model

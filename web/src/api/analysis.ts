@@ -1,4 +1,4 @@
-import { AnalysisProgress, AnalysisResult, ComplexObservation, ModelConfig } from '../types/aquifer';
+import { AnalysisMode, AnalysisProgress, AnalysisResult, ComplexObservation, ModelConfig } from '../types/aquifer';
 
 // During local development Parcel runs on 1234 and Python on 8000. A built
 // frontend served by FastAPI uses the same origin and needs no special URL.
@@ -9,6 +9,7 @@ const apiOrigin = window.location.port === '1234'
 export async function runAnalysis(
   config: ModelConfig,
   observations: ComplexObservation[] | null,
+  analysisMode: AnalysisMode,
   signal: AbortSignal,
   onProgress: (progress: AnalysisProgress) => void,
 ): Promise<AnalysisResult> {
@@ -40,6 +41,7 @@ export async function runAnalysis(
       corrLengthX: config.corrLengthX,
       corrLengthY: config.corrLengthY,
       maxIterations: config.maxIterations,
+      analysisMode,
       observations,
     }),
   });

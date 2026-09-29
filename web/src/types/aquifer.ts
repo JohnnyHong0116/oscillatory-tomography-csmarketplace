@@ -105,6 +105,11 @@ export interface AnalysisPair {
   numericalPhaseDegrees?: number;
   amplitudeRelativeError?: number;
   phaseErrorDegrees?: number;
+  effectiveProperties?: {
+    diffusivityM2PerSecond: number;
+    transmissivityM2PerSecond: number;
+    storativity: number;
+  };
 }
 
 export interface AnalysisProgress {
@@ -121,10 +126,24 @@ export interface AnalysisProgress {
 
 export interface AnalysisResult {
   mode: 'forward' | 'inversion';
+  analysisMode: AnalysisMode;
   pairs: AnalysisPair[];
   fields: { lnK: number[][]; lnSs: number[][] } | null;
+  trueFields: { lnK: number[][]; lnSs: number[][] } | null;
+  errorFields: { lnK: number[][]; lnSs: number[][] } | null;
+  sensitivityFields: { lnK: number[][]; lnSs: number[][] } | null;
+  objectiveHistory: { iteration: number; objective: number }[];
+  diagnostics: {
+    responseRmse: number;
+    meanAmplitudeRelativeError: number;
+    phaseRmseDegrees: number;
+    lnKFieldRmse?: number;
+    lnSsFieldRmse?: number;
+  } | null;
   iterations: number;
   objective: number | null;
   runtimeSeconds: number;
   grid: { nx: number; ny: number };
 }
+
+export type AnalysisMode = 'forward' | 'synthetic_demo' | 'measured_inversion';

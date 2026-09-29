@@ -34,7 +34,7 @@ export const Step1SelectTestCase: React.FC<Step1Props> = ({
               Select Test Case Configuration
             </h2>
             <p className="text-xs text-[#4B4F52] mt-1 max-w-3xl leading-relaxed">
-              Configure a periodic pumping experiment. The Python solver computes forward responses, and can estimate aquifer properties when measured phasors are supplied.
+              Run the translated Python workflows with real solver progress, field reconstruction, diagnostics, and multi-test response plots.
             </p>
           </div>
         </div>
@@ -80,7 +80,7 @@ export const Step1SelectTestCase: React.FC<Step1Props> = ({
             </div>
 
             <p className="text-xs leading-relaxed text-[#4B4F52]">
-              Interactive adaptation of the original P = 10 s geostatistical case. Run multiple pumping tests; measured complex responses enable estimation of ln(K) and ln(S_s).
+              Faithful 50×50 reconstruction of the original P = 10 s geostatistical case: nine wells, 36 responses, checkerboard truth, and joint inversion.
             </p>
 
             <div className="space-y-2 pt-2 border-t border-[#D6DADD]">
@@ -89,10 +89,10 @@ export const Step1SelectTestCase: React.FC<Step1Props> = ({
               </div>
               <ul className="space-y-1.5 text-xs text-[#121212]">
                 {[
-                  'Computes complex pressure responses at selected observation wells',
-                  'Supports a different pumping well for each test',
-                  'Estimates ln(K) and ln(S_s) when measurements are supplied',
-                  'Exports solver responses by test and well',
+                  'Runs all eight original pumping configurations',
+                  'Displays true and estimated ln(K) and ln(S_s) fields',
+                  'Maps estimation error and final-Jacobian sensitivity',
+                  'Plots response fit, residuals, and inversion convergence',
                 ].map((feature, i) => (
                   <li key={i} className="flex items-start space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 bg-[#C5050C]" />
@@ -105,7 +105,7 @@ export const Step1SelectTestCase: React.FC<Step1Props> = ({
 
           <div className="pt-5 mt-4 border-t border-[#D6DADD] flex items-center justify-between">
             <span className="text-[11px] font-mono text-[#6B7074]">
-              Grid: 40×40 cells &bull; 4 Wells
+              50×50 cells · 9 wells · 36 responses
             </span>
             <button
               onClick={(e) => {
@@ -171,7 +171,7 @@ export const Step1SelectTestCase: React.FC<Step1Props> = ({
                   'Runs a nine-period interactive subset of the MATLAB sweep',
                   'Compares numerical vs exact analytical amplitude attenuation',
                   'Compares numerical vs analytical phase delay Δφ',
-                  'Plots numerical and analytical amplitude and phase by well',
+                  'Plots amplitude, phase, and three effective properties',
                 ].map((feature, i) => (
                   <li key={i} className="flex items-start space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 bg-[#C5050C]" />

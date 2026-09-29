@@ -28,19 +28,22 @@ unit-thickness domain with no-flow top/bottom boundaries. Horizontal boundary
 conditions are configurable. Well coordinates must lie within the outer cell
 centers because the solver's interpolation stencil cannot reach beyond them.
 
-Without measurements, the API returns only predicted complex phasors,
-amplitudes, phases, and pair geometry. It does not claim to have estimated a
-spatial parameter field. With one measured real/imaginary pair for every
-configured test-observation pair, it runs the quasi-linear geostatistical
-inverse solver and returns estimated ln(K) and ln(Ss) grids, predictions,
-residuals, iteration count, and objective value. The UI CSV header is
+The explicit `analysisMode` controls the data semantics. `forward` returns
+complex predictions and pair geometry without claiming a spatial estimate.
+`measured_inversion` requires one real/imaginary value for every configured
+test-observation pair. `synthetic_demo` recreates the original P=10
+checkerboard truth and generates its observations before inversion. Inversion
+responses include estimated fields, synthetic truth/error fields when
+applicable, final-Jacobian sensitivity coverage, response diagnostics, and the
+accepted objective history. The measurement CSV header is
 `testId,wellId,real,imag`.
 
 The run screen uses `POST /api/v1/jobs` followed by `GET /api/v1/jobs/{id}`.
 This local single-process queue reports actual completed forward tests and
 inversion iterations, but does not support cancellation or survive a server
-restart. Black–Kipp mode performs forward solves and adds the analytical
-amplitude, phase, and errors for each pair. Its web preset is a reduced
+restart. Black–Kipp mode performs forward solves and adds analytical amplitude,
+phase, errors, and effective diffusivity/transmissivity/storativity for each
+pair. Its web preset is a reduced
 interactive subset of the full Python/MATLAB benchmark, not a claim of
 300×300-grid numerical equivalence.
 
@@ -53,7 +56,8 @@ jobs should use an asynchronous worker and persistent result storage.
 
 - The React results table, CSV, and report all read the same API result.
 - Both P=10 tomography and Black–Kipp have working web presets and plotted
-  solver responses. Spatial field plots appear only after inversion.
+  solver responses. The P=10 synthetic demo produces the original four-field
+  comparison plus error, sensitivity, residual, and convergence views.
 - Raw pressure time-series ingestion, phase extraction, uncertainty fields,
   long-running job control, and persistent experiments are future work.
 - `maxIterations`, data error variance, and correlation lengths affect the

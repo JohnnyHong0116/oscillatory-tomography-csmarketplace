@@ -55,6 +55,7 @@ def test_http_contract_and_bad_input():
 
 def test_incomplete_observations_are_rejected():
     payload = request_payload()
+    payload["analysisMode"] = "measured_inversion"
     payload["observations"] = [{"testId": "t1", "wellId": "b", "real": 0, "imag": 0}]
     with pytest.raises(ValidationError, match="exactly one"):
         AnalyzeRequest.model_validate(payload)
@@ -75,6 +76,7 @@ def test_inversion_returns_fields_from_measured_phasors():
          "real": item["predicted"]["real"], "imag": item["predicted"]["imag"]}
         for item in forward["pairs"]
     ]
+    payload["analysisMode"] = "measured_inversion"
     inverse = analyze(AnalyzeRequest.model_validate(payload))
     assert inverse["mode"] == "inversion"
     assert inverse["iterations"] >= 1
@@ -89,6 +91,7 @@ def test_black_kipp_returns_analytical_comparison():
     assert result["mode"] == "forward"
     assert all(math.isfinite(item["analytical"]["amplitude"]) for item in result["pairs"])
     assert all(0 <= item["phaseErrorDegrees"] <= 180 for item in result["pairs"])
+    assert all(math.isfinite(item["effectiveProperties"]["transmissivityM2PerSecond"]) for item in result["pairs"])
     payload["observations"] = []
     with pytest.raises(ValidationError, match="forward-model comparison"):
         AnalyzeRequest.model_validate(payload)
@@ -117,6 +120,7 @@ def test_inverse_progress_reports_solver_iterations():
          "real": item["predicted"]["real"], "imag": item["predicted"]["imag"]}
         for item in forward["pairs"]
     ]
+    payload["analysisMode"] = "measured_inversion"
     stages = []
     analyze(AnalyzeRequest.model_validate(payload), lambda stage, percent, test_id, message: stages.append((stage, percent, test_id)))
     assert [item[2] for item in stages if item[0] == "forward" and item[2] is not None] == ["t1", "t1", "t2", "t2"]
@@ -134,6 +138,7 @@ def test_inverse_job_serializes_estimated_field():
          "real": item["predicted"]["real"], "imag": item["predicted"]["imag"]}
         for item in forward["pairs"]
     ]
+    payload["analysisMode"] = "measured_inversion"
     client = TestClient(app)
     job_id = client.post("/api/v1/jobs", json=payload).json()["jobId"]
     for _ in range(100):
@@ -144,3 +149,17 @@ def test_inverse_job_serializes_estimated_field():
     assert state["status"] == "complete", state["error"]
     assert state["result"]["mode"] == "inversion"
     assert len(state["result"]["fields"]["lnK"]) == payload["gridNy"]
+
+
+def test_synthetic_demo_returns_full_scientific_diagnostics():
+    payload = request_payload()
+    payload["analysisMode"] = "synthetic_demo"
+    result = analyze(AnalyzeRequest.model_validate(payload))
+    assert result["mode"] == "inversion"
+    assert result["analysisMode"] == "synthetic_demo"
+    assert len(result["trueFields"]["lnK"]) == payload["gridNy"]
+    assert len(result["fields"]["lnSs"]) == payload["gridNy"]
+    assert len(result["errorFields"]["lnK"]) == payload["gridNy"]
+    assert len(result["sensitivityFields"]["lnSs"]) == payload["gridNy"]
+    assert result["objectiveHistory"]
+    assert math.isfinite(result["diagnostics"]["lnKFieldRmse"])

@@ -17,7 +17,7 @@ export const ReportModal: React.FC<Props> = ({ isOpen, onClose, config, result }
       </div>
       <div className="p-7 space-y-6 text-sm">
         <div><h1 className="text-2xl font-bold">{config.testCase === 'black_kipp' ? 'Black–Kipp analytical comparison' : 'Oscillatory tomography analysis'}</h1>
-          <p className="text-[#4B4F52] mt-2">{config.testCase === 'black_kipp' ? 'Finite-difference forward responses compared with the Black–Kipp analytical solution' : result.mode === 'inversion' ? 'Geostatistical inversion using supplied measured phasors' : 'Forward model predictions from initial ln(K) and ln(Ss)'}</p></div>
+          <p className="text-[#4B4F52] mt-2">{config.testCase === 'black_kipp' ? 'Finite-difference forward responses compared with the Black–Kipp analytical solution' : result.analysisMode === 'synthetic_demo' ? 'Original P=10 checkerboard synthetic experiment and joint geostatistical inversion' : result.mode === 'inversion' ? 'Geostatistical inversion using supplied measured phasors' : 'Forward model predictions from initial ln(K) and ln(Ss)'}</p></div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-[#F7F7F7] p-4 rounded">
           <div>Tests<br /><strong>{config.tests.length}</strong></div><div>Wells<br /><strong>{config.wells.length}</strong></div>
           <div>Grid<br /><strong>{config.gridNx} × {config.gridNy}</strong></div><div>Solver runtime<br /><strong>{result.runtimeSeconds.toFixed(2)} s</strong></div>
