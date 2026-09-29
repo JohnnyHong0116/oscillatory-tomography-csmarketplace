@@ -2,6 +2,13 @@
 @import 'tailwindcss';
 
 @layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+
   :root {
     --brand-primary: #C5050C;
     --brand-primary-hover: #9B0000;

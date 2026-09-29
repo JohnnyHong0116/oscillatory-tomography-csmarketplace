@@ -33,7 +33,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="bg-[#121212] text-white border-b border-[#2A2A2A] shadow-xs relative z-20">
+    <header className="shrink-0 bg-[#121212] text-white border-b border-[#2A2A2A] shadow-xs relative z-20">
       {/* UW–Madison Brand Top Red Accent Stripe */}
       <div className="h-1 bg-[#C5050C] w-full" />
 

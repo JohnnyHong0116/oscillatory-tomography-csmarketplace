@@ -39,7 +39,19 @@ export default function App() {
   // navigation mounts a new step so buttons near the previous step's footer
   // do not leave the next screen positioned at its bottom.
   useLayoutEffect(() => {
-    workspaceRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    const resetScroll = () => {
+      const workspace = workspaceRef.current;
+      if (workspace) {
+        workspace.scrollTop = 0;
+        workspace.scrollLeft = 0;
+      }
+      // This fallback also repairs stale document scrolling from older builds
+      // or browser layout changes before the single-scroller layout settles.
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    };
+    resetScroll();
+    const frame = window.requestAnimationFrame(resetScroll);
+    return () => window.cancelAnimationFrame(frame);
   }, [currentStep]);
 
   const handleSelectTestCase = (tc: TestCaseType) => {
@@ -74,7 +86,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] flex flex-col font-sans text-[#121212]">
+    <div className="h-screen overflow-hidden bg-[#F7F7F7] flex flex-col font-sans text-[#121212]">
       {/* Top Application Header */}
       <Header
         currentStep={currentStep}
@@ -87,7 +99,7 @@ export default function App() {
       />
 
       {/* Main Layout Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="min-h-0 flex-1 flex overflow-hidden">
         {/* Charcoal Sidebar */}
         <Sidebar
           currentStep={currentStep}
@@ -102,7 +114,7 @@ export default function App() {
         />
 
         {/* Central Workspace */}
-        <main ref={workspaceRef} className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <main ref={workspaceRef} className="min-h-0 flex-1 flex flex-col min-w-0 overflow-y-auto">
           {/* Top Workflow Stepper */}
           <WorkflowStepper
             currentStep={currentStep}
