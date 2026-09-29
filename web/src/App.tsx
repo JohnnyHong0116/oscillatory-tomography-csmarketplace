@@ -74,7 +74,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] flex flex-col font-sans text-[#121212] select-none">
+    <div className="min-h-screen bg-[#F7F7F7] flex flex-col font-sans text-[#121212]">
       {/* Top Application Header */}
       <Header
         currentStep={currentStep}
