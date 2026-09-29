@@ -73,7 +73,9 @@ class AnalyzeRequest(ApiModel):
     dataErrorVar: float = Field(gt=0)
     corrLengthX: float = Field(gt=0)
     corrLengthY: float = Field(gt=0)
-    maxIterations: int = Field(ge=1, le=10)
+    # The translated MATLAB baseline allows 30 gradient evaluations and often
+    # converges earlier through its objective/parameter tolerances.
+    maxIterations: int = Field(ge=1, le=50)
     analysisMode: Literal["forward", "synthetic_demo", "measured_inversion"] = "forward"
     observations: list[ObservationInput] | None = None
 

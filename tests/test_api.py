@@ -68,6 +68,15 @@ def test_well_at_unreachable_edge_is_rejected():
         AnalyzeRequest.model_validate(payload)
 
 
+def test_baseline_iteration_budget_is_allowed_and_bounded():
+    payload = request_payload()
+    payload["maxIterations"] = 30
+    assert AnalyzeRequest.model_validate(payload).maxIterations == 30
+    payload["maxIterations"] = 51
+    with pytest.raises(ValidationError):
+        AnalyzeRequest.model_validate(payload)
+
+
 def test_inversion_returns_fields_from_measured_phasors():
     payload = request_payload()
     forward = analyze(AnalyzeRequest.model_validate(payload))

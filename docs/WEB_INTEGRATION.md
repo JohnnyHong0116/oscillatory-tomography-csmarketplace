@@ -63,7 +63,10 @@ jobs should use an asynchronous worker and persistent result storage.
 - Raw pressure time-series ingestion, phase extraction, uncertainty fields,
   long-running job control, and persistent experiments are future work.
 - `maxIterations`, data error variance, and correlation lengths affect the
-  inversion. A forward-only run uses the initial ln(K)/ln(Ss) fields.
+  inversion. The P=10 preset exposes the baseline iteration ceiling of 30 in
+  Step 2 under "Boundary Conditions, Inversion Priors & Solver Controls"; the
+  tolerance checks can stop the solver earlier. A forward-only run uses the
+  initial ln(K)/ln(Ss) fields.
 - The UI polls an in-process solver job. Closing the browser stops polling,
   but does not stop the Python solve. Do not treat browser navigation as solver
   cancellation.

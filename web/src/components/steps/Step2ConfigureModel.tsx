@@ -679,7 +679,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
               >
                 <div className="flex items-center space-x-2">
                   <Settings className="w-4 h-4 text-[#4B4F52]" />
-                  <span>Boundary Conditions & Inversion Priors</span>
+                  <span>Boundary Conditions, Inversion Priors & Solver Controls</span>
                 </div>
                 {showAdvanced ? (
                   <ChevronUp className="w-4 h-4 text-[#4B4F52]" />
@@ -738,6 +738,35 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                         onChange={(e) => handleDomainChange('initialLnSs', parseFloat(e.target.value) || -11.5)}
                         className="w-full bg-white border border-[#D6DADD] rounded px-2 py-1 text-xs text-[#121212] font-mono focus:border-[#C5050C]"
                       />
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-[#D6DADD]">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="max-w-xl">
+                        <h4 className="font-bold text-[11px] uppercase tracking-wider text-[#4B4F52]">
+                          Solver convergence
+                        </h4>
+                        <p className="text-[10px] text-[#6B7074] mt-1 leading-relaxed">
+                          This is a safety ceiling, not a required iteration count. The inversion stops earlier when its objective and parameter-change tolerances converge. The original P=10 baseline uses a ceiling of 30 and normally stops after 8 iterations.
+                        </p>
+                      </div>
+                      <label className="w-full sm:w-56">
+                        <span className="block text-[11px] font-semibold text-[#4B4F52] mb-1">
+                          Maximum inversion iterations
+                        </span>
+                        <input
+                          aria-label="Maximum inversion iterations"
+                          type="number"
+                          min="1"
+                          max="50"
+                          step="1"
+                          value={config.maxIterations}
+                          onChange={(event) => handleDomainChange('maxIterations', Math.max(1, Math.min(50, parseInt(event.target.value, 10) || 30)))}
+                          className="w-full bg-white border border-[#D6DADD] rounded px-2 py-1.5 text-xs text-[#121212] font-mono focus:border-[#C5050C] outline-none"
+                        />
+                        <span className="block text-[10px] text-[#527A35] mt-1">P=10 baseline default: 30</span>
+                      </label>
                     </div>
                   </div>
                 </div>

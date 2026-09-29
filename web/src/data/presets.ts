@@ -23,7 +23,9 @@ export const DEFAULT_INVERSION_CONFIG: ModelConfig = {
   initialLnK: -9.0, initialLnSs: -11.0,
   dataErrorVar: 1e-8, corrLengthX: 15, corrLengthY: 15,
   boundaries: { west: 'constant_head', east: 'constant_head', south: 'constant_head', north: 'constant_head', top: 'no_flow', bottom: 'no_flow' },
-  maxIterations: 5,
+  // Match the Python/MATLAB baseline budget. The solver still stops early
+  // when both convergence tolerances are satisfied (typically iteration 8).
+  maxIterations: 30,
 };
 
 /** Interactive subset of the MATLAB Black-Kipp sweep (same wells and physics,
