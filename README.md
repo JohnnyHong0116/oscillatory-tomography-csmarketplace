@@ -1,9 +1,47 @@
 # Oscillatory Tomography — Python Port
 
-This branch contains the open-source Python transcription of the oscillatory
-hydraulic tomography MATLAB project. It includes the forward phasor model,
-analytic sensitivities, geostatistical inversion routines, covariance tools,
-and Python versions of the three original testing workflows.
+This branch combines the Python scientific package with a React web app. The
+solver includes the forward phasor model, analytic sensitivities,
+geostatistical inversion routines, covariance tools, and Python versions of
+the three original testing workflows. See [integration architecture](docs/WEB_INTEGRATION.md)
+for the UI/API contract and supported analysis modes.
+
+## Run the integrated app
+
+Requirements: Python 3.10+, Node.js 20+, and npm. In PowerShell, from this
+repository root:
+
+```powershell
+py -3.10 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[web,test]"
+cd web
+npm ci
+```
+
+Start the Python API in one terminal from the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn oscillatory_tomography.api:app --host 127.0.0.1 --port 8000
+```
+
+Start React in a second terminal from `web/`:
+
+```powershell
+npm run dev
+```
+
+Open <http://localhost:1234>. The app sends analysis requests to the local
+Python API on port 8000. The API's interactive contract is available at
+<http://127.0.0.1:8000/docs>.
+
+For a single-process production-style run, use `npm run build` in `web/`,
+then start the Python API. The built app is served at
+<http://127.0.0.1:8000/>.
+
+The web workflow computes genuine forward phasors for configured pumping
+tests. It performs geostatistical inversion only when a complete CSV of
+measured real/imaginary phasors is supplied. The Black–Kipp workflow remains
+available as a Python example but is not yet wired into the web interface.
 
 NumPy and SciPy handle the complex-valued dense and sparse matrix operations
 directly. MATLAB/Fortran array ordering is preserved explicitly where model
@@ -23,7 +61,7 @@ MATLAB is not required on this branch.
 Clone this branch and enter the repository:
 
 ```powershell
-git clone --branch python-port https://github.com/JohnnyHong0116/oscillatory-tomography-csmarketplace.git
+git clone --branch integrate-react-python-api https://github.com/JohnnyHong0116/oscillatory-tomography-csmarketplace.git
 cd oscillatory-tomography-csmarketplace
 ```
 
@@ -192,6 +230,9 @@ accessed with `git switch --track origin/dev`; see
 
 - `src/oscillatory_tomography/` — reusable forward, inversion, covariance,
   grid, model, and utility modules
+- `web/` — React frontend, typed API client, and npm lockfile
+- `src/oscillatory_tomography/api.py` — FastAPI adapter for the solver
+- `docs/WEB_INTEGRATION.md` — web architecture and analysis contract
 - `examples/` — Python translations of the three top-level MATLAB workflows
 - `benchmarks/` — isolated Python scaling and peak-memory runner
 - `tests/` — portable unit and numerical finite-difference tests

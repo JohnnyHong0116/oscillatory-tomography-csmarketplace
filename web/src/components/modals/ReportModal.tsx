@@ -1,0 +1,42 @@
+import React from 'react';
+import { X, Printer } from 'lucide-react';
+import { AnalysisResult, ModelConfig } from '../../types/aquifer';
+
+interface Props { isOpen: boolean; onClose: () => void; config: ModelConfig; result: AnalysisResult | null }
+
+/** The report reads the same result object as the results screen and CSV. */
+export const ReportModal: React.FC<Props> = ({ isOpen, onClose, config, result }) => {
+  if (!isOpen || !result) return null;
+  return <div role="dialog" aria-modal="true" aria-label="Analysis report" className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+    <div className="bg-white rounded-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+      <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center print:hidden">
+        <h2 className="font-bold">Analysis report</h2><div className="flex gap-2">
+          <button onClick={() => window.print()} className="flex items-center gap-2 px-3 py-2 border rounded"><Printer size={16} /> Print</button>
+          <button onClick={onClose} aria-label="Close report" className="p-2 border rounded"><X size={16} /></button>
+        </div>
+      </div>
+      <div className="p-7 space-y-6 text-sm">
+        <div><h1 className="text-2xl font-bold">Oscillatory tomography analysis</h1>
+          <p className="text-[#4B4F52] mt-2">{result.mode === 'inversion' ? 'Geostatistical inversion using supplied measured phasors' : 'Forward model predictions from initial ln(K) and ln(Ss)'}</p></div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-[#F7F7F7] p-4 rounded">
+          <div>Tests<br /><strong>{config.tests.length}</strong></div><div>Wells<br /><strong>{config.wells.length}</strong></div>
+          <div>Grid<br /><strong>{config.gridNx} × {config.gridNy}</strong></div><div>Solver runtime<br /><strong>{result.runtimeSeconds.toFixed(2)} s</strong></div>
+        </div>
+        <section><h2 className="font-bold mb-2">Experiment settings</h2>
+          <p>Domain: x {config.minX}–{config.maxX} m, y {config.minY}–{config.maxY} m. Initial ln(K): {config.initialLnK}; initial ln(Ss): {config.initialLnSs}. Data error variance: {config.dataErrorVar} m².</p>
+          {result.mode === 'inversion' && <p>Accepted inverse iterations: {result.iterations}; final objective: {result.objective?.toPrecision(5)}.</p>}
+        </section>
+        <section><h2 className="font-bold mb-2">Test configuration</h2>
+          <div className="space-y-1">{config.tests.map((test) => <p key={test.id}>{test.name}: pump {config.wells.find((well) => well.id === test.pumpingWellId)?.name}; observe {test.observationWellIds.map((id) => config.wells.find((well) => well.id === id)?.name).join(', ')}; period {test.pumpingPeriod ?? config.pumpingPeriod} s.</p>)}</div>
+        </section>
+        <section><h2 className="font-bold mb-2">Computed complex responses</h2>
+          <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr><th>Test</th><th>Pump → observe</th><th>Real (m)</th><th>Imag (m)</th><th>Amplitude (m)</th><th>Phase (°)</th>{result.mode === 'inversion' && <th>Residual (m)</th>}</tr></thead>
+            <tbody>{result.pairs.map((pair) => <tr key={`${pair.testId}-${pair.observationWellId}`} className="border-t">
+              <td>{pair.testName}</td><td>{pair.pumpingWellName} → {pair.observationWellName}</td><td>{pair.predicted.real.toExponential(3)}</td><td>{pair.predicted.imag.toExponential(3)}</td><td>{pair.predicted.amplitude.toExponential(3)}</td><td>{pair.predicted.phaseDegrees.toFixed(1)}</td>{result.mode === 'inversion' && <td>{pair.residualAmplitude?.toExponential(3)}</td>}
+            </tr>)}</tbody></table></div>
+        </section>
+        <p className="text-xs text-[#6B7074]">Results are from the Python solver. The model assumes one horizontal layer with unit thickness and no flow through its top and bottom.</p>
+      </div>
+    </div>
+  </div>;
+};

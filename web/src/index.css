@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@layer base {
+  :root {
+    --brand-primary: #C5050C;
+    --brand-primary-hover: #9B0000;
+    --brand-primary-pressed: #750000;
+    --brand-on-primary: #FFFFFF;
+
+    --page-bg: #F7F7F7;
+    --card-bg: #FFFFFF;
+    --sidebar-bg: #121212;
+    --sidebar-hover: #2A2A2A;
+    --subtle-bg: #F1F2F3;
+    --border-default: #D6DADD;
+    --border-strong: #A7ADB1;
+
+    --text-primary: #121212;
+    --text-secondary: #4B4F52;
+    --text-muted: #6B7074;
+    --text-on-dark: #FFFFFF;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--text-primary);
+    background-color: var(--page-bg);
+  }
+
+  code, kbd, samp, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Accessible Keyboard Focus Ring */
+.focus-ring:focus-visible {
+  outline: 3px solid #C5050C !important;
+  outline-offset: 2px !important;
+}
+
+/* Oscillatory Tomography Hydraulic Wave Propagation Animation */
+@keyframes hydraulicWave {
+  0% {
+    r: 6px;
+    opacity: 0.95;
+    stroke-width: 2px;
+  }
+  50% {
+    opacity: 0.5;
+    stroke-width: 1.5px;
+  }
+  100% {
+    r: 30px;
+    opacity: 0;
+    stroke-width: 0.5px;
+  }
+}
+
+.animate-hydraulic-wave-1 {
+  animation: hydraulicWave 2.4s cubic-bezier(0.1, 0.5, 0.3, 1) infinite;
+}
+
+.animate-hydraulic-wave-2 {
+  animation: hydraulicWave 2.4s cubic-bezier(0.1, 0.5, 0.3, 1) 0.8s infinite;
+}
+
+.animate-hydraulic-wave-3 {
+  animation: hydraulicWave 2.4s cubic-bezier(0.1, 0.5, 0.3, 1) 1.6s infinite;
+}
+
+/* Links accessibility */
+a.accessible-link, .accessible-link {
+  color: #1D4ED8;
+  text-decoration: underline;
+}
+a.accessible-link:hover, .accessible-link:hover {
+  color: #1E40AF;
+}

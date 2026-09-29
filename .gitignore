@@ -11,3 +11,9 @@ __pycache__/
 # Generated validation outputs
 python_outputs/
 benchmark_outputs/
+
+# React build and local dependency artifacts
+web/node_modules/
+web/dist/
+web/.parcel-dev/
+web/.parcel-cache/
