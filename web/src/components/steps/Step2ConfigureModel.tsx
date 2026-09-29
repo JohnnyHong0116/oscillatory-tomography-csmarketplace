@@ -902,6 +902,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
 
       {/* TAB 2: CONFIGURE TESTS */}
       {activeSubTab === 'tests' && (
+        <>
         <div ref={tabGridRef} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Multi-Test Cards (7 cols) */}
           <div className="lg:col-span-7 space-y-4">
@@ -1358,6 +1359,31 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
             </div>
           </div>
         </div>
+        {/* Keep the sub-step progression visible where the user finishes the
+            test list instead of requiring a return to the page header. */}
+        <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+          <button
+            onClick={() => setActiveSubTab('positions')}
+            className="flex items-center space-x-2 bg-white hover:bg-[#F1F2F3] text-[#121212] border border-[#D6DADD] font-bold text-xs px-5 py-2.5 rounded-lg transition focus-ring"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Well Positions</span>
+          </button>
+          <button
+            onClick={onNext}
+            disabled={!isAllTestsValid}
+            title={!isAllTestsValid ? 'Resolve the test configuration errors before reviewing inputs.' : ''}
+            className={`flex items-center space-x-2 font-bold text-xs px-5 py-2.5 rounded-lg shadow-xs transition focus-ring ${
+              isAllTestsValid
+                ? 'bg-[#C5050C] hover:bg-[#9B0000] text-white'
+                : 'bg-[#E1E5E7] text-[#6B7074] cursor-not-allowed'
+            }`}
+          >
+            <span>Proceed to Review Inputs</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+        </>
       )}
     </div>
   );
