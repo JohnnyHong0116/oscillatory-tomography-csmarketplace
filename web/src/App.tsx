@@ -26,6 +26,7 @@ export default function App() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [selectedTestId, setSelectedTestId] = useState<string>(DEFAULT_INVERSION_CONFIG.tests[0]?.id || 'test-1');
   const [configureSubTab, setConfigureSubTab] = useState<'positions' | 'tests'>('positions');
+  const [configureFocusTestId, setConfigureFocusTestId] = useState<string | null>(null);
 
   // Layout states
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -70,6 +71,7 @@ export default function App() {
     setConfig(preset);
     setSelectedTestId(preset.tests[0].id);
     setConfigureSubTab('positions');
+    setConfigureFocusTestId(null);
     setCompletedSteps(new Set());
   };
 
@@ -92,6 +94,7 @@ export default function App() {
     setConfig(DEFAULT_INVERSION_CONFIG);
     setTestCase('inversion_10s');
     setConfigureSubTab('positions');
+    setConfigureFocusTestId(null);
     setResult(null);
   };
 
@@ -150,6 +153,8 @@ export default function App() {
                 onChangeActiveTestId={setSelectedTestId}
                 initialSubTab={configureSubTab}
                 onChangeSubTab={setConfigureSubTab}
+                focusTestId={configureFocusTestId}
+                onFocusTestHandled={() => setConfigureFocusTestId(null)}
                 onNext={handleNextStep}
                 onPrev={handlePrevStep}
               />
@@ -163,6 +168,7 @@ export default function App() {
                 onEditTest={(testId) => {
                   setSelectedTestId(testId);
                   setConfigureSubTab('tests');
+                  setConfigureFocusTestId(testId);
                   navigateToStep(2);
                 }}
                 onNext={handleNextStep}

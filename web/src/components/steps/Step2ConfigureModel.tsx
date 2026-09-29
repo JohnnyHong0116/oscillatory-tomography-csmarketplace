@@ -29,6 +29,8 @@ interface Step2Props {
   onChangeActiveTestId?: (id: string) => void;
   initialSubTab?: 'positions' | 'tests';
   onChangeSubTab?: (tab: 'positions' | 'tests') => void;
+  focusTestId?: string | null;
+  onFocusTestHandled?: () => void;
   onNext: () => void;
   onPrev: () => void;
 }
@@ -40,6 +42,8 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
   onChangeActiveTestId,
   initialSubTab = 'positions',
   onChangeSubTab,
+  focusTestId,
+  onFocusTestHandled,
   onNext,
   onPrev,
 }) => {
@@ -72,6 +76,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
   const tabGridRef = useRef<HTMLDivElement>(null);
   const stepTopRef = useRef<HTMLDivElement>(null);
   const advancedRef = useRef<HTMLDivElement>(null);
+  const handledFocusTestRef = useRef<string | null>(null);
 
   const handleChangeSubTab = (tab: 'positions' | 'tests') => {
     setActiveSubTab(tab);
@@ -120,6 +125,18 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
       });
     }
   }, [activeTestId, activeSubTab, config.tests.length]);
+
+  // Review's "Edit Test" action carries a one-time focus request. Wait until
+  // this screen and all test-card refs are mounted, then reveal the exact card
+  // instead of leaving the user at the top of the test list.
+  useEffect(() => {
+    if (activeSubTab !== 'tests' || !focusTestId || handledFocusTestRef.current === focusTestId) return;
+    handledFocusTestRef.current = focusTestId;
+    setActiveTestId(focusTestId);
+    updateMapAlignment(focusTestId);
+    revealAfterRender(() => testRefs.current[focusTestId], 'center');
+    onFocusTestHandled?.();
+  }, [activeSubTab, focusTestId, onFocusTestHandled]);
 
   // Domain change handler
   const handleDomainChange = (field: keyof ModelConfig, val: number) => {
