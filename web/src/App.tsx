@@ -25,6 +25,7 @@ export default function App() {
   const [config, setConfig] = useState<ModelConfig>(DEFAULT_INVERSION_CONFIG);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [selectedTestId, setSelectedTestId] = useState<string>(DEFAULT_INVERSION_CONFIG.tests[0]?.id || 'test-1');
+  const [configureSubTab, setConfigureSubTab] = useState<'positions' | 'tests'>('positions');
 
   // Layout states
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -35,22 +36,29 @@ export default function App() {
   const [isDocsOpen, setIsDocsOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
 
+  const resetWorkspaceScroll = () => {
+    const workspace = workspaceRef.current;
+    if (workspace) {
+      workspace.scrollTop = 0;
+      workspace.scrollLeft = 0;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  };
+
+  // Also reset when a user selects the step they are already viewing. React
+  // does not rerun effects for an unchanged currentStep value.
+  const navigateToStep = (step: StepId) => {
+    setCurrentStep(step);
+    resetWorkspaceScroll();
+    window.requestAnimationFrame(resetWorkspaceScroll);
+  };
+
   // The central workspace owns the page scroll. Reset it whenever workflow
   // navigation mounts a new step so buttons near the previous step's footer
   // do not leave the next screen positioned at its bottom.
   useLayoutEffect(() => {
-    const resetScroll = () => {
-      const workspace = workspaceRef.current;
-      if (workspace) {
-        workspace.scrollTop = 0;
-        workspace.scrollLeft = 0;
-      }
-      // This fallback also repairs stale document scrolling from older builds
-      // or browser layout changes before the single-scroller layout settles.
-      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-    };
-    resetScroll();
-    const frame = window.requestAnimationFrame(resetScroll);
+    resetWorkspaceScroll();
+    const frame = window.requestAnimationFrame(resetWorkspaceScroll);
     return () => window.cancelAnimationFrame(frame);
   }, [currentStep]);
 
@@ -61,6 +69,7 @@ export default function App() {
     const preset = tc === 'black_kipp' ? BLACK_KIPP_CONFIG : DEFAULT_INVERSION_CONFIG;
     setConfig(preset);
     setSelectedTestId(preset.tests[0].id);
+    setConfigureSubTab('positions');
     setCompletedSteps(new Set());
   };
 
@@ -78,10 +87,11 @@ export default function App() {
   };
 
   const handleResetWorkflow = () => {
-    setCurrentStep(1);
+    navigateToStep(1);
     setCompletedSteps(new Set());
     setConfig(DEFAULT_INVERSION_CONFIG);
     setTestCase('inversion_10s');
+    setConfigureSubTab('positions');
     setResult(null);
   };
 
@@ -103,11 +113,11 @@ export default function App() {
         {/* Charcoal Sidebar */}
         <Sidebar
           currentStep={currentStep}
-          onNavigateStep={(s) => setCurrentStep(s)}
+          onNavigateStep={navigateToStep}
           onOpenDocs={() => setIsDocsOpen(true)}
           onOpenAbout={() => setIsAboutOpen(true)}
           onOpenExamples={() => {
-            setCurrentStep(1);
+            navigateToStep(1);
           }}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -119,7 +129,7 @@ export default function App() {
           <WorkflowStepper
             currentStep={currentStep}
             completedSteps={completedSteps}
-            onSelectStep={(s) => setCurrentStep(s)}
+            onSelectStep={navigateToStep}
           />
 
           {/* Step Content Container */}
@@ -138,6 +148,8 @@ export default function App() {
                 onChangeConfig={(nextConfig) => { setConfig(nextConfig); setResult(null); }}
                 activeTestId={selectedTestId}
                 onChangeActiveTestId={setSelectedTestId}
+                initialSubTab={configureSubTab}
+                onChangeSubTab={setConfigureSubTab}
                 onNext={handleNextStep}
                 onPrev={handlePrevStep}
               />
@@ -148,7 +160,11 @@ export default function App() {
                 config={config}
                 selectedTestId={selectedTestId}
                 onChangeSelectedTestId={setSelectedTestId}
-                onNavigateToStep={(s) => setCurrentStep(s)}
+                onEditTest={(testId) => {
+                  setSelectedTestId(testId);
+                  setConfigureSubTab('tests');
+                  navigateToStep(2);
+                }}
                 onNext={handleNextStep}
                 onPrev={handlePrevStep}
               />
@@ -161,7 +177,7 @@ export default function App() {
                   setResult(nextResult);
                   handleStepComplete(4);
                 }}
-                onExplore={() => setCurrentStep(5)}
+                onExplore={() => navigateToStep(5)}
                 onPrev={handlePrevStep}
               />
             )}

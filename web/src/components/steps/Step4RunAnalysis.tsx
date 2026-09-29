@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Activity, ArrowLeft, ArrowRight, CheckCircle2, Clock3, FlaskConical, Loader2, Play, Terminal } from 'lucide-react';
 import { AnalysisMode, AnalysisProgress, AnalysisResult, ModelConfig } from '../../types/aquifer';
 import { parseObservations, runAnalysis } from '../../api/analysis';
+import { revealAfterRender } from '../../utils/scroll';
 
 interface Props { config: ModelConfig; onResult: (result: AnalysisResult) => void; onExplore: () => void; onPrev: () => void }
 type Event = { time: string; message: string };
@@ -20,6 +21,7 @@ export const Step4RunAnalysis: React.FC<Props> = ({ config, onResult, onExplore,
   const controller = useRef<AbortController | null>(null);
   const lastEvent = useRef('');
   const consoleRef = useRef<HTMLDivElement>(null);
+  const requiredPairsRef = useRef<HTMLDetailsElement>(null);
   const tests = config.tests;
   const activeTest = tests.find((test) => test.id === selectedTestId) ?? tests[0];
   const pairs = tests.flatMap((test) => test.observationWellIds.map((wellId) => ({ test, wellId })));
@@ -82,7 +84,7 @@ export const Step4RunAnalysis: React.FC<Props> = ({ config, onResult, onExplore,
         ] as const).map(([value, label, description]) => <button type="button" role="radio" aria-checked={analysisMode === value} disabled={running} onClick={() => setAnalysisMode(value)} key={value} className={`text-left rounded-lg border p-3 transition ${analysisMode === value ? 'border-[#C5050C] bg-[#FEF2F2] ring-1 ring-[#C5050C]' : 'border-[#D6DADD] hover:border-[#A7ADB1]'}`}><strong className="block text-xs">{label}</strong><span className="block mt-1 text-[11px] leading-4 text-[#5F6368]">{description}</span></button>)}
       </div>
       {analysisMode === 'measured_inversion' && <><textarea aria-label="Measured phasors CSV" className="w-full min-h-28 border border-[#A7ADB1] rounded-md p-3 font-mono text-xs focus-ring" placeholder={'testId,wellId,real,imag\ntest-1,w-2,0.001,-0.002'} value={csv} onChange={(event) => setCsv(event.target.value)} disabled={running} />
-      <details className="text-xs"><summary className="cursor-pointer font-semibold">Required pair IDs ({pairs.length})</summary><div className="mt-2 max-h-32 overflow-auto font-mono">{pairs.map(({ test, wellId }) => <div key={`${test.id}-${wellId}`}>{test.id},{wellId},real,imag</div>)}</div></details></>}
+      <details ref={requiredPairsRef} tabIndex={-1} onToggle={(event) => { if (event.currentTarget.open) revealAfterRender(() => requiredPairsRef.current, 'start'); }} className="text-xs outline-none"><summary className="cursor-pointer font-semibold">Required pair IDs ({pairs.length})</summary><div className="mt-2 max-h-32 overflow-auto font-mono">{pairs.map(({ test, wellId }) => <div key={`${test.id}-${wellId}`}>{test.id},{wellId},real,imag</div>)}</div></details></>}
     </div>}
 
     <div className="bg-[#121212] rounded-xl p-5 text-white space-y-4" aria-live="polite">

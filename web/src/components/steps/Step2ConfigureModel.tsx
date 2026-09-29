@@ -20,12 +20,15 @@ import {
   X,
 } from 'lucide-react';
 import { ModelConfig, Well, BoundaryCondition, TomographyTest } from '../../types/aquifer';
+import { revealAfterRender } from '../../utils/scroll';
 
 interface Step2Props {
   config: ModelConfig;
   onChangeConfig: (newConfig: ModelConfig) => void;
   activeTestId?: string;
   onChangeActiveTestId?: (id: string) => void;
+  initialSubTab?: 'positions' | 'tests';
+  onChangeSubTab?: (tab: 'positions' | 'tests') => void;
   onNext: () => void;
   onPrev: () => void;
 }
@@ -35,10 +38,12 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
   onChangeConfig,
   activeTestId: propActiveTestId,
   onChangeActiveTestId,
+  initialSubTab = 'positions',
+  onChangeSubTab,
   onNext,
   onPrev,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'positions' | 'tests'>('positions');
+  const [activeSubTab, setActiveSubTab] = useState<'positions' | 'tests'>(initialSubTab);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedWellId, setSelectedWellId] = useState<string | null>(config.wells[0]?.id || null);
   const [newWellName, setNewWellName] = useState(`W${config.wells.length + 1}`);
@@ -63,7 +68,22 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const testRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const wellRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const tabGridRef = useRef<HTMLDivElement>(null);
+  const stepTopRef = useRef<HTMLDivElement>(null);
+  const advancedRef = useRef<HTMLDivElement>(null);
+
+  const handleChangeSubTab = (tab: 'positions' | 'tests') => {
+    setActiveSubTab(tab);
+    onChangeSubTab?.(tab);
+    revealAfterRender(() => stepTopRef.current, 'start');
+  };
+
+  const handleToggleAdvanced = () => {
+    const opening = !showAdvanced;
+    setShowAdvanced(opening);
+    if (opening) revealAfterRender(() => advancedRef.current, 'start');
+  };
 
   const updateMapAlignment = (testId: string) => {
     const cardEl = testRefs.current[testId];
@@ -89,10 +109,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
     setActiveTestId(testId);
     requestAnimationFrame(() => {
       updateMapAlignment(testId);
-      const cardEl = testRefs.current[testId];
-      if (cardEl) {
-        cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      revealAfterRender(() => testRefs.current[testId], 'center');
     });
   };
 
@@ -132,6 +149,8 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
     setEditWellX(well.x);
     setEditWellY(well.y);
     setEditWellError(null);
+    // Keep the auto-focused label input active while revealing the edited card.
+    revealAfterRender(() => wellRefs.current[well.id], 'nearest', false);
   };
 
   const handleCancelEditingWell = () => {
@@ -425,7 +444,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
   const selectedWell = config.wells.find((w) => w.id === selectedWellId);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 py-2">
+    <div ref={stepTopRef} tabIndex={-1} className="max-w-7xl mx-auto space-y-6 py-2 outline-none">
       {/* Header */}
       <div className="bg-white border border-[#D6DADD] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
         <div>
@@ -464,7 +483,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
       {/* Sub-tab Switcher Bar: 1. Define Well Positions & Domain vs 2. Configure Tests */}
       <div className="bg-white border border-[#D6DADD] rounded-xl p-1.5 flex items-center space-x-2 shadow-xs">
         <button
-          onClick={() => setActiveSubTab('positions')}
+          onClick={() => handleChangeSubTab('positions')}
           className={`flex-1 flex items-center justify-center space-x-2 py-2.5 px-4 rounded-lg text-xs font-bold transition focus-ring ${
             activeSubTab === 'positions'
               ? 'bg-[#121212] text-white shadow-xs'
@@ -477,7 +496,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
         </button>
 
         <button
-          onClick={() => setActiveSubTab('tests')}
+          onClick={() => handleChangeSubTab('tests')}
           className={`flex-1 flex items-center justify-center space-x-2 py-2.5 px-4 rounded-lg text-xs font-bold transition focus-ring relative ${
             activeSubTab === 'tests'
               ? 'bg-[#121212] text-white shadow-xs'
@@ -533,7 +552,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                     const isEditing = w.id === editingWellId;
                     if (isEditing) {
                       return (
-                        <div key={w.id} className="rounded-lg border border-[#C5050C] bg-[#FFF8F8] p-2.5 text-xs shadow-xs">
+                        <div ref={(element) => { wellRefs.current[w.id] = element; }} key={w.id} tabIndex={-1} className="rounded-lg border border-[#C5050C] bg-[#FFF8F8] p-2.5 text-xs shadow-xs outline-none">
                           <div className="mb-2 flex items-center justify-between gap-2">
                             <span className="flex items-center gap-1.5 font-bold text-[#121212]">
                               <Edit2 className="h-3.5 w-3.5 text-[#C5050C]" /> Edit {w.name}
@@ -591,6 +610,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                     }
                     return (
                       <div
+                        ref={(element) => { wellRefs.current[w.id] = element; }}
                         key={w.id}
                         onClick={() => setSelectedWellId(w.id)}
                         onDoubleClick={() => handleStartEditingWell(w)}
@@ -800,9 +820,9 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
             </div>
 
             {/* Advanced Settings Collapsible */}
-            <div className="bg-white border border-[#D6DADD] rounded-xl overflow-hidden shadow-xs">
+            <div ref={advancedRef} tabIndex={-1} className="bg-white border border-[#D6DADD] rounded-xl overflow-hidden shadow-xs outline-none">
               <button
-                onClick={() => setShowAdvanced(!showAdvanced)}
+                onClick={handleToggleAdvanced}
                 className="w-full px-4 py-3 bg-[#F1F2F3] hover:bg-[#E1E5E7] text-[#121212] flex items-center justify-between text-xs font-bold border-b border-[#D6DADD] transition focus-ring"
               >
                 <div className="flex items-center space-x-2">
@@ -904,7 +924,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
             {/* Navigation Button to Next Sub-tab */}
             <div className="pt-2 flex justify-end">
               <button
-                onClick={() => setActiveSubTab('tests')}
+                onClick={() => handleChangeSubTab('tests')}
                 className="flex items-center space-x-2 bg-[#121212] hover:bg-[#2A2A2A] text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow-xs transition focus-ring"
               >
                 <span>Proceed to Configure Tests</span>
@@ -1122,6 +1142,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                     ref={(el) => {
                       testRefs.current[test.id] = el;
                     }}
+                    tabIndex={-1}
                     onClick={() => handleSelectTest(test.id)}
                     className={`bg-white border rounded-xl overflow-hidden transition shadow-xs cursor-pointer ${
                       isActive
@@ -1524,7 +1545,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
             test list instead of requiring a return to the page header. */}
         <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
           <button
-            onClick={() => setActiveSubTab('positions')}
+            onClick={() => handleChangeSubTab('positions')}
             className="flex items-center space-x-2 bg-white hover:bg-[#F1F2F3] text-[#121212] border border-[#D6DADD] font-bold text-xs px-5 py-2.5 rounded-lg transition focus-ring"
           >
             <ArrowLeft className="w-4 h-4" />

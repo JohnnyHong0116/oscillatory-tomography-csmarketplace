@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   CheckCircle2,
   AlertTriangle,
@@ -16,13 +16,14 @@ import {
   Clock,
   Radio,
 } from 'lucide-react';
-import { ModelConfig, ValidationIssue, TomographyTest, StepId } from '../../types/aquifer';
+import { ModelConfig, ValidationIssue, TomographyTest } from '../../types/aquifer';
+import { revealAfterRender } from '../../utils/scroll';
 
 interface Step3Props {
   config: ModelConfig;
   selectedTestId?: string;
   onChangeSelectedTestId?: (id: string) => void;
-  onNavigateToStep?: (step: StepId) => void;
+  onEditTest?: (testId: string) => void;
   onNext: () => void;
   onPrev: () => void;
 }
@@ -31,7 +32,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
   config,
   selectedTestId: propSelectedTestId,
   onChangeSelectedTestId,
-  onNavigateToStep,
+  onEditTest,
   onNext,
   onPrev,
 }) => {
@@ -52,6 +53,13 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
   const [expandedTestId, setExpandedTestId] = useState<string>(
     propSelectedTestId || tests[0]?.id || 'test-1'
   );
+  const testCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const handleToggleTest = (testId: string, isExpanded: boolean) => {
+    setExpandedTestId(isExpanded ? '' : testId);
+    onChangeSelectedTestId?.(testId);
+    if (!isExpanded) revealAfterRender(() => testCardRefs.current[testId], 'start');
+  };
 
   const dx = (maxX - minX) / gridNx;
   const dy = (maxY - minY) / gridNy;
@@ -396,16 +404,15 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
             return (
               <div
                 key={test.id}
+                ref={(element) => { testCardRefs.current[test.id] = element; }}
+                tabIndex={-1}
                 className={`bg-white border rounded-xl overflow-hidden transition shadow-xs ${
                   isExpanded ? 'border-[#121212] ring-2 ring-[#121212]/10' : 'border-[#D6DADD]'
                 }`}
               >
                 {/* Accordion Header */}
                 <div
-                  onClick={() => {
-                    setExpandedTestId(isExpanded ? '' : test.id);
-                    if (onChangeSelectedTestId) onChangeSelectedTestId(test.id);
-                  }}
+                  onClick={() => handleToggleTest(test.id, isExpanded)}
                   className={`p-3.5 flex items-center justify-between cursor-pointer border-b text-xs transition ${
                     isExpanded ? 'bg-[#121212] text-white' : 'bg-[#F7F7F7] text-[#121212] hover:bg-[#F1F2F3]'
                   }`}
@@ -443,8 +450,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (onChangeSelectedTestId) onChangeSelectedTestId(test.id);
-                        if (onNavigateToStep) onNavigateToStep(2);
+                        onEditTest?.(test.id);
                       }}
                       className={`flex items-center space-x-1 px-2.5 py-1 rounded text-xs font-semibold border transition ${
                         isExpanded
