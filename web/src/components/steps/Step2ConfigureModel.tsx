@@ -530,6 +530,65 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
                   {config.wells.map((w) => {
                     const isSelected = w.id === selectedWellId;
+                    const isEditing = w.id === editingWellId;
+                    if (isEditing) {
+                      return (
+                        <div key={w.id} className="rounded-lg border border-[#C5050C] bg-[#FFF8F8] p-2.5 text-xs shadow-xs">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <span className="flex items-center gap-1.5 font-bold text-[#121212]">
+                              <Edit2 className="h-3.5 w-3.5 text-[#C5050C]" /> Edit {w.name}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <button type="button" onClick={handleCancelEditingWell} className="rounded p-1 text-[#6B7074] hover:bg-white hover:text-[#121212]" aria-label={`Cancel editing ${w.name}`} title="Cancel">
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                              <button type="button" onClick={handleSaveWell} className="rounded bg-[#121212] p-1 text-white hover:bg-[#2A2A2A]" aria-label={`Save ${w.name}`} title="Save changes">
+                                <Check className="h-3.5 w-3.5" />
+                              </button>
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            <label className="min-w-0 text-[9px] font-semibold text-[#6B7074]">
+                              Label
+                              <input
+                                autoFocus
+                                aria-label="Edit well label"
+                                type="text"
+                                value={editWellName}
+                                onChange={(event) => { setEditWellName(event.target.value); setEditWellError(null); }}
+                                onKeyDown={(event) => { if (event.key === 'Enter') handleSaveWell(); if (event.key === 'Escape') handleCancelEditingWell(); }}
+                                className="mt-0.5 w-full rounded border border-[#D6DADD] bg-white px-1.5 py-1 text-xs font-semibold text-[#121212] outline-none focus:border-[#C5050C]"
+                              />
+                            </label>
+                            <label className="min-w-0 text-[9px] font-semibold text-[#6B7074]">
+                              X (m)
+                              <input
+                                aria-label="Edit well X position"
+                                type="number"
+                                step="0.1"
+                                value={editWellX}
+                                onChange={(event) => { setEditWellX(Number(event.target.value)); setEditWellError(null); }}
+                                onKeyDown={(event) => { if (event.key === 'Enter') handleSaveWell(); if (event.key === 'Escape') handleCancelEditingWell(); }}
+                                className="mt-0.5 w-full rounded border border-[#D6DADD] bg-white px-1.5 py-1 text-xs font-mono text-[#121212] outline-none focus:border-[#C5050C]"
+                              />
+                            </label>
+                            <label className="min-w-0 text-[9px] font-semibold text-[#6B7074]">
+                              Y (m)
+                              <input
+                                aria-label="Edit well Y position"
+                                type="number"
+                                step="0.1"
+                                value={editWellY}
+                                onChange={(event) => { setEditWellY(Number(event.target.value)); setEditWellError(null); }}
+                                onKeyDown={(event) => { if (event.key === 'Enter') handleSaveWell(); if (event.key === 'Escape') handleCancelEditingWell(); }}
+                                className="mt-0.5 w-full rounded border border-[#D6DADD] bg-white px-1.5 py-1 text-xs font-mono text-[#121212] outline-none focus:border-[#C5050C]"
+                              />
+                            </label>
+                          </div>
+                          {editWellError && <p role="alert" className="mt-1.5 text-[9px] leading-tight text-[#9B0000]">{editWellError}</p>}
+                        </div>
+                      );
+                    }
                     return (
                       <div
                         key={w.id}
@@ -594,70 +653,8 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                   })}
                 </div>
 
-                {/* Existing Well Editor */}
-                {editingWellId && (
-                  <div className="bg-[#FFF8F8] border border-[#F3B8BB] p-3 rounded-lg space-y-2 mt-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-xs font-bold text-[#121212] flex items-center space-x-1.5">
-                        <Edit2 className="w-3.5 h-3.5 text-[#C5050C]" />
-                        <span>Edit Well Position</span>
-                      </div>
-                      <span className="text-[10px] text-[#6B7074]">Well ID and test assignments are preserved</span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <div>
-                        <label htmlFor="edit-well-name" className="block text-[10px] font-semibold text-[#6B7074] mb-0.5">Label</label>
-                        <input
-                          id="edit-well-name"
-                          type="text"
-                          value={editWellName}
-                          onChange={(event) => { setEditWellName(event.target.value); setEditWellError(null); }}
-                          onKeyDown={(event) => { if (event.key === 'Enter') handleSaveWell(); if (event.key === 'Escape') handleCancelEditingWell(); }}
-                          className="w-full bg-white border border-[#D6DADD] rounded px-2 py-1 text-xs text-[#121212] font-semibold focus:border-[#C5050C] outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="edit-well-x" className="block text-[10px] font-semibold text-[#6B7074] mb-0.5">X Position (m)</label>
-                        <input
-                          id="edit-well-x"
-                          type="number"
-                          step="0.1"
-                          value={editWellX}
-                          onChange={(event) => { setEditWellX(Number(event.target.value)); setEditWellError(null); }}
-                          onKeyDown={(event) => { if (event.key === 'Enter') handleSaveWell(); if (event.key === 'Escape') handleCancelEditingWell(); }}
-                          className="w-full bg-white border border-[#D6DADD] rounded px-2 py-1 text-xs text-[#121212] font-mono focus:border-[#C5050C] outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="edit-well-y" className="block text-[10px] font-semibold text-[#6B7074] mb-0.5">Y Position (m)</label>
-                        <input
-                          id="edit-well-y"
-                          type="number"
-                          step="0.1"
-                          value={editWellY}
-                          onChange={(event) => { setEditWellY(Number(event.target.value)); setEditWellError(null); }}
-                          onKeyDown={(event) => { if (event.key === 'Enter') handleSaveWell(); if (event.key === 'Escape') handleCancelEditingWell(); }}
-                          className="w-full bg-white border border-[#D6DADD] rounded px-2 py-1 text-xs text-[#121212] font-mono focus:border-[#C5050C] outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    {editWellError && <p role="alert" className="text-[10px] text-[#9B0000]">{editWellError}</p>}
-
-                    <div className="flex justify-end gap-2">
-                      <button type="button" onClick={handleCancelEditingWell} className="flex items-center gap-1 rounded border border-[#D6DADD] bg-white px-3 py-1.5 text-xs font-semibold text-[#121212] hover:bg-[#F1F2F3]">
-                        <X className="w-3.5 h-3.5" /> Cancel
-                      </button>
-                      <button type="button" onClick={handleSaveWell} className="flex items-center gap-1 rounded bg-[#121212] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#2A2A2A]">
-                        <Check className="w-3.5 h-3.5 text-[#7ED38C]" /> Save Changes
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {/* Add Well Form */}
-                {!editingWellId && <div className="bg-[#F7F7F7] border border-[#D6DADD] p-3 rounded-lg space-y-2 mt-3">
+                <div className="bg-[#F7F7F7] border border-[#D6DADD] p-3 rounded-lg space-y-2 mt-3">
                   <div className="text-xs font-bold text-[#121212] flex items-center space-x-1.5">
                     <Plus className="w-3.5 h-3.5 text-[#C5050C]" />
                     <span>Add New Well Position</span>
@@ -703,7 +700,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add Well Position to Map</span>
                   </button>
-                </div>}
+                </div>
               </div>
             </div>
 
