@@ -79,6 +79,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={onToggleHelp}
             aria-label="Help & Glossary"
             aria-expanded={isHelpOpen}
+            aria-controls="help-glossary-panel"
             className={`flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 rounded transition focus-ring ${
               isHelpOpen
                 ? 'bg-[#C5050C] text-white border border-[#C5050C] shadow-xs'

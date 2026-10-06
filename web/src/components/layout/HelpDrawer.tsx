@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, Search, BookOpen, HelpCircle } from 'lucide-react';
+import { WORKFLOW_HELP } from '../../data/workflowHelp';
 
 interface HelpDrawerProps {
   isOpen: boolean;
@@ -50,7 +51,7 @@ const GLOSSARY: GlossaryItem[] = [
     category: 'Inversion',
     definition: 'Matrix of sensitivities (partial derivatives ∂h_i / ∂m_j).',
     details:
-      'The Jacobian represents how sensitive the observed hydraulic head response at well i is to changes in spatial parameter m_j. It is computed via adjoint state methods or finite differences for Gauss-Newton optimization.',
+      'Each column describes how predicted real and imaginary head components change with a cell parameter. The Python solver computes analytic sensitivities for ln(K) and ln(Ss), which the geostatistical inversion uses to update the estimated fields.',
   },
   {
     term: 'Correlation Length',
@@ -96,29 +97,53 @@ const GLOSSARY: GlossaryItem[] = [
 ];
 
 export const HelpDrawer: React.FC<HelpDrawerProps> = ({ isOpen, onClose }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
+  useEffect(() => {
+    if (!isOpen) return;
+    // Listen without an overlay: the outside click can still activate the
+    // underlying control. Exclude the header toggle so it closes only once.
+    const dismissOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (!panelRef.current?.contains(target) && !target.closest('[aria-controls="help-glossary-panel"]')) onClose();
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+        document.querySelector<HTMLButtonElement>('[aria-controls="help-glossary-panel"]')?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', dismissOutside);
+    document.addEventListener('keydown', dismissOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', dismissOutside);
+      document.removeEventListener('keydown', dismissOnEscape);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
-  const categories = ['All', 'Parameters', 'Testing', 'Inversion', 'Geostatistics', 'Theory', 'Computing'];
+  const categories = ['All', 'Workflow', 'Parameters', 'Testing', 'Inversion', 'Geostatistics', 'Results', 'Theory', 'Computing'];
 
-  const filtered = GLOSSARY.filter((item) => {
+  const filtered = [...WORKFLOW_HELP, ...GLOSSARY].filter((item) => {
     const matchesCat = selectedCategory === 'All' || item.category === selectedCategory;
     const matchesSearch =
-      item.term.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.definition.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.details.toLowerCase().includes(searchTerm.toLowerCase());
+      `${item.term} ${item.category} ${'symbol' in item ? item.symbol : ''} ${'unit' in item ? item.unit : ''}`.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+      item.definition.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+      item.details.toLowerCase().includes(searchTerm.trim().toLowerCase());
     return matchesCat && matchesSearch;
   });
 
   return (
-    <div className="absolute inset-y-0 right-0 w-80 sm:w-96 max-w-full bg-[#121212] border-l border-[#2A2A2A] text-white shadow-2xl z-40 flex flex-col transition-all">
+    <div ref={panelRef} id="help-glossary-panel" role="complementary" aria-labelledby="help-glossary-title" className="absolute inset-y-0 right-0 w-full sm:w-[30rem] max-w-full bg-[#121212] border-l border-[#2A2A2A] text-white shadow-2xl z-40 flex flex-col transition-all">
       {/* Drawer Header */}
       <div className="p-4 border-b border-[#2A2A2A] flex items-center justify-between bg-[#0A0A0A]">
         <div className="flex items-center space-x-2">
           <BookOpen className="w-5 h-5 text-[#C5050C]" />
-          <h2 className="font-bold text-sm text-white">Help & Technical Glossary</h2>
+          <h2 id="help-glossary-title" className="font-bold text-base text-white">Help & Technical Glossary</h2>
         </div>
         <button
           onClick={onClose}
@@ -134,8 +159,9 @@ export const HelpDrawer: React.FC<HelpDrawerProps> = ({ isOpen, onClose }) => {
         <div className="relative">
           <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-[#A7ADB1]" />
           <input
+            aria-label="Search help and glossary"
             type="text"
-            placeholder="Search terms (e.g., ln(K), Jacobian)..."
+            placeholder="Search workflows, settings, plots, exports…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-[#1C1C1C] border border-[#3A3A3A] text-xs rounded pl-8 pr-3 py-2 text-white focus:border-[#C5050C] outline-none"
@@ -147,6 +173,7 @@ export const HelpDrawer: React.FC<HelpDrawerProps> = ({ isOpen, onClose }) => {
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
+              aria-pressed={selectedCategory === cat}
               className={`text-[10px] px-2 py-0.5 rounded transition ${
                 selectedCategory === cat
                   ? 'bg-[#C5050C] text-white font-bold'
@@ -160,7 +187,9 @@ export const HelpDrawer: React.FC<HelpDrawerProps> = ({ isOpen, onClose }) => {
       </div>
 
       {/* Terms List */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4 text-sm">
+        <p className="text-[#A7ADB1] leading-relaxed">Browse guidance for the current app or search a term. Click outside this panel or press Escape to close it.</p>
+        <p className="text-xs text-[#A7ADB1]" role="status">{filtered.length} topics</p>
         {filtered.length === 0 ? (
           <div className="text-center py-8 text-[#A7ADB1]">
             No terms found matching "{searchTerm}".
@@ -171,16 +200,16 @@ export const HelpDrawer: React.FC<HelpDrawerProps> = ({ isOpen, onClose }) => {
               key={item.term}
               className="bg-[#181818] border border-[#2A2A2A] rounded-lg p-3 space-y-2 hover:border-[#444444] transition"
             >
-              <div className="flex items-center justify-between">
-                <div className="font-semibold text-white text-sm flex items-center space-x-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="font-semibold text-white text-sm flex flex-wrap items-center gap-1.5">
                   <span>{item.term}</span>
-                  {item.symbol && (
+                  {'symbol' in item && item.symbol && (
                     <span className="text-[11px] font-mono text-[#A7ADB1] bg-[#121212] border border-[#2A2A2A] px-1 py-0.2 rounded">
                       {item.symbol}
                     </span>
                   )}
                 </div>
-                {item.unit && (
+                {'unit' in item && item.unit && (
                   <span className="text-[10px] text-[#C5050C] font-mono font-bold">
                     [{item.unit}]
                   </span>
@@ -191,7 +220,7 @@ export const HelpDrawer: React.FC<HelpDrawerProps> = ({ isOpen, onClose }) => {
                 {item.definition}
               </div>
 
-              <p className="text-[#A7ADB1] text-[11px] leading-normal pt-1 border-t border-[#2A2A2A]">
+              <p className="text-[#A7ADB1] text-sm leading-relaxed pt-2 border-t border-[#2A2A2A]">
                 {item.details}
               </p>
             </div>
