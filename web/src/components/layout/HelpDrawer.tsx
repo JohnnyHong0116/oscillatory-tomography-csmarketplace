@@ -113,7 +113,7 @@ export const HelpDrawer: React.FC<HelpDrawerProps> = ({ isOpen, onClose }) => {
   });
 
   return (
-    <div className="fixed inset-y-0 right-0 w-80 sm:w-96 bg-[#121212] border-l border-[#2A2A2A] text-white shadow-2xl z-40 flex flex-col transition-all">
+    <div className="absolute inset-y-0 right-0 w-80 sm:w-96 max-w-full bg-[#121212] border-l border-[#2A2A2A] text-white shadow-2xl z-40 flex flex-col transition-all">
       {/* Drawer Header */}
       <div className="p-4 border-b border-[#2A2A2A] flex items-center justify-between bg-[#0A0A0A]">
         <div className="flex items-center space-x-2">
@@ -122,6 +122,7 @@ export const HelpDrawer: React.FC<HelpDrawerProps> = ({ isOpen, onClose }) => {
         </div>
         <button
           onClick={onClose}
+          aria-label="Close help and glossary"
           className="p-1 rounded text-[#A7ADB1] hover:text-white hover:bg-[#2A2A2A] transition focus-ring"
         >
           <X className="w-4 h-4" />

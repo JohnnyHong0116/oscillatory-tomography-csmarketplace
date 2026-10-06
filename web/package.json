@@ -1,7 +1,7 @@
 {
   "name": "oscillatory-tomography-csmarketplace-webapp",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "start": "parcel serve index.html --dist-dir .parcel-dev --no-cache",

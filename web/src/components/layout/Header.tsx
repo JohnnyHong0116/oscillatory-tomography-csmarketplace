@@ -1,24 +1,18 @@
 import React from 'react';
-import { Layers, HelpCircle, FileText, Info, RotateCcw } from 'lucide-react';
-import { StepId, TestCaseType } from '../../types/aquifer';
+import { Layers, HelpCircle, RotateCcw } from 'lucide-react';
+import { TestCaseType } from '../../types/aquifer';
 
 interface HeaderProps {
-  currentStep: StepId;
   testCase: TestCaseType;
   onReset: () => void;
   onToggleHelp: () => void;
-  onOpenDocs: () => void;
-  onOpenAbout: () => void;
   isHelpOpen: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  currentStep,
   testCase,
   onReset,
   onToggleHelp,
-  onOpenDocs,
-  onOpenAbout,
   isHelpOpen,
 }) => {
   const getTestCaseLabel = (tc: TestCaseType) => {
@@ -49,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
                 Aquifer Imaging Studio
               </h1>
               <span className="bg-[#2A2A2A] text-[#E1E5E7] border border-[#3A3A3A] text-[10px] font-mono font-medium px-1.5 py-0.2 rounded">
-                v1.1.0
+                v1.2.0
               </span>
             </div>
             <p className="text-[11px] text-[#A7ADB1] font-medium mt-0.5">
@@ -59,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Active Case Tag */}
-        <div className="hidden md:flex items-center space-x-2 bg-[#2A2A2A] border border-[#3A3A3A] rounded px-3 py-1">
+        <div className="hidden lg:flex items-center space-x-2 bg-[#2A2A2A] border border-[#3A3A3A] rounded px-3 py-1">
           <span className="text-[10px] uppercase tracking-wider font-bold text-[#A7ADB1]">
             Active Case:
           </span>
@@ -73,6 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Secondary Buttons: White with neutral border & black text */}
           <button
             onClick={onReset}
+            aria-label="Reset workflow"
             className="flex items-center space-x-1.5 text-xs bg-white text-[#121212] hover:bg-[#F1F2F3] border border-[#D6DADD] px-2.5 py-1.5 rounded font-semibold transition focus-ring"
             title="Reset Workflow to Default"
           >
@@ -81,23 +76,9 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           <button
-            onClick={onOpenDocs}
-            className="flex items-center space-x-1.5 text-xs bg-white text-[#121212] hover:bg-[#F1F2F3] border border-[#D6DADD] px-2.5 py-1.5 rounded font-semibold transition focus-ring"
-          >
-            <FileText className="w-3.5 h-3.5 text-[#C5050C]" />
-            <span className="hidden sm:inline">Docs</span>
-          </button>
-
-          <button
-            onClick={onOpenAbout}
-            className="flex items-center space-x-1.5 text-xs bg-white text-[#121212] hover:bg-[#F1F2F3] border border-[#D6DADD] px-2.5 py-1.5 rounded font-semibold transition focus-ring"
-          >
-            <Info className="w-3.5 h-3.5 text-[#4B4F52]" />
-            <span className="hidden sm:inline">About</span>
-          </button>
-
-          <button
             onClick={onToggleHelp}
+            aria-label="Help & Glossary"
+            aria-expanded={isHelpOpen}
             className={`flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 rounded transition focus-ring ${
               isHelpOpen
                 ? 'bg-[#C5050C] text-white border border-[#C5050C] shadow-xs'

@@ -351,7 +351,7 @@ def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
             "grid": {"nx": request.gridNx, "ny": request.gridNy}}
 
 
-app = FastAPI(title="Oscillatory Tomography API", version="1.1.0")
+app = FastAPI(title="Oscillatory Tomography API", version="1.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:1234", "http://127.0.0.1:1234"], allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
 

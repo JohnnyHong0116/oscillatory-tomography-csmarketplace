@@ -6,6 +6,11 @@ geostatistical inversion routines, covariance tools, and Python versions of
 the three original testing workflows. See [integration architecture](docs/WEB_INTEGRATION.md)
 for the UI/API contract and supported analysis modes.
 
+Web app v1.2.0 uses the sidebar as the single workflow navigator. Later steps
+are disabled there; use each screen's Continue action to advance. Earlier
+steps remain accessible. Documentation and About are in the sidebar, with
+Help & Glossary and Reset at the top right.
+
 ## Run the integrated app
 
 Requirements: Python 3.10+, Node.js 20+, and npm. In PowerShell, from this

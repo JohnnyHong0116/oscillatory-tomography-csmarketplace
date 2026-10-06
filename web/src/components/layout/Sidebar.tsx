@@ -88,16 +88,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ].map((item) => {
             const Icon = item.icon;
             const isSelected = currentStep === item.id;
+            const isLocked = item.id > currentStep;
             return (
               <button
                 key={item.id}
                 onClick={() => onNavigateStep(item.id as StepId)}
+                disabled={isLocked}
+                aria-current={isSelected ? 'step' : undefined}
+                aria-label={item.label}
                 className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded text-xs transition focus-ring ${
                   isSelected
                     ? 'bg-[#2A1215] text-white font-semibold border-l-3 border-[#C5050C]'
+                    : isLocked
+                    ? 'text-[#6B7074] opacity-50 cursor-not-allowed'
                     : 'text-[#A7ADB1] hover:text-white hover:bg-[#2A2A2A]'
                 }`}
-                title={item.label}
+                title={isLocked ? `${item.label} — use the Continue button to proceed` : item.label}
               >
                 <Icon
                   className={`w-4 h-4 flex-shrink-0 ${

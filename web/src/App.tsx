@@ -4,7 +4,6 @@ import { BLACK_KIPP_CONFIG, DEFAULT_INVERSION_CONFIG } from './data/presets';
 
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
-import { WorkflowStepper } from './components/layout/WorkflowStepper';
 import { HelpDrawer } from './components/layout/HelpDrawer';
 
 import { Step1SelectTestCase } from './components/steps/Step1SelectTestCase';
@@ -20,7 +19,6 @@ import { AboutModal } from './components/modals/AboutModal';
 export default function App() {
   const workspaceRef = useRef<HTMLElement>(null);
   const [currentStep, setCurrentStep] = useState<StepId>(1);
-  const [completedSteps, setCompletedSteps] = useState<Set<StepId>>(new Set());
   const [testCase, setTestCase] = useState<TestCaseType>('inversion_10s');
   const [config, setConfig] = useState<ModelConfig>(DEFAULT_INVERSION_CONFIG);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -72,16 +70,17 @@ export default function App() {
     setSelectedTestId(preset.tests[0].id);
     setConfigureSubTab('positions');
     setConfigureFocusTestId(null);
-    setCompletedSteps(new Set());
-  };
-
-  const handleStepComplete = (step: StepId) => {
-    setCompletedSteps((prev) => new Set(prev).add(step));
   };
 
   const handleNextStep = () => {
-    handleStepComplete(currentStep);
     setCurrentStep((prev) => (Math.min(5, prev + 1) as StepId));
+  };
+
+  // Forward navigation belongs to each screen's validated Continue action.
+  // Even after returning to an earlier screen, the sidebar cannot bypass
+  // input review or analysis execution by jumping to a later step.
+  const handleSidebarNavigation = (step: StepId) => {
+    if (step <= currentStep) navigateToStep(step);
   };
 
   const handlePrevStep = () => {
@@ -90,11 +89,11 @@ export default function App() {
 
   const handleResetWorkflow = () => {
     navigateToStep(1);
-    setCompletedSteps(new Set());
     setConfig(DEFAULT_INVERSION_CONFIG);
     setTestCase('inversion_10s');
     setConfigureSubTab('positions');
     setConfigureFocusTestId(null);
+    setSelectedTestId(DEFAULT_INVERSION_CONFIG.tests[0].id);
     setResult(null);
   };
 
@@ -102,21 +101,18 @@ export default function App() {
     <div className="h-screen overflow-hidden bg-[#F7F7F7] flex flex-col font-sans text-[#121212]">
       {/* Top Application Header */}
       <Header
-        currentStep={currentStep}
         testCase={testCase}
         onReset={handleResetWorkflow}
         onToggleHelp={() => setIsHelpOpen(!isHelpOpen)}
-        onOpenDocs={() => setIsDocsOpen(true)}
-        onOpenAbout={() => setIsAboutOpen(true)}
         isHelpOpen={isHelpOpen}
       />
 
       {/* Main Layout Area */}
-      <div className="min-h-0 flex-1 flex overflow-hidden">
+      <div className="relative min-h-0 flex-1 flex overflow-hidden">
         {/* Charcoal Sidebar */}
         <Sidebar
           currentStep={currentStep}
-          onNavigateStep={navigateToStep}
+          onNavigateStep={handleSidebarNavigation}
           onOpenDocs={() => setIsDocsOpen(true)}
           onOpenAbout={() => setIsAboutOpen(true)}
           onOpenExamples={() => {
@@ -128,13 +124,6 @@ export default function App() {
 
         {/* Central Workspace */}
         <main ref={workspaceRef} className="min-h-0 flex-1 flex flex-col min-w-0 overflow-y-auto">
-          {/* Top Workflow Stepper */}
-          <WorkflowStepper
-            currentStep={currentStep}
-            completedSteps={completedSteps}
-            onSelectStep={navigateToStep}
-          />
-
           {/* Step Content Container */}
           <div className="p-4 sm:p-6 flex-1 bg-[#F7F7F7]">
             {currentStep === 1 && (
@@ -181,7 +170,6 @@ export default function App() {
                 config={config}
                 onResult={(nextResult) => {
                   setResult(nextResult);
-                  handleStepComplete(4);
                 }}
                 onExplore={() => navigateToStep(5)}
                 onPrev={handlePrevStep}
