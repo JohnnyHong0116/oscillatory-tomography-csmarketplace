@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { ModelConfig, ValidationIssue, TomographyTest } from '../../types/aquifer';
 import { revealAfterRender } from '../../utils/scroll';
+import { ScientificSetupSummary } from './ScientificContext';
 
 interface Step3Props {
   config: ModelConfig;
@@ -83,6 +84,23 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
   const forwardStateMemoryMB = Math.round((unknownParams * bytesPerFloat / (1024 * 1024)) * 10) / 10;
 
   const issues: ValidationIssue[] = [];
+
+  // Reject incomplete numeric inputs here rather than relying on a late API error.
+  if (![minX, maxX, minY, maxY].every(Number.isFinite) || minX >= maxX || minY >= maxY) {
+    issues.push({ id: 'domain-extents', type: 'error', title: 'Invalid Domain Extents', message: 'Enter finite minimum and maximum coordinates, with each minimum below its maximum.' });
+  }
+  if (!Number.isInteger(gridNx) || !Number.isInteger(gridNy)) {
+    issues.push({ id: 'grid-integers', type: 'error', title: 'Whole Grid Cells Required', message: 'Nx and Ny must be finite whole numbers.' });
+  }
+  if (![config.initialLnK, config.initialLnSs].every(value => Number.isFinite(value) && value >= -30 && value <= 0) ||
+      ![config.dataErrorVar, config.corrLengthX, config.corrLengthY].every(value => Number.isFinite(value) && value > 0) ||
+      !Number.isInteger(config.maxIterations) || config.maxIterations < 1 || config.maxIterations > 50) {
+    issues.push({ id: 'solver-inputs', type: 'error', title: 'Check Prior and Solver Inputs', message: 'Initial log fields must be between -30 and 0; data-error variance and correlation lengths must be positive; iteration budget must be a whole number from 1 to 50 (baseline: 30).' });
+  }
+  if (wells.some(well => !Number.isFinite(well.x) || !Number.isFinite(well.y)) ||
+      tests.some(test => ![test.pumpingPeriod ?? pumpingPeriod, test.pumpingRate ?? pumpingRate].every(value => Number.isFinite(value) && value > 0))) {
+    issues.push({ id: 'finite-test-inputs', type: 'error', title: 'Incomplete Well or Test Values', message: 'Every well coordinate, pumping period, and pumping rate must be a finite number; periods and rates must be positive.' });
+  }
 
   // Domain boundary validation
   wells.forEach((w) => {
@@ -339,6 +357,8 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
           </div>
         </div>
       </div>
+
+      <ScientificSetupSummary config={config} />
 
       {/* Validation Banners */}
       <div className="space-y-2">

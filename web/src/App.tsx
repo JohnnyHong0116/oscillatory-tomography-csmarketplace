@@ -5,6 +5,7 @@ import { BLACK_KIPP_CONFIG, DEFAULT_INVERSION_CONFIG } from './data/presets';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { HelpDrawer } from './components/layout/HelpDrawer';
+import { BackToTopButton } from './components/layout/BackToTopButton';
 
 import { Step1SelectTestCase } from './components/steps/Step1SelectTestCase';
 import { Step2ConfigureModel } from './components/steps/Step2ConfigureModel';
@@ -88,6 +89,8 @@ export default function App() {
   };
 
   const handleResetWorkflow = () => {
+    // Confirm before any state or navigation changes so Cancel preserves the workspace.
+    if (!window.confirm('Reset workflow?\n\nThis will discard your current configuration and results and restore the default P=10 setup. This cannot be undone.')) return;
     navigateToStep(1);
     setConfig(DEFAULT_INVERSION_CONFIG);
     setTestCase('inversion_10s');
@@ -123,7 +126,8 @@ export default function App() {
         />
 
         {/* Central Workspace */}
-        <main ref={workspaceRef} className="min-h-0 flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <div className="relative min-h-0 min-w-0 flex-1 flex flex-col">
+        <main ref={workspaceRef} tabIndex={-1} className="min-h-0 flex-1 flex flex-col min-w-0 overflow-y-auto">
           {/* Step Content Container */}
           <div className="p-4 sm:p-6 flex-1 bg-[#F7F7F7]">
             {currentStep === 1 && (
@@ -187,6 +191,11 @@ export default function App() {
             {currentStep === 5 && !result && <div className="bg-white border rounded-xl p-6">Run the analysis before viewing results.</div>}
           </div>
         </main>
+
+        {currentStep === 2 && configureSubTab === 'tests' && !isHelpOpen && (
+          <BackToTopButton scrollContainerRef={workspaceRef} />
+        )}
+        </div>
 
         {/* Collapsible Technical Help & Glossary Drawer */}
         <HelpDrawer isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />

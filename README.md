@@ -6,10 +6,35 @@ geostatistical inversion routines, covariance tools, and Python versions of
 the three original testing workflows. See [integration architecture](docs/WEB_INTEGRATION.md)
 for the UI/API contract and supported analysis modes.
 
-Web app v1.2.0 uses the sidebar as the single workflow navigator. Later steps
+Web app v1.2.1 uses the sidebar as the single workflow navigator. Later steps
 are disabled there; use each screen's Continue action to advance. Earlier
 steps remain accessible. Documentation and About are in the sidebar, with
 Help & Glossary and Reset at the top right.
+
+Result plots support hover/focus inspection and click/Enter to pin exact solver
+values in a detail panel. Escape or Clear selection releases a pinned point.
+Response panels identify the test, pump, observer, period, distance, complex
+head, and available measured/analytical comparisons. Field maps inspect actual
+grid-cell values and cell-center coordinates; arrow keys move between cells.
+Comparison and effective-property legends toggle individual curves without
+changing the data or axis ranges. Changing response scope clears pinned points.
+Run the frontend inspection regression tests with `npm --prefix web test`.
+
+Each result plot has a translucent enlarge control on hover/focus (always
+available on touch). The full-screen viewer keeps the live chart and selection,
+with inspection details on the right on wide screens and below on small screens.
+Close or Escape returns to the inline chart without clearing pinned values.
+Result-tab selection scrolls to the plots with the tabs visible. Reset requires
+confirmation before discarding configuration and results.
+
+The existing input-review screen now summarizes baseline/custom configuration,
+period sampling, observation components, cell resolution, model assumptions,
+and initial physical properties. Geometry advisories do not modify the model.
+Measured inversion provides a blank pair-ID CSV template and checks completeness
+before submitting a job. Result interpretation separates synthetic truth,
+measured calibration, and forward prediction, and explains sensitivity and
+phase-wrapping limitations. These are frontend safeguards; the five-step flow,
+scientific presets, and Python algorithms are unchanged.
 
 ## Run the integrated app
 

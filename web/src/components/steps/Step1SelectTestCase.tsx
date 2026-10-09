@@ -227,16 +227,6 @@ export const Step1SelectTestCase: React.FC<Step1Props> = ({
         </div>
       </div>
 
-      {/* Bottom Step Actions */}
-      <div className="flex justify-end pt-2">
-        <button
-          onClick={onNext}
-          className="flex items-center space-x-2 bg-[#C5050C] hover:bg-[#9B0000] text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow-xs transition focus-ring"
-        >
-          <span>Proceed to Model Configuration</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
-      </div>
     </div>
   );
 };

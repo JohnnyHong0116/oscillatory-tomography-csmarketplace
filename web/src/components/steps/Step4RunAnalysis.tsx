@@ -25,6 +25,28 @@ export const Step4RunAnalysis: React.FC<Props> = ({ config, onResult, onExplore,
   const tests = config.tests;
   const activeTest = tests.find((test) => test.id === selectedTestId) ?? tests[0];
   const pairs = tests.flatMap((test) => test.observationWellIds.map((wellId) => ({ test, wellId })));
+  let measurementError: string | null = null;
+  let measurementCount = 0;
+  if (analysisMode === 'measured_inversion') {
+    try {
+      const parsed = parseObservations(csv, config);
+      measurementCount = parsed?.length ?? 0;
+      if (!parsed) measurementError = 'Paste measured complex-head responses before starting measured inversion.';
+    } catch (cause) { measurementError = cause instanceof Error ? cause.message : 'Check the measured CSV.'; }
+  }
+
+  const downloadMeasurementTemplate = () => {
+    // Intentionally blank values: a template must never masquerade as field data.
+    const contents = ['testId,wellId,real,imag', ...pairs.map(({ test, wellId }) => `${test.id},${wellId},,`)].join('\r\n');
+    const url = URL.createObjectURL(new Blob([contents], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a'); link.href = url; link.download = 'measured-phasors-template.csv'; link.click(); URL.revokeObjectURL(url);
+  };
+
+  const changeDataSource = (next: AnalysisMode) => {
+    if (next === analysisMode) return;
+    setAnalysisMode(next); setReady(false); setError(null);
+    // Results from another data source must not remain a ready-to-explore run.
+  };
 
   useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => {
@@ -42,6 +64,7 @@ export const Step4RunAnalysis: React.FC<Props> = ({ config, onResult, onExplore,
     setError(null); setProgress(null); setCompleted([]); setEvents([]); setElapsed(0); setReady(false);
     lastEvent.current = '';
     try {
+      if (measurementError) throw new Error(measurementError);
       const observations = analysisMode === 'measured_inversion' ? parseObservations(csv, config) : null;
       controller.current = new AbortController();
       setRunning(true);
@@ -81,9 +104,10 @@ export const Step4RunAnalysis: React.FC<Props> = ({ config, onResult, onExplore,
           ['synthetic_demo', 'Original P=10 demo', 'Generate the checkerboard truth, simulate all responses, then invert them.'],
           ['forward', 'Forward prediction', 'Calculate responses from the homogeneous initial model only.'],
           ['measured_inversion', 'Measured inversion', 'Invert a complete complex-response CSV from the field.'],
-        ] as const).map(([value, label, description]) => <button type="button" role="radio" aria-checked={analysisMode === value} disabled={running} onClick={() => setAnalysisMode(value)} key={value} className={`text-left rounded-lg border p-3 transition ${analysisMode === value ? 'border-[#C5050C] bg-[#FEF2F2] ring-1 ring-[#C5050C]' : 'border-[#D6DADD] hover:border-[#A7ADB1]'}`}><strong className="block text-xs">{label}</strong><span className="block mt-1 text-[11px] leading-4 text-[#5F6368]">{description}</span></button>)}
+        ] as const).map(([value, label, description]) => <button type="button" role="radio" aria-checked={analysisMode === value} disabled={running} onClick={() => changeDataSource(value)} key={value} className={`text-left rounded-lg border p-3 transition ${analysisMode === value ? 'border-[#C5050C] bg-[#FEF2F2] ring-1 ring-[#C5050C]' : 'border-[#D6DADD] hover:border-[#A7ADB1]'}`}><strong className="block text-xs">{label}</strong><span className="block mt-1 text-[11px] leading-4 text-[#5F6368]">{description}</span></button>)}
       </div>
-      {analysisMode === 'measured_inversion' && <><textarea aria-label="Measured phasors CSV" className="w-full min-h-28 border border-[#A7ADB1] rounded-md p-3 font-mono text-xs focus-ring" placeholder={'testId,wellId,real,imag\ntest-1,w-2,0.001,-0.002'} value={csv} onChange={(event) => setCsv(event.target.value)} disabled={running} />
+      {analysisMode === 'measured_inversion' && <><p className="text-xs text-slate-700">Supply steady-periodic complex hydraulic-head responses (real and imaginary parts in meters), referenced to the same pumping signal and phase convention as the model. Raw transducer time series must be processed first.</p><button type="button" disabled={running} onClick={downloadMeasurementTemplate} className="border rounded px-3 py-2 text-xs focus-ring">Download blank measurement CSV template</button><textarea aria-label="Measured phasors CSV" aria-describedby="measurement-readiness" className="w-full min-h-28 border border-[#A7ADB1] rounded-md p-3 font-mono text-xs focus-ring" placeholder={'testId,wellId,real,imag\ntest-1,w-2,0.001,-0.002'} value={csv} onChange={(event) => setCsv(event.target.value)} disabled={running} />
+      <p id="measurement-readiness" className={`text-xs ${measurementError ? 'text-amber-900' : 'text-green-800'}`}>{measurementError ?? `${measurementCount}/${pairs.length} required responses validated. Check units and phase reference before running.`}</p>
       <details ref={requiredPairsRef} tabIndex={-1} onToggle={(event) => { if (event.currentTarget.open) revealAfterRender(() => requiredPairsRef.current, 'start'); }} className="text-xs outline-none"><summary className="cursor-pointer font-semibold">Required pair IDs ({pairs.length})</summary><div className="mt-2 max-h-32 overflow-auto font-mono">{pairs.map(({ test, wellId }) => <div key={`${test.id}-${wellId}`}>{test.id},{wellId},real,imag</div>)}</div></details></>}
     </div>}
 
@@ -111,6 +135,6 @@ export const Step4RunAnalysis: React.FC<Props> = ({ config, onResult, onExplore,
 
     <div className="bg-[#0A0A0A] rounded-xl text-white overflow-hidden"><div className="bg-[#181818] p-3 flex gap-2 text-xs font-bold"><Terminal size={16} className="text-[#C5050C]" /> Execution console ({events.length} events)</div><div ref={consoleRef} className="p-3 font-mono text-xs max-h-44 overflow-auto" role="log" aria-live="polite" aria-relevant="additions" aria-label="Solver events">{events.length ? events.map((event, index) => <div key={index} className="py-1"><span className="text-[#6B7280]">[{event.time}]</span> <span className="text-[#F87171]">[{index === events.length - 1 ? 'ACTIVE' : 'DONE'}]</span> <span className="text-[#E5E7EB]">{event.message}</span></div>) : <span className="text-[#888]">No solver events yet.</span>}</div></div>
     {error && <p role="alert" className="text-sm text-[#9B0000] bg-[#FEF2F2] p-3 rounded-md">{error}</p>}
-    <div className="flex justify-between gap-3"><button onClick={onPrev} disabled={running} className="flex items-center gap-2 px-4 py-2 border rounded-md text-sm disabled:opacity-50"><ArrowLeft size={16} /> Back to review</button><div className="flex gap-2">{ready && <button onClick={onExplore} className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#15803D] text-white font-semibold text-sm">Explore results <ArrowRight size={16} /></button>}<button onClick={run} disabled={running} className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#C5050C] text-white font-semibold text-sm disabled:opacity-50">{running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}{running ? 'Solving…' : ready ? 'Run again' : config.testCase === 'black_kipp' ? 'Run comparison' : analysisMode === 'synthetic_demo' ? 'Run original P=10 inversion' : analysisMode === 'measured_inversion' ? 'Run measured inversion' : 'Run forward model'}</button></div></div>
+    <div className="flex justify-between gap-3"><button onClick={onPrev} disabled={running} className="flex items-center gap-2 px-4 py-2 border rounded-md text-sm disabled:opacity-50"><ArrowLeft size={16} /> Back to review</button><div className="flex gap-2"><button onClick={run} disabled={running} className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#C5050C] text-white font-semibold text-sm disabled:opacity-50">{running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}{running ? 'Solving…' : ready ? 'Run again' : config.testCase === 'black_kipp' ? 'Run comparison' : analysisMode === 'synthetic_demo' ? 'Run original P=10 inversion' : analysisMode === 'measured_inversion' ? 'Run measured inversion' : 'Run forward model'}</button>{ready && <button onClick={onExplore} className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#15803D] text-white font-semibold text-sm">Explore results <ArrowRight size={16} /></button>}</div></div>
   </div>;
 };
