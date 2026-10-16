@@ -15,10 +15,12 @@ const titleFor = (config: ModelConfig) => config.testCase === 'black_kipp'
   ? 'Black-Kipp Analytical Comparison'
   : 'Oscillatory Tomography Analysis';
 
-const summaryFor = (config: ModelConfig, result: AnalysisResult) => config.testCase === 'black_kipp'
-  ? 'Full 300 x 300, 20-period finite-difference baseline compared with the Cardiff-corrected Black-Kipp analytical solution.'
+export const summaryFor = (config: ModelConfig, result: AnalysisResult) => config.testCase === 'black_kipp'
+  ? `${config.gridNx} x ${config.gridNy} finite-difference model across ${new Set(config.tests.map(test => test.pumpingPeriod ?? config.pumpingPeriod)).size} periods compared with the Cardiff-corrected Black-Kipp analytical solution.`
   : result.analysisMode === 'synthetic_demo'
-  ? 'Original P=10 checkerboard synthetic experiment and joint geostatistical inversion.'
+  ? 'Checkerboard synthetic experiment and joint geostatistical inversion at the configured periods and pumping amplitudes.'
+  : result.observationSource === 'synthetic'
+  ? 'Joint inversion of user-declared synthetic forward-model phasors; not field measurements.'
   : result.mode === 'inversion'
     ? 'Joint geostatistical inversion of supplied complex observations.'
     : 'Forward predictions from the configured initial ln(K) and ln(Ss) fields.';
@@ -53,6 +55,7 @@ export function buildReportData(config: ModelConfig, result: AnalysisResult) {
     experiment: {
       testCase: config.testCase,
       analysisMode: result.analysisMode,
+      observationSource: result.observationSource ?? (result.analysisMode === 'synthetic_demo' ? 'synthetic' : result.analysisMode === 'measured_inversion' ? 'field' : 'none'),
       domainMeters: { minX: config.minX, maxX: config.maxX, minY: config.minY, maxY: config.maxY },
       grid: { nx: config.gridNx, ny: config.gridNy, cells: config.gridNx * config.gridNy },
       initialLnK: config.initialLnK,

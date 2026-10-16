@@ -17,7 +17,7 @@ visit(tree);
 
 function executeReset(approved) {
   const calls = [];
-  const context = { DEFAULT_INVERSION_CONFIG: { tests: [{ id: 'test-1' }] }, window: {
+  const context = { BLACK_KIPP_CONFIG: { tests: [{ id: 'period-1' }] }, window: {
     confirm(message) { calls.push(['confirm', message]); return approved; },
   } };
   for (const name of ['navigateToStep', 'setConfig', 'setTestCase', 'setConfigureSubTab', 'setConfigureFocusTestId', 'setSelectedTestId', 'setResult']) {

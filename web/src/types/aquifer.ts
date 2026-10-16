@@ -125,6 +125,7 @@ export interface AnalysisProgress {
 }
 
 export interface AnalysisResult {
+  observationSource?: 'field' | 'synthetic'; // User-declared provenance for imported phasors; not a solver input.
   mode: 'forward' | 'inversion';
   analysisMode: AnalysisMode;
   pairs: AnalysisPair[];

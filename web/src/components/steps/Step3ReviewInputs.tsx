@@ -84,6 +84,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
   const forwardStateMemoryMB = Math.round((unknownParams * bytesPerFloat / (1024 * 1024)) * 10) / 10;
 
   const issues: ValidationIssue[] = [];
+  if (tests.length > 30 || wells.length > 30) issues.push({ id: 'api-count-limits', type: 'error', title: 'API Capacity Exceeded', message: 'This implementation supports at most 30 tests and 30 wells per run.' });
 
   // Reject incomplete numeric inputs here rather than relying on a late API error.
   if (![minX, maxX, minY, maxY].every(Number.isFinite) || minX >= maxX || minY >= maxY) {

@@ -57,6 +57,29 @@ def test_http_contract_and_bad_input():
     assert client.post("/api/v1/analyze", json=invalid).status_code == 422
 
 
+def test_same_well_setup_period_sweep_and_peak_amplitude():
+    """UI sweeps are ordinary period-specific experiments, with no solver changes."""
+    payload = request_payload()
+    payload["tests"] = [
+        {"id": f"sweep-{period}", "name": f"P={period}s", "pumpingWellId": "a",
+         "observationWellIds": ["b", "c"], "pumpingPeriod": period,
+         "pumpingRate": math.pi * 0.01 / period}
+        for period in (10, 20, 50)
+    ]
+    forward = analyze(AnalyzeRequest.model_validate(payload))
+    assert len(forward["pairs"]) == 6
+    assert {pair["periodSeconds"] for pair in forward["pairs"]} == {10, 20, 50}
+    assert all(pair["pumpingWellId"] == "a" for pair in forward["pairs"])
+    # The linear harmonic model must scale complex head with peak flow amplitude.
+    payload["tests"] = [{**item, "pumpingRate": 2 * item["pumpingRate"]} for item in payload["tests"]]
+    doubled = analyze(AnalyzeRequest.model_validate(payload))
+    for original, scaled in zip(forward["pairs"], doubled["pairs"]):
+        np.testing.assert_allclose(
+            [scaled["predicted"]["real"], scaled["predicted"]["imag"]],
+            [2 * original["predicted"]["real"], 2 * original["predicted"]["imag"]], rtol=1e-12, atol=1e-14,
+        )
+
+
 def test_incomplete_observations_are_rejected():
     payload = request_payload()
     payload["analysisMode"] = "measured_inversion"

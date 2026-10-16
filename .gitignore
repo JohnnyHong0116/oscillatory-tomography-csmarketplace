@@ -17,3 +17,5 @@ web/node_modules/
 web/dist/
 web/.parcel-dev/
 web/.parcel-cache/
+web/.parcel-dev-cache/
+web/.parcel-dev-backups/

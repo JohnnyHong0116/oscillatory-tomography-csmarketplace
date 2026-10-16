@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  Layers,
-  Activity,
-  ArrowRight,
-  CheckCircle2,
-  Lock,
-  Sparkles,
-} from 'lucide-react';
+import { Activity, ArrowRight, CheckCircle2, Layers, Lock } from 'lucide-react';
 import { TestCaseType } from '../../types/aquifer';
 
 interface Step1Props {
@@ -15,218 +8,38 @@ interface Step1Props {
   onNext: () => void;
 }
 
-export const Step1SelectTestCase: React.FC<Step1Props> = ({
-  selectedTestCase,
-  onSelectTestCase,
-  onNext,
-}) => {
-  return (
-    <div className="max-w-5xl mx-auto space-y-6 py-2">
-      {/* Introduction Banner */}
-      <div className="bg-white border border-[#D6DADD] rounded-xl p-5 shadow-xs">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="inline-flex items-center space-x-1.5 bg-[#FEF2F2] border border-[#FECDD3] text-[#C5050C] text-xs font-semibold px-2.5 py-0.5 rounded-full mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-[#C5050C]" />
-              <span>Step 1: Select Tomography Preset</span>
-            </div>
-            <h2 className="text-xl font-bold text-[#121212] tracking-tight">
-              Select Test Case Configuration
-            </h2>
-            <p className="text-xs text-[#4B4F52] mt-1 max-w-3xl leading-relaxed">
-              Run the translated Python workflows with real solver progress, field reconstruction, diagnostics, and multi-test response plots.
-            </p>
-          </div>
-        </div>
-      </div>
+// Keep the learning sequence in DOM order as well as visual/keyboard order.
+const examples = [
+  { id: 'black_kipp' as const, Icon: Activity, stage: '1 · Start here: forward-model validation',
+    title: 'Multi-frequency Black–Kipp Comparison',
+    description: 'Start with physical well positions, domain, cell size, and boundaries. Then assign a pump and observers and explore how their responses change over a range of periods.',
+    baseline: 'Original preset: 300×300 cells · 5 wells · 20 periods',
+    features: ['Compare numerical amplitude and phase with the analytical solution', 'Generate a linear or logarithmic period sweep for the same well setup', 'Inspect response errors and effective-property diagnostics'] },
+  { id: 'inversion_10s' as const, Icon: Layers, stage: '2 · Next: multi-period hydraulic tomography',
+    title: 'P = 10 s Baseline & Multi-Period Tomography',
+    description: 'Keep the original P=10 s checkerboard experiment, or build a customized multi-period experiment. Use forward-generated data to practice inversion before supplying measured complex-head responses.',
+    baseline: 'Original preset: 50×50 cells · 9 wells · 36 responses',
+    features: ['Configure pump/observer assignments, periods, and peak pumping amplitudes', 'Compare true and recovered ln(K) and ln(Ss) fields in synthetic runs', 'Inspect field error, sensitivity, observation fit, and convergence'] },
+];
 
-      {/* Test Case Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Card 1: P = 10s 2-D Geostatistical Inversion */}
-        <div
-          onClick={() => onSelectTestCase('inversion_10s')}
-          className={`relative rounded-xl border-2 p-5 cursor-pointer transition-all flex flex-col justify-between ${
-            selectedTestCase === 'inversion_10s'
-              ? 'bg-[#FEF2F2]/40 text-[#121212] border-[#C5050C] shadow-md ring-2 ring-[#C5050C]/10'
-              : 'bg-white text-[#121212] border-[#D6DADD] hover:border-[#A7ADB1] hover:shadow-xs'
-          }`}
-        >
-          {selectedTestCase === 'inversion_10s' && (
-            <div className="absolute -top-3 right-4 bg-[#C5050C] text-white font-bold text-[11px] px-3 py-0.5 rounded-full shadow-xs flex items-center space-x-1">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>ACTIVE SELECTION</span>
-            </div>
-          )}
-
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <div
-                className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold ${
-                  selectedTestCase === 'inversion_10s'
-                    ? 'bg-[#C5050C] text-white'
-                    : 'bg-[#F1F2F3] text-[#4B4F52] border border-[#D6DADD]'
-                }`}
-              >
-                <Layers className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-[#C5050C]">
-                  Primary Inversion Workflow
-                </span>
-                <h3 className="text-base font-bold leading-tight text-[#121212]">
-                  P = 10 s Multi-Test Tomography
-                </h3>
-              </div>
-            </div>
-
-            <p className="text-xs leading-relaxed text-[#4B4F52]">
-              Faithful 50×50 reconstruction of the original P = 10 s geostatistical case: nine wells, 36 responses, checkerboard truth, and joint inversion.
-            </p>
-
-            <div className="space-y-2 pt-2 border-t border-[#D6DADD]">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-[#6B7074]">
-                Key Workflow Features:
-              </div>
-              <ul className="space-y-1.5 text-xs text-[#121212]">
-                {[
-                  'Runs all eight original pumping configurations',
-                  'Displays true and estimated ln(K) and ln(S_s) fields',
-                  'Maps estimation error and final-Jacobian sensitivity',
-                  'Plots response fit, residuals, and inversion convergence',
-                ].map((feature, i) => (
-                  <li key={i} className="flex items-start space-x-2">
-                    <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 bg-[#C5050C]" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          <div className="pt-5 mt-4 border-t border-[#D6DADD] flex items-center justify-between">
-            <span className="text-[11px] font-mono text-[#6B7074]">
-              50×50 cells · 9 wells · 36 responses
-            </span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectTestCase('inversion_10s');
-                onNext();
-              }}
-              className="flex items-center space-x-1.5 bg-[#C5050C] hover:bg-[#9B0000] text-white px-3.5 py-1.5 rounded text-xs font-bold transition focus-ring"
-            >
-              <span>Load Configuration</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Card 2: Multi-frequency Black–Kipp Analytical Comparison */}
-        <div
-          onClick={() => onSelectTestCase('black_kipp')}
-          className={`relative rounded-xl border-2 p-5 cursor-pointer transition-all flex flex-col justify-between ${
-            selectedTestCase === 'black_kipp'
-              ? 'bg-[#FEF2F2]/40 text-[#121212] border-[#C5050C] shadow-md ring-2 ring-[#C5050C]/10'
-              : 'bg-white text-[#121212] border-[#D6DADD] hover:border-[#A7ADB1] hover:shadow-xs'
-          }`}
-        >
-          {selectedTestCase === 'black_kipp' && (
-            <div className="absolute -top-3 right-4 bg-[#C5050C] text-white font-bold text-[11px] px-3 py-0.5 rounded-full shadow-xs flex items-center space-x-1">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>ACTIVE SELECTION</span>
-            </div>
-          )}
-
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <div
-                className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold ${
-                  selectedTestCase === 'black_kipp'
-                    ? 'bg-[#C5050C] text-white'
-                    : 'bg-[#F1F2F3] text-[#4B4F52] border border-[#D6DADD]'
-                }`}
-              >
-                <Activity className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-[#C5050C]">
-                  Validation & Theory Suite
-                </span>
-                <h3 className="text-base font-bold leading-tight text-[#121212]">
-                  Multi-frequency Black–Kipp Comparison
-                </h3>
-              </div>
-            </div>
-
-            <p className="text-xs leading-relaxed text-[#4B4F52]">
-              Full baseline frequency-response benchmark over 20 logarithmically spaced pumping periods from 10 to 10,000 s, comparing the numerical solver with the Black–Kipp analytical solution.
-            </p>
-
-            <div className="space-y-2 pt-2 border-t border-[#D6DADD]">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-[#6B7074]">
-                Key Workflow Features:
-              </div>
-              <ul className="space-y-1.5 text-xs text-[#121212]">
-                {[
-                  'Runs all 20 periods on the original 300 × 300 grid',
-                  'Compares numerical vs exact analytical amplitude attenuation',
-                  'Compares numerical vs analytical phase delay Δφ',
-                  'Plots amplitude, phase, and three effective properties',
-                ].map((feature, i) => (
-                  <li key={i} className="flex items-start space-x-2">
-                    <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 bg-[#C5050C]" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          <div className="pt-5 mt-4 border-t border-[#D6DADD] flex items-center justify-between">
-            <span className="text-[11px] font-mono text-[#6B7074]">
-              300×300 cells · 5 wells · 20 periods
-            </span>
-            <button
-              onClick={(event) => { event.stopPropagation(); onSelectTestCase('black_kipp'); onNext(); }}
-              className="flex items-center space-x-1.5 bg-[#C5050C] hover:bg-[#9B0000] text-white px-3.5 py-1.5 rounded text-xs font-bold"
-            >
-              <span>Load Configuration</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Card 3: Disabled Field Data Card */}
-      <div className="bg-[#F1F2F3] border border-dashed border-[#D6DADD] rounded-xl p-5 relative">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-lg bg-[#E1E5E7] text-[#6B7074] border border-[#D6DADD] flex items-center justify-center">
-              <Lock className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h3 className="text-base font-bold text-[#4B4F52]">
-                  Field Data Analysis — Planned
-                </h3>
-                <span className="bg-[#E1E5E7] text-[#4B4F52] border border-[#A7ADB1] text-[10px] font-semibold px-2 py-0.5 rounded">
-                  Phase 2 Roadmap
-                </span>
-              </div>
-              <p className="text-xs text-[#6B7074] mt-0.5">
-                Direct integration with high-frequency pressure transducer datalogger feeds, irregular well field geometries, and real-time noise filtering.
-              </p>
-            </div>
-          </div>
-          <button
-            disabled
-            className="hidden sm:flex items-center space-x-1 bg-[#E1E5E7] text-[#6B7074] px-3 py-1.5 rounded text-xs font-medium cursor-not-allowed border border-[#D6DADD]"
-          >
-            <span>Disabled</span>
-          </button>
-        </div>
-      </div>
-
+export const Step1SelectTestCase: React.FC<Step1Props> = ({ selectedTestCase, onSelectTestCase, onNext }) => <div className="max-w-5xl mx-auto space-y-6 py-2">
+  <header className="bg-white border border-[#D6DADD] rounded-xl p-5 shadow-xs">
+    <p className="text-xs font-semibold text-[#C5050C]">Step 1 · Choose an example</p>
+    <h2 className="text-xl font-bold mt-2">Start with Black–Kipp, then explore tomography</h2>
+    <p className="text-xs text-slate-600 mt-2">Both examples begin with neutral well locations. Assign pumping and observation roles afterward. Preset locations are example geometry—not surveyed field coordinates.</p>
+  </header>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">{examples.map(({ id, Icon, stage, title, description, baseline, features }) => <article key={id}
+    className={`relative rounded-xl border-2 p-5 flex flex-col justify-between ${selectedTestCase === id ? 'bg-[#FEF2F2]/40 border-[#C5050C] shadow-md' : 'bg-white border-[#D6DADD]'}`}>
+    <div>
+      <p className="text-[11px] font-bold text-[#C5050C] flex items-center gap-2"><Icon size={20} />{stage}</p>
+      <h3 className="mt-3 text-base font-bold">{title}</h3>
+      {selectedTestCase === id && <p className="mt-2 text-xs text-[#C5050C] flex items-center gap-1"><CheckCircle2 size={14} />Selected example</p>}
+      <p className="text-xs leading-relaxed text-slate-600 mt-3">{description}</p>
+      <ul className="mt-4 space-y-2 text-xs list-disc pl-4">{features.map(feature => <li key={feature}>{feature}</li>)}</ul>
     </div>
-  );
-};
+    <footer className="border-t mt-5 pt-4 space-y-3"><p className="text-[11px] font-mono text-slate-500">{baseline}</p>
+      <button type="button" onClick={() => { onSelectTestCase(id); onNext(); }} className="flex items-center gap-2 rounded bg-[#C5050C] px-3 py-2 text-xs font-bold text-white hover:bg-[#9B0000] focus-ring">Load Configuration<ArrowRight size={15} /></button>
+    </footer>
+  </article>)}</div>
+  <div className="rounded-xl border border-dashed bg-slate-100 p-4 text-xs text-slate-600"><p className="flex gap-2 items-center font-bold"><Lock size={16} />Direct logger/time-series import — planned</p><p className="mt-2">Measured inversion already accepts processed steady-periodic real/imaginary head responses. Raw logger processing and live acquisition are not implemented.</p></div>
+</div>;

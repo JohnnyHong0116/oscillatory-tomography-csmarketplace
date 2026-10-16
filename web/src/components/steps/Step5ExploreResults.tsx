@@ -6,6 +6,7 @@ import { ResponsePlots } from './ResponsePlots';
 import { SeriesPlot } from './SeriesPlot';
 import { ScientificResultGuidance } from './ScientificContext';
 import { revealAfterRender } from '../../utils/scroll';
+import { syntheticObservationCsv } from '../../utils/syntheticObservations';
 
 interface Props { config: ModelConfig; result: AnalysisResult; onOpenReport: () => void; onPrev: () => void }
 type InversionTab = 'fields' | 'errors' | 'sensitivity' | 'responses' | 'residuals';
@@ -63,6 +64,14 @@ export const Step5ExploreResults: React.FC<Props> = ({ config, result, onOpenRep
     <div className="bg-[#111] rounded-xl p-3 text-white"><div className="flex flex-wrap items-center gap-2"><span className="text-xs font-bold mr-auto">Response diagnostic scope</span>{scopes.map((item) => <button key={item.id} onClick={() => setScope(item.id)} className={`px-3 py-2 rounded-md text-xs font-semibold ${scope === item.id ? 'bg-[#4169E1]' : 'bg-[#202020] hover:bg-[#303030]'}`}>{item.label}</button>)}</div>{!blackKipp && <p className="mt-2 text-[10px] text-[#B8BDC2]">Test selection filters observation-fit plots and residual rows only. Parameter fields, field error, sensitivity, and convergence are one joint result calculated from all configured tests.</p>}</div>
 
     <ScientificResultGuidance config={config} result={result} />
+    {!blackKipp && result.analysisMode === 'forward' && <section className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs space-y-2">
+      <h3 className="font-bold">Use forward predictions as synthetic inversion input</h3>
+      <p>Export the predicted real/imaginary heads, return to analysis, select Measured inversion, and import this CSV. Keep the same test IDs, well geometry, periods, amplitudes, and boundaries. These values are noise-free synthetic model outputs, not field measurements; recovering the generating model is a consistency check, not field validation.</p>
+      <button type="button" className="rounded border border-blue-300 bg-white px-3 py-2 font-semibold focus-ring" onClick={() => {
+        const url = URL.createObjectURL(new Blob([syntheticObservationCsv(result)], { type: 'text/csv;charset=utf-8' }));
+        const link = document.createElement('a'); link.href = url; link.download = 'synthetic-forward-inversion-input.csv'; link.click(); URL.revokeObjectURL(url);
+      }}>Export synthetic inversion-input CSV</button>
+    </section>}
 
     <section ref={plotSectionRef} className="bg-white border border-[#D6DADD] rounded-xl p-5 space-y-5 scroll-mt-4">
       <div className="flex flex-wrap gap-1 border-b pb-3">{tabs.map((item) => <button key={item.id} onClick={() => selectPlotTab(item.id)} className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-bold ${tab === item.id ? 'bg-[#FEF2F2] text-[#B42318] border border-[#FECACA]' : 'text-[#3F4448] hover:bg-[#F1F2F3]'}`}><span>{item.label}</span>{!blackKipp && 'provenance' in item && <span className={`rounded-full px-1.5 py-0.5 text-[8px] uppercase tracking-wide ${item.provenance === 'baseline' ? 'bg-[#E7F5EA] text-[#287A3D]' : 'bg-[#E9EEF9] text-[#365A9D]'}`}>{item.provenance === 'baseline' ? 'Original baseline' : 'Derived diagnostic'}</span>}</button>)}</div>

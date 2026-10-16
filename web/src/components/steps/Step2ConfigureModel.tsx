@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { ModelConfig, Well, BoundaryCondition, TomographyTest } from '../../types/aquifer';
 import { revealAfterRender } from '../../utils/scroll';
+import { PeriodSweep } from './PeriodSweep';
+import { ModelResolution } from './ModelResolution';
 
 interface Step2Props {
   config: ModelConfig;
@@ -343,6 +345,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
   // --- Validation Logic ---
   const validateTest = (t: TomographyTest) => {
     const errors: string[] = [];
+    if (![t.pumpingPeriod ?? config.pumpingPeriod, t.pumpingRate ?? config.pumpingRate].every(value => Number.isFinite(value) && value > 0)) errors.push('Period and peak pumping amplitude must be positive numbers.');
     if (!t.pumpingWellId) {
       errors.push('No pumping well selected.');
     }
@@ -399,8 +402,8 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
     wellId: string
   ) => {
     const rect = svgElement.getBoundingClientRect();
-    const svgX = clientX - rect.left;
-    const svgY = clientY - rect.top;
+    const svgX = (clientX - rect.left) * svgWidth / rect.width;
+    const svgY = (clientY - rect.top) * svgHeight / rect.height;
 
     const boundedSvgX = Math.max(padding, Math.min(svgWidth - padding, svgX));
     const boundedSvgY = Math.max(padding, Math.min(svgHeight - padding, svgY));
@@ -439,8 +442,8 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
     if (activeSubTab !== 'positions') return;
 
     const rect = e.currentTarget.getBoundingClientRect();
-    const clickSvgX = e.clientX - rect.left;
-    const clickSvgY = e.clientY - rect.top;
+    const clickSvgX = (e.clientX - rect.left) * svgWidth / rect.width;
+    const clickSvgY = (e.clientY - rect.top) * svgHeight / rect.height;
 
     if (
       clickSvgX >= padding &&
@@ -552,7 +555,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
               <div className="bg-[#F1F2F3] border border-[#D6DADD] rounded-lg p-3 flex items-start space-x-2.5 text-xs text-[#121212]">
                 <HelpCircle className="w-4 h-4 text-[#C5050C] flex-shrink-0 mt-0.5" />
                 <p className="leading-snug">
-                  <strong>Guidance:</strong> Define all available wells here. Pumping and observation roles are assigned separately for each test in the next tab.
+                  <strong>Guidance:</strong> Enter surveyed well positions in a shared local Cartesian coordinate system (meters), or retain the example geometry. Choose a common origin; do not enter latitude/longitude degrees. Pumping and observation roles are assigned separately for each test in the next tab.
                 </p>
               </div>
 
@@ -836,6 +839,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
               </div>
             </div>
 
+            <ModelResolution config={config} onChange={onChangeConfig} />
             {/* Advanced Settings Collapsible */}
             <div ref={advancedRef} tabIndex={-1} className="bg-white border border-[#D6DADD] rounded-xl overflow-hidden shadow-xs outline-none">
               <button
@@ -844,7 +848,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
               >
                 <div className="flex items-center space-x-2">
                   <Settings className="w-4 h-4 text-[#4B4F52]" />
-                  <span>Boundary Conditions, Inversion Priors & Solver Controls</span>
+                  <span>Initial Hydraulic Properties, Inversion Priors & Solver Controls</span>
                 </div>
                 {showAdvanced ? (
                   <ChevronUp className="w-4 h-4 text-[#4B4F52]" />
@@ -855,30 +859,6 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
 
               {showAdvanced && (
                 <div className="p-4 space-y-4 text-xs bg-white">
-                  <div>
-                    <h4 className="font-bold text-[11px] uppercase tracking-wider text-[#4B4F52] mb-2">
-                      Domain Boundary Conditions
-                    </h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {(['west', 'east', 'south', 'north', 'top', 'bottom'] as const).map((side) => (
-                        <div key={side} className="bg-[#F7F7F7] border border-[#D6DADD] p-2 rounded">
-                          <label className="block text-[10px] font-semibold capitalize text-[#6B7074] mb-1">
-                            {side} Boundary
-                          </label>
-                          <select
-                            value={config.boundaries[side]}
-                            onChange={(e) => handleBoundaryChange(side, e.target.value as BoundaryCondition)}
-                            disabled={side === 'top' || side === 'bottom'}
-                            className="w-full bg-white border border-[#D6DADD] text-xs rounded px-1.5 py-1 text-[#121212] focus:border-[#C5050C] outline-none"
-                          >
-                            <option value="constant_head">Constant Head (h=0)</option>
-                            <option value="no_flow">No Flow (∂h/∂n=0)</option>
-                          </select>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[#D6DADD]">
                     <div>
                       <label className="block text-[11px] font-semibold text-[#4B4F52] mb-1">
@@ -1101,6 +1081,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
       {/* TAB 2: CONFIGURE TESTS */}
       {activeSubTab === 'tests' && (
         <>
+        <PeriodSweep config={config} activeTestId={activeTestId} onApply={next => { onChangeConfig(next); setActiveTestId(next.tests[0].id); }} />
         <div ref={tabGridRef} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Multi-Test Cards (7 cols) */}
           <div className="lg:col-span-7 space-y-4">
@@ -1254,6 +1235,11 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
 
                     {/* Test Card Body */}
                     <div className="p-4 space-y-4 text-xs bg-white">
+                      <div className="grid sm:grid-cols-2 gap-3" onClick={event => event.stopPropagation()}>
+                        <label>Period P (s)<input aria-label={`Period for ${test.name}`} type="number" min="0" step="any" value={test.pumpingPeriod ?? config.pumpingPeriod} onChange={event => onChangeConfig({ ...config, tests: config.tests.map(item => item.id === test.id ? { ...item, pumpingPeriod: Number(event.target.value) } : item) })} className="mt-1 w-full border rounded p-2 font-mono focus-ring" /></label>
+                        <label>Peak pumping amplitude Qmax (m³/s)<input aria-label={`Pumping amplitude for ${test.name}`} type="number" min="0" step="any" value={test.pumpingRate ?? config.pumpingRate} onChange={event => onChangeConfig({ ...config, tests: config.tests.map(item => item.id === test.id ? { ...item, pumpingRate: Number(event.target.value) } : item) })} className="mt-1 w-full border rounded p-2 font-mono focus-ring" /></label>
+                        <p className="sm:col-span-2 text-slate-600">P is one complete cycle; f = 1/P Hz. Qmax is the harmonic peak flow rate, not volume or peak-to-peak rate. Editing P here keeps Qmax fixed; use the sweep builder for the MATLAB fixed-volume rule.</p>
+                      </div>
                       {/* Pumping Well Selector */}
                       <div className="space-y-1.5">
                         <label className="block font-bold text-[#121212] text-[11px] uppercase tracking-wider flex items-center justify-between">

@@ -20,10 +20,10 @@ import { AboutModal } from './components/modals/AboutModal';
 export default function App() {
   const workspaceRef = useRef<HTMLElement>(null);
   const [currentStep, setCurrentStep] = useState<StepId>(1);
-  const [testCase, setTestCase] = useState<TestCaseType>('inversion_10s');
-  const [config, setConfig] = useState<ModelConfig>(DEFAULT_INVERSION_CONFIG);
+  const [testCase, setTestCase] = useState<TestCaseType>('black_kipp');
+  const [config, setConfig] = useState<ModelConfig>(BLACK_KIPP_CONFIG);
   const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [selectedTestId, setSelectedTestId] = useState<string>(DEFAULT_INVERSION_CONFIG.tests[0]?.id || 'test-1');
+  const [selectedTestId, setSelectedTestId] = useState<string>(BLACK_KIPP_CONFIG.tests[0]?.id || 'period-1');
   const [configureSubTab, setConfigureSubTab] = useState<'positions' | 'tests'>('positions');
   const [configureFocusTestId, setConfigureFocusTestId] = useState<string | null>(null);
 
@@ -90,13 +90,13 @@ export default function App() {
 
   const handleResetWorkflow = () => {
     // Confirm before any state or navigation changes so Cancel preserves the workspace.
-    if (!window.confirm('Reset workflow?\n\nThis will discard your current configuration and results and restore the default P=10 setup. This cannot be undone.')) return;
+    if (!window.confirm('Reset workflow?\n\nThis will discard your current configuration and results and return to the Black–Kipp starting example. This cannot be undone.')) return;
     navigateToStep(1);
-    setConfig(DEFAULT_INVERSION_CONFIG);
-    setTestCase('inversion_10s');
+    setConfig(BLACK_KIPP_CONFIG);
+    setTestCase('black_kipp');
     setConfigureSubTab('positions');
     setConfigureFocusTestId(null);
-    setSelectedTestId(DEFAULT_INVERSION_CONFIG.tests[0].id);
+    setSelectedTestId(BLACK_KIPP_CONFIG.tests[0].id);
     setResult(null);
   };
 

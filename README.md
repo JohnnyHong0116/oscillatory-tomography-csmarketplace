@@ -38,6 +38,13 @@ scientific presets, and Python algorithms are unchanged.
 
 ## Run the integrated app
 
+The learning sequence now starts with Black–Kipp, followed by tomography. Well
+positions, physical cell sizes, and boundary conditions precede test setup.
+Both examples support period sweeps and editable peak pumping amplitudes; the
+original numerical presets remain available unchanged. See
+[Modeling workflow and scientific references](docs/modeling-workflow.md) for
+units, sweep limits, the MATLAB amplitude rule, and forward-to-inversion CSV use.
+
 Requirements: Python 3.10+, Node.js 20+, and npm. In PowerShell, from this
 repository root:
 
