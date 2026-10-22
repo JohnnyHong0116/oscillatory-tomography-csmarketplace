@@ -1,8 +1,12 @@
 # Example setup and experiment design
 
-The five-step flow and Python numerical methods are unchanged. Begin with the
-Black–Kipp forward comparison, then use tomography. Opening either example starts
-with neutral well positions. Example coordinates are not surveyed site data.
+The v1.3 user workflow starts with **Your experiment** and no pre-entered site
+wells. Define physical well positions and domain assumptions, configure tests
+and periods, review, run, then inspect results. The numerical methods and both
+baseline presets are unchanged. Optional sidebar examples teach Black–Kipp
+first, then checkerboard tomography. Practice and personal experiments have
+separate session state; merely browsing or loading an example does not overwrite
+personal work. Example coordinates are not surveyed site data.
 
 ## Geometry, discretization, and boundaries
 
@@ -52,12 +56,30 @@ these limits.
 
 ## Forward output as inversion input
 
-In tomography, run Forward prediction, then export **synthetic inversion-input
-CSV** from Results. Return to Analysis, choose imported-phasor inversion, identify
-the data origin as synthetic, and import or paste the CSV. Keep the exact same
-configuration and IDs. The export uses the actual full-precision predicted
-real/imaginary heads, not rounded plot labels. This is a noise-free consistency
-exercise, not field validation or a demonstration of independent recoverability.
+After a forward run in either pathway, choose **Use these responses for
+inversion** in Results. This transfers actual full-precision predicted real/imaginary
+heads, not rounded chart labels, preserving geometry, test IDs, roles, periods,
+amplitudes and boundaries. Confirm the inverse grid (3–60 cells per axis). If it
+differs from the generating grid, explicitly acknowledge discretization effects.
+The original forward configuration/result is retained separately, and report
+metadata record source and inverse grid counts. The observations are not resampled.
+Continue through Review and explicitly run imported-data inversion; nothing
+starts automatically. The export/import CSV path remains available as well.
+Editing configuration clears the imported CSV and its automatic source link.
+Changing the CSV or declaring another data origin also clears the source link.
+This is a noise-free consistency exercise, not field validation or a demonstration
+of independent recoverability. Exact starting properties may produce zero residual
+in one inverse update; that is expected for this consistency exercise.
+
+Forward prediction uses a homogeneous initial K/Ss model. It is not the
+checkerboard truth generator. To reproduce the original heterogeneous P=10
+baseline, use the separate checkerboard practice example and its synthetic-demo
+mode. A Black–Kipp analytical benchmark and the checkerboard inverse problem
+therefore remain scientifically distinct while sharing one user workflow.
+
+The session state is in memory, not a persistent project store. Refreshing closes
+the session; export reports/data you need to retain. A running solver locks
+workspace navigation, reset and model changes to prevent orphaning the job.
 
 Field data require processed steady-periodic real/imaginary heads in meters with
 a consistent pumping phase reference. Raw logger/time-series processing is not

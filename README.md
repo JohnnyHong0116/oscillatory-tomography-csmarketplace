@@ -6,10 +6,87 @@ geostatistical inversion routines, covariance tools, and Python versions of
 the three original testing workflows. See [integration architecture](docs/WEB_INTEGRATION.md)
 for the UI/API contract and supported analysis modes.
 
-Web app v1.2.1 uses the sidebar as the single workflow navigator. Later steps
-are disabled there; use each screen's Continue action to advance. Earlier
-steps remain accessible. Documentation and About are in the sidebar, with
-Help & Glossary and Reset at the top right.
+## Run the web app (PowerShell)
+
+Requirements: Python 3.10 or newer, Node.js 20 or newer, npm, and Git.
+Run all commands below from the repository root, **not** its parent directory.
+No pnpm, Vite, or virtual-environment activation is required.
+
+### 1. First-time setup
+
+For a new checkout:
+
+```powershell
+git clone --branch user-workflow-studio https://github.com/JohnnyHong0116/oscillatory-tomography-csmarketplace.git
+cd .\oscillatory-tomography-csmarketplace
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[web,test]"
+npm --prefix web ci
+```
+
+For an existing checkout, enter that folder, switch to this branch, and install
+dependencies if needed. Preserve or commit any local changes before switching.
+
+```powershell
+cd E:\CS_Marketplace_Project\oscillatory-tomography-csmarketplace
+git fetch origin
+git switch user-workflow-studio
+git pull --ff-only origin user-workflow-studio
+.\.venv\Scripts\python.exe -m pip install -e ".[web,test]"
+npm --prefix web ci
+```
+
+The `E:` path is this project's local example; replace it with your checkout
+location. If `.venv` does not exist yet, create it with `py -3 -m venv .venv` first.
+
+### 2. Recommended: run everything on port 8000
+
+From the repository root, in one PowerShell terminal:
+
+```powershell
+npm --prefix web run build
+.\.venv\Scripts\python.exe -m uvicorn oscillatory_tomography.api:app --host 127.0.0.1 --port 8000
+```
+
+Open **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)**. This serves the built
+React interface and the Python API together. Keep the terminal open; Ctrl+C
+stops the server. Rebuild after pulling frontend changes. The build command
+publishes a fresh output to `web/dist` and retains the previous build in the
+ignored `web/.parcel-build-backups/` directory, avoiding stale in-place output.
+
+### 3. Optional: development mode with live frontend updates
+
+Terminal 1, from the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn oscillatory_tomography.api:app --host 127.0.0.1 --port 8000
+```
+
+Terminal 2, also from the repository root:
+
+```powershell
+npm --prefix web run dev
+```
+
+Open **[http://localhost:1234/](http://localhost:1234/)** for the live React
+development UI. It uses Python on port 8000 for calculations. Port 8000 still
+shows the last production build, not live source changes. API documentation is
+at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
+
+If a port is already in use, stop its existing server terminal with Ctrl+C;
+do not launch a second copy. To refresh an already-open UI after rebuilding,
+export any results you need first, then use Ctrl+Shift+R. Project state is
+currently session-only: refreshing clears that tab's configuration and results.
+
+Web app v1.3.0 opens **Your experiment** with an empty well inventory, rather
+than asking users to choose a scientific example. The workflow is Wells & model
+→ Tests & periods → Review → Data & run → Results. A collapsible, translucent
+journey guide explains each stage and allows backward navigation only; use
+validated Continue actions to advance. The full-height sidebar holds Your
+experiment, Examples, Documentation and About. Help & Glossary and Reset remain
+at the top right. Reset requires confirmation and affects only the active
+workspace. Personal work and example practice are isolated in memory for the
+current browser session; refreshing the page starts a new session.
 
 Result plots support hover/focus inspection and click/Enter to pin exact solver
 values in a detail panel. Escape or Clear selection releases a pinned point.
@@ -33,47 +110,29 @@ and initial physical properties. Geometry advisories do not modify the model.
 Measured inversion provides a blank pair-ID CSV template and checks completeness
 before submitting a job. Result interpretation separates synthetic truth,
 measured calibration, and forward prediction, and explains sensitivity and
-phase-wrapping limitations. These are frontend safeguards; the five-step flow,
-scientific presets, and Python algorithms are unchanged.
+phase-wrapping limitations. These are frontend safeguards; the scientific
+presets, API contracts, and Python numerical algorithms are unchanged.
 
 ## Run the integrated app
 
-The learning sequence now starts with Black–Kipp, followed by tomography. Well
+The optional Examples learning sequence starts with Black–Kipp, followed by tomography. Well
 positions, physical cell sizes, and boundary conditions precede test setup.
 Both examples support period sweeps and editable peak pumping amplitudes; the
 original numerical presets remain available unchanged. See
 [Modeling workflow and scientific references](docs/modeling-workflow.md) for
 units, sweep limits, the MATLAB amplitude rule, and forward-to-inversion CSV use.
 
-Requirements: Python 3.10+, Node.js 20+, and npm. In PowerShell, from this
-repository root:
+Both forward pathways offer **Use these responses for inversion**. This keeps
+the exact well/test IDs, geometry, periods, rates, boundaries and full-precision
+complex responses. Review and explicitly confirm any inverse-grid change
+(the inverse solver supports at most 60 × 60 cells). The source forward run is
+retained separately; imported data are labelled synthetic. Editing the model
+clears imported observations to prevent stale inputs. No inversion runs without
+review and an explicit Run action. This connection does not imply independent
+field validation, identical discretization, or guaranteed parameter recovery.
 
-```powershell
-py -3.10 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[web,test]"
-cd web
-npm ci
-```
-
-Start the Python API in one terminal from the repository root:
-
-```powershell
-.\.venv\Scripts\python.exe -m uvicorn oscillatory_tomography.api:app --host 127.0.0.1 --port 8000
-```
-
-Start React in a second terminal from `web/`:
-
-```powershell
-npm run dev
-```
-
-Open <http://localhost:1234>. The app sends analysis requests to the local
-Python API on port 8000. The API's interactive contract is available at
-<http://127.0.0.1:8000/docs>.
-
-For a single-process production-style run, use `npm run build` in `web/`,
-then start the Python API. The built app is served at
-<http://127.0.0.1:8000/>.
+For copy-and-paste startup commands, see
+[Run the web app (PowerShell)](#run-the-web-app-powershell) above.
 
 The web workflow offers the original 50×50, nine-well, 36-response P=10
 tomography experiment and the full 300×300, 20-period Black–Kipp analytical-comparison baseline.
@@ -108,7 +167,7 @@ MATLAB is not required on this branch.
 Clone this branch and enter the repository:
 
 ```powershell
-git clone --branch integrate-react-python-api https://github.com/JohnnyHong0116/oscillatory-tomography-csmarketplace.git
+git clone --branch user-workflow-studio https://github.com/JohnnyHong0116/oscillatory-tomography-csmarketplace.git
 cd oscillatory-tomography-csmarketplace
 ```
 

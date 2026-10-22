@@ -15,12 +15,14 @@ function visit(node) {
 }
 visit(tree);
 
-function executeReset(approved) {
+function executeReset(approved, key = 'project', running = false) {
   const calls = [];
-  const context = { BLACK_KIPP_CONFIG: { tests: [{ id: 'period-1' }] }, window: {
+  const previous = { project: { changed: true }, example: { config: { testCase: 'black_kipp' } } };
+  const context = { key, running, view: key, createExperiment: () => ({ blank: true }), createExample: type => ({ practice: type }), requestAnimationFrame: fn => fn(), window: {
     confirm(message) { calls.push(['confirm', message]); return approved; },
   } };
-  for (const name of ['navigateToStep', 'setConfig', 'setTestCase', 'setConfigureSubTab', 'setConfigureFocusTestId', 'setSelectedTestId', 'setResult']) {
+  context.setSessions = update => calls.push(['setSessions', update(previous)]);
+  for (const name of ['setFocusTestId', 'setNotice', 'resetWorkspaceScroll']) {
     context[name] = value => calls.push([name, value]);
   }
   vm.runInNewContext(`(() => ${body})()`, context);
@@ -34,10 +36,18 @@ test('canceling reset preserves all configuration, results, and navigation state
   assert.match(calls[0][1], /configuration and results/);
 });
 
-test('confirming reset restores the default workflow only after approval', () => {
+test('confirming reset creates a blank personal project and preserves practice', () => {
   const calls = executeReset(true);
   assert.equal(calls[0][0], 'confirm');
-  assert.deepEqual(calls[1], ['navigateToStep', 1]);
-  assert.deepEqual(calls.at(-1), ['setResult', null]);
-  assert.equal(calls.length, 8);
+  assert.equal(calls[1][0], 'setSessions');
+  assert.equal(calls[1][1].project.blank, true);
+  assert.equal(calls[1][1].example.config.testCase, 'black_kipp');
+  assert.equal(calls.filter(call => call[0] === 'resetWorkspaceScroll').length, 2);
+});
+
+test('practice reset preserves personal work and reset is blocked while solving', () => {
+  const calls = executeReset(true, 'example');
+  assert.equal(calls[1][1].project.changed, true);
+  assert.equal(calls[1][1].example.practice, 'black_kipp');
+  assert.equal(executeReset(true, 'project', true).length, 0);
 });

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "targets": {
+    "user-workflow-studio": {
+      "targetKind": "new-ui",
+      "projectId": "46e79fd5-d757-41bf-83fb-68c0631b8947",
+      "activeDraftId": "f7c55a28-d3cf-4014-8225-566e9c11f0b5",
+      "designSystemPath": ".superdesign/design-system.md",
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        ".superdesign/user-workflow-brief.md",
+        "web/src/index.css",
+        "web/src/components/layout/Header.tsx",
+        "web/src/components/layout/Sidebar.tsx",
+        "web/src/components/steps/ModelResolution.tsx",
+        "web/src/components/steps/PeriodSweep.tsx"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "e3e4d39fbb641dc0744f3faccc4616d401a88c967377ab691f567e61167bdc22",
+        ".superdesign/user-workflow-brief.md": "d2f62caa05ff7bdad16fa00fed9ed9f1bc40e96874802da0c495dbc3871134b5",
+        "web/src/index.css": "4e1783b036f538675d3eb3cb0fb87fc677706ebe16caa4ef27fcd93f2255388d",
+        "web/src/components/layout/Header.tsx": "6e6bc4a902580e5bee0dae8a918f54e58d5e282000b33bad637e32d71a8d6bf9",
+        "web/src/components/layout/Sidebar.tsx": "6bdd4ef8039d773267c680075b420c5891de6d2f431f3fd10965cb3455a26184",
+        "web/src/components/steps/ModelResolution.tsx": "f306c94f5dc7632a3d9fec16a1b7cebed8ab4070ecc539312bc1143d5c81fbab",
+        "web/src/components/steps/PeriodSweep.tsx": "e16d5e20ae5cbca1ffe924762d81e528ce0ad1d33d9823491d33a30f991b2916"
+      },
+      "components": [
+        {
+          "name": "StudioHeader",
+          "id": "524235a5-f65b-4e7a-aa61-2ca260811f5b",
+          "sourcePath": "web/src/components/layout/Header.tsx"
+        },
+        {
+          "name": "StudioSidebar",
+          "id": "c98fadaa-7835-4c53-934c-444f00f9e5fb",
+          "sourcePath": "web/src/components/layout/Sidebar.tsx"
+        }
+      ],
+      "drafts": {
+        "f7c55a28-d3cf-4014-8225-566e9c11f0b5": {
+          "title": "Aquifer Studio - New Experiment",
+          "visualDirection": "Existing red/black scientific studio; blank personal experiment with collapsible translucent coaching guide",
+          "currentVersion": 2
+        }
+      },
+      "updatedAt": "2026-10-22T21:45:28.697Z"
+    }
+  }
+}

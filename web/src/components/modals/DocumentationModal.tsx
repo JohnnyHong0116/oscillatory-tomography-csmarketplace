@@ -26,6 +26,12 @@ export const DocumentationModal: React.FC<ModalProps> = ({ isOpen, onClose }) =>
         </div>
 
         <div className="p-6 space-y-4 text-xs leading-relaxed max-h-[80vh] overflow-y-auto bg-white">
+          <section className="rounded-lg border border-[#D6DADD] bg-[#F7F7F7] p-4 space-y-2">
+            <h3 className="text-sm font-bold">Your experiment · user workflow</h3>
+            <p>Start with physical well locations in local Cartesian meters. Define the domain, cell sizes and boundary assumptions, then assign one pump and its observers for each test setup. Apply a period range or list and specify peak pumping amplitude.</p>
+            <p>Continue through Review → Data &amp; run → Results. A forward run predicts homogeneous-model responses. Use these responses for inversion transfers full-precision synthetic real/imaginary heads into the imported-data workflow after explicit grid review. Synthetic recovery is not field validation.</p>
+            <p>Examples are optional practice projects, separate from Your experiment: Black–Kipp first, then the original P=10 checkerboard inversion. The current solver supports 30 wells, 30 tests and 100 response pairs; inversion grids are limited to 60 × 60. Projects remain in this browser session only; export reports/data before refreshing.</p>
+          </section>
           <div>
             <h3 className="font-bold text-sm text-[#121212] mb-1">
               Scientific Background & Methods

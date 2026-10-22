@@ -52,7 +52,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
   } = config;
 
   const [expandedTestId, setExpandedTestId] = useState<string>(
-    propSelectedTestId || tests[0]?.id || 'test-1'
+    propSelectedTestId || tests[0]?.id || 'test-1',
   );
   const testCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -68,39 +68,83 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
   const unknownParams = totalCells * 2;
 
   // Experiment level metrics
-  const uniquePumpingWellIds = Array.from(
-    new Set(tests.map((t) => t.pumpingWellId).filter(Boolean))
-  );
-  const totalPumpingObsPairs = tests.reduce(
-    (acc, t) => acc + (t.observationWellIds?.length || 0),
-    0
-  );
+  const uniquePumpingWellIds = Array.from(new Set(tests.map((t) => t.pumpingWellId).filter(Boolean)));
+  const totalPumpingObsPairs = tests.reduce((acc, t) => acc + (t.observationWellIds?.length || 0), 0);
   const timeSteps = 2; // Real and imaginary components per complex response.
   const totalObs = totalPumpingObsPairs * timeSteps;
+  const periods = [...new Set(tests.map((test) => test.pumpingPeriod ?? pumpingPeriod))];
+  const rates = [...new Set(tests.map((test) => test.pumpingRate ?? pumpingRate))];
+  const signalRange = (values: number[]) =>
+    values.length === 1
+      ? values[0].toPrecision(5)
+      : `${Math.min(...values).toPrecision(4)}–${Math.max(...values).toPrecision(4)} (${values.length} distinct)`;
 
   const jacobianEntries = totalObs * unknownParams;
   const bytesPerFloat = 8;
-  const estimatedMemoryMB = Math.round((jacobianEntries * bytesPerFloat / (1024 * 1024)) * 10) / 10;
-  const forwardStateMemoryMB = Math.round((unknownParams * bytesPerFloat / (1024 * 1024)) * 10) / 10;
+  const estimatedMemoryMB = Math.round(((jacobianEntries * bytesPerFloat) / (1024 * 1024)) * 10) / 10;
+  const forwardStateMemoryMB = Math.round(((unknownParams * bytesPerFloat) / (1024 * 1024)) * 10) / 10;
 
   const issues: ValidationIssue[] = [];
-  if (tests.length > 30 || wells.length > 30) issues.push({ id: 'api-count-limits', type: 'error', title: 'API Capacity Exceeded', message: 'This implementation supports at most 30 tests and 30 wells per run.' });
+  if (tests.length > 30 || wells.length > 30)
+    issues.push({
+      id: 'api-count-limits',
+      type: 'error',
+      title: 'API Capacity Exceeded',
+      message: 'This implementation supports at most 30 tests and 30 wells per run.',
+    });
 
   // Reject incomplete numeric inputs here rather than relying on a late API error.
   if (![minX, maxX, minY, maxY].every(Number.isFinite) || minX >= maxX || minY >= maxY) {
-    issues.push({ id: 'domain-extents', type: 'error', title: 'Invalid Domain Extents', message: 'Enter finite minimum and maximum coordinates, with each minimum below its maximum.' });
+    issues.push({
+      id: 'domain-extents',
+      type: 'error',
+      title: 'Invalid Domain Extents',
+      message: 'Enter finite minimum and maximum coordinates, with each minimum below its maximum.',
+    });
   }
   if (!Number.isInteger(gridNx) || !Number.isInteger(gridNy)) {
-    issues.push({ id: 'grid-integers', type: 'error', title: 'Whole Grid Cells Required', message: 'Nx and Ny must be finite whole numbers.' });
+    issues.push({
+      id: 'grid-integers',
+      type: 'error',
+      title: 'Whole Grid Cells Required',
+      message: 'Nx and Ny must be finite whole numbers.',
+    });
   }
-  if (![config.initialLnK, config.initialLnSs].every(value => Number.isFinite(value) && value >= -30 && value <= 0) ||
-      ![config.dataErrorVar, config.corrLengthX, config.corrLengthY].every(value => Number.isFinite(value) && value > 0) ||
-      !Number.isInteger(config.maxIterations) || config.maxIterations < 1 || config.maxIterations > 50) {
-    issues.push({ id: 'solver-inputs', type: 'error', title: 'Check Prior and Solver Inputs', message: 'Initial log fields must be between -30 and 0; data-error variance and correlation lengths must be positive; iteration budget must be a whole number from 1 to 50 (baseline: 30).' });
+  if (
+    ![config.initialLnK, config.initialLnSs].every(
+      (value) => Number.isFinite(value) && value >= -30 && value <= 0,
+    ) ||
+    ![config.dataErrorVar, config.corrLengthX, config.corrLengthY].every(
+      (value) => Number.isFinite(value) && value > 0,
+    ) ||
+    !Number.isInteger(config.maxIterations) ||
+    config.maxIterations < 1 ||
+    config.maxIterations > 50
+  ) {
+    issues.push({
+      id: 'solver-inputs',
+      type: 'error',
+      title: 'Check Prior and Solver Inputs',
+      message:
+        'Initial log fields must be between -30 and 0; data-error variance and correlation lengths must be positive; iteration budget must be a whole number from 1 to 50 (baseline: 30).',
+    });
   }
-  if (wells.some(well => !Number.isFinite(well.x) || !Number.isFinite(well.y)) ||
-      tests.some(test => ![test.pumpingPeriod ?? pumpingPeriod, test.pumpingRate ?? pumpingRate].every(value => Number.isFinite(value) && value > 0))) {
-    issues.push({ id: 'finite-test-inputs', type: 'error', title: 'Incomplete Well or Test Values', message: 'Every well coordinate, pumping period, and pumping rate must be a finite number; periods and rates must be positive.' });
+  if (
+    wells.some((well) => !Number.isFinite(well.x) || !Number.isFinite(well.y)) ||
+    tests.some(
+      (test) =>
+        ![test.pumpingPeriod ?? pumpingPeriod, test.pumpingRate ?? pumpingRate].every(
+          (value) => Number.isFinite(value) && value > 0,
+        ),
+    )
+  ) {
+    issues.push({
+      id: 'finite-test-inputs',
+      type: 'error',
+      title: 'Incomplete Well or Test Values',
+      message:
+        'Every well coordinate, pumping period, and pumping rate must be a finite number; periods and rates must be positive.',
+    });
   }
 
   // Domain boundary validation
@@ -128,7 +172,12 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
   // Multi-test validations
   const wellIds = new Set(wells.map((well) => well.id));
   if (wellIds.size !== wells.length || new Set(tests.map((test) => test.id)).size !== tests.length) {
-    issues.push({ id: 'duplicate-ids', type: 'error', title: 'Duplicate IDs', message: 'Every well and test must have a unique ID.' });
+    issues.push({
+      id: 'duplicate-ids',
+      type: 'error',
+      title: 'Duplicate IDs',
+      message: 'Every well and test must have a unique ID.',
+    });
   }
   if (!tests || tests.length === 0) {
     issues.push({
@@ -147,7 +196,11 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
           message: 'Each test must have exactly one pumping well selected.',
         });
       }
-      if (!t.observationWellIds || t.observationWellIds.length === 0 || t.observationWellIds.some((id) => !wellIds.has(id))) {
+      if (
+        !t.observationWellIds ||
+        t.observationWellIds.length === 0 ||
+        t.observationWellIds.some((id) => !wellIds.has(id))
+      ) {
         issues.push({
           id: `test-no-obs-${t.id}`,
           type: 'error',
@@ -163,8 +216,17 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
           message: 'Pumping well cannot also be selected as an observation well.',
         });
       }
-      if (new Set(t.observationWellIds).size !== t.observationWellIds.length || (t.pumpingPeriod ?? pumpingPeriod) <= 0 || (t.pumpingRate ?? pumpingRate) <= 0) {
-        issues.push({ id: `test-values-${t.id}`, type: 'error', title: `Invalid values in ${t.name}`, message: 'Observation wells must be unique, and period and pumping rate must be positive.' });
+      if (
+        new Set(t.observationWellIds).size !== t.observationWellIds.length ||
+        (t.pumpingPeriod ?? pumpingPeriod) <= 0 ||
+        (t.pumpingRate ?? pumpingRate) <= 0
+      ) {
+        issues.push({
+          id: `test-values-${t.id}`,
+          type: 'error',
+          title: `Invalid values in ${t.name}`,
+          message: 'Observation wells must be unique, and period and pumping rate must be positive.',
+        });
       }
     });
   }
@@ -179,12 +241,25 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
   }
 
   if (totalPumpingObsPairs > 100) {
-    issues.push({ id: 'too-many-pairs', type: 'error', title: 'Too Many Responses', message: 'The current API supports at most 100 test/observation pairs.' });
+    issues.push({
+      id: 'too-many-pairs',
+      type: 'error',
+      title: 'Too Many Responses',
+      message: 'The current API supports at most 100 test/observation pairs.',
+    });
   }
 
-  if (config.boundaries.top !== 'no_flow' || config.boundaries.bottom !== 'no_flow' ||
-      !(['west', 'east', 'south', 'north'] as const).some((side) => config.boundaries[side] === 'constant_head')) {
-    issues.push({ id: 'boundaries', type: 'error', title: 'Unsupported Boundaries', message: 'Use no-flow top and bottom and at least one horizontal constant-head boundary.' });
+  if (
+    config.boundaries.top !== 'no_flow' ||
+    config.boundaries.bottom !== 'no_flow' ||
+    !(['west', 'east', 'south', 'north'] as const).some((side) => config.boundaries[side] === 'constant_head')
+  ) {
+    issues.push({
+      id: 'boundaries',
+      type: 'error',
+      title: 'Unsupported Boundaries',
+      message: 'Use no-flow top and bottom and at least one horizontal constant-head boundary.',
+    });
   }
 
   if (testCase !== 'black_kipp' && estimatedMemoryMB > 100) {
@@ -221,7 +296,15 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
     return (
       <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-1.5 flex flex-col items-center">
         <svg width={width} height={height} className="select-none">
-          <rect x={pad} y={pad} width={plotW} height={plotH} fill="#181818" stroke="#333333" strokeWidth="1.5" />
+          <rect
+            x={pad}
+            y={pad}
+            width={plotW}
+            height={plotH}
+            fill="#181818"
+            stroke="#333333"
+            strokeWidth="1.5"
+          />
           {wells.map((w) => {
             const cx = toSvgX(w.x);
             const cy = toSvgY(w.y);
@@ -257,7 +340,15 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
 
             return (
               <g key={w.id} className="opacity-30">
-                <circle cx={cx} cy={cy} r="3.5" fill="none" stroke="#6B7074" strokeWidth="1" strokeDasharray="2,2" />
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r="3.5"
+                  fill="none"
+                  stroke="#6B7074"
+                  strokeWidth="1"
+                  strokeDasharray="2,2"
+                />
                 <text x={cx + 6} y={cy + 2} fill="#888888" fontSize="8">
                   {w.name}
                 </text>
@@ -289,7 +380,8 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
             Step 3: Review Model Inputs & Validation
           </h2>
           <p className="text-xs text-[#4B4F52] mt-0.5">
-            Verify experiment-level parameters, test role assignments, physical units, and computing resources before running the solver.
+            Verify experiment-level parameters, test role assignments, physical units, and computing resources
+            before running the solver.
           </p>
         </div>
 
@@ -344,7 +436,9 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
           </div>
           <div>
             <div className="text-[10px] uppercase font-bold text-[#6B7074]">Unique Pumping Wells</div>
-            <div className="text-lg font-black text-[#121212] font-mono">{uniquePumpingWellIds.length} Wells</div>
+            <div className="text-lg font-black text-[#121212] font-mono">
+              {uniquePumpingWellIds.length} Wells
+            </div>
           </div>
         </div>
 
@@ -374,8 +468,8 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
                 issue.type === 'error'
                   ? 'bg-[#FEE2E2] border-[#FCA5A5] text-[#991B1B]'
                   : issue.type === 'warning'
-                  ? 'bg-[#FEF3C7] border-[#FDE68A] text-[#92400E]'
-                  : 'bg-[#DCFCE7] border-[#86EFAC] text-[#166534]'
+                    ? 'bg-[#FEF3C7] border-[#FDE68A] text-[#92400E]'
+                    : 'bg-[#DCFCE7] border-[#86EFAC] text-[#166534]'
               }`}
             >
               {issue.type === 'error' ? (
@@ -427,7 +521,9 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
             return (
               <div
                 key={test.id}
-                ref={(element) => { testCardRefs.current[test.id] = element; }}
+                ref={(element) => {
+                  testCardRefs.current[test.id] = element;
+                }}
                 tabIndex={-1}
                 className={`bg-white border rounded-xl overflow-hidden transition shadow-xs ${
                   isExpanded ? 'border-[#121212] ring-2 ring-[#121212]/10' : 'border-[#D6DADD]'
@@ -463,8 +559,18 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
                           {isTestValid ? 'Valid' : 'Invalid'}
                         </span>
                       </div>
-                      <div className={`text-[11px] font-mono mt-0.5 ${isExpanded ? 'text-[#A7ADB1]' : 'text-[#6B7074]'}`}>
-                        Pump: <strong className={isExpanded ? 'text-white' : 'text-[#121212]'}>{pumpingWell?.name || 'N/A'}</strong> &bull; Obs: <strong className={isExpanded ? 'text-white' : 'text-[#121212]'}>{obsWells.length} wells</strong> ({obsWells.map(w => w.name).join(', ') || 'None'})
+                      <div
+                        className={`text-[11px] font-mono mt-0.5 ${isExpanded ? 'text-[#A7ADB1]' : 'text-[#6B7074]'}`}
+                      >
+                        Pump:{' '}
+                        <strong className={isExpanded ? 'text-white' : 'text-[#121212]'}>
+                          {pumpingWell?.name || 'N/A'}
+                        </strong>{' '}
+                        &bull; Obs:{' '}
+                        <strong className={isExpanded ? 'text-white' : 'text-[#121212]'}>
+                          {obsWells.length} wells
+                        </strong>{' '}
+                        ({obsWells.map((w) => w.name).join(', ') || 'None'})
                       </div>
                     </div>
                   </div>
@@ -499,43 +605,47 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
                         <div className="bg-[#F7F7F7] border border-[#D6DADD] p-2.5 rounded-lg space-y-0.5">
                           <span className="text-[10px] font-bold uppercase text-[#6B7074]">Pumping Well</span>
                           <div className="font-bold text-sm text-[#C5050C]">
-                            {pumpingWell ? `${pumpingWell.name} (${pumpingWell.x}m, ${pumpingWell.y}m)` : 'None'}
+                            {pumpingWell
+                              ? `${pumpingWell.name} (${pumpingWell.x}m, ${pumpingWell.y}m)`
+                              : 'None'}
                           </div>
                         </div>
 
                         <div className="bg-[#F7F7F7] border border-[#D6DADD] p-2.5 rounded-lg space-y-0.5">
-                          <span className="text-[10px] font-bold uppercase text-[#6B7074]">Observation Count</span>
+                          <span className="text-[10px] font-bold uppercase text-[#6B7074]">
+                            Observation Count
+                          </span>
                           <div className="font-bold text-sm text-[#2563EB] font-mono">
                             {obsWells.length} Wells
                           </div>
                         </div>
 
                         <div className="bg-[#F7F7F7] border border-[#D6DADD] p-2.5 rounded-lg space-y-0.5">
-                          <span className="text-[10px] font-bold uppercase text-[#6B7074]">Pumping Flow Q</span>
-                          <div className="font-bold text-sm text-[#121212] font-mono">
-                            {testQ} m³/s
-                          </div>
+                          <span className="text-[10px] font-bold uppercase text-[#6B7074]">
+                            Pumping Flow Q
+                          </span>
+                          <div className="font-bold text-sm text-[#121212] font-mono">{testQ} m³/s</div>
                         </div>
 
                         <div className="bg-[#F7F7F7] border border-[#D6DADD] p-2.5 rounded-lg space-y-0.5">
-                          <span className="text-[10px] font-bold uppercase text-[#6B7074]">Period P / Frequency</span>
+                          <span className="text-[10px] font-bold uppercase text-[#6B7074]">
+                            Period P / Frequency
+                          </span>
                           <div className="font-bold text-sm text-[#121212] font-mono">
                             P = {testP}s ({freqHz} Hz)
                           </div>
                         </div>
 
                         <div className="bg-[#F7F7F7] border border-[#D6DADD] p-2.5 rounded-lg space-y-0.5">
-                          <span className="text-[10px] font-bold uppercase text-[#6B7074]">Solver Output</span>
-                          <div className="font-bold text-sm text-[#121212] font-mono">
-                            Complex phasor
-                          </div>
+                          <span className="text-[10px] font-bold uppercase text-[#6B7074]">
+                            Solver Output
+                          </span>
+                          <div className="font-bold text-sm text-[#121212] font-mono">Complex phasor</div>
                         </div>
 
                         <div className="bg-[#F7F7F7] border border-[#D6DADD] p-2.5 rounded-lg space-y-0.5">
                           <span className="text-[10px] font-bold uppercase text-[#6B7074]">Status</span>
-                          <div className="font-bold text-sm text-[#15803D] uppercase">
-                            Ready
-                          </div>
+                          <div className="font-bold text-sm text-[#15803D] uppercase">Ready</div>
                         </div>
                       </div>
 
@@ -548,7 +658,9 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
                               <tr>
                                 <th className="p-2 font-semibold">Obs Well</th>
                                 <th className="p-2 font-semibold">Coordinates</th>
-                                <th className="p-2 font-semibold">Distance to Pumping Well ({pumpingWell?.name})</th>
+                                <th className="p-2 font-semibold">
+                                  Distance to Pumping Well ({pumpingWell?.name})
+                                </th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-[#D6DADD]">
@@ -559,7 +671,9 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
                                 return (
                                   <tr key={obs.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#F7F7F7]'}>
                                     <td className="p-2 font-bold font-sans text-[#121212]">{obs.name}</td>
-                                    <td className="p-2 text-[#4B4F52]">({obs.x}m, {obs.y}m)</td>
+                                    <td className="p-2 text-[#4B4F52]">
+                                      ({obs.x}m, {obs.y}m)
+                                    </td>
                                     <td className="p-2 text-[#2563EB] font-bold">{dist} meters</td>
                                   </tr>
                                 );
@@ -572,9 +686,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
 
                     {/* Mini Role Map (4 cols) */}
                     <div className="lg:col-span-4 flex flex-col items-center justify-center border-l border-[#D6DADD] pl-0 lg:pl-4">
-                      <div className="text-[11px] font-bold text-[#121212] mb-1">
-                        {test.name} Role Map
-                      </div>
+                      <div className="text-[11px] font-bold text-[#121212] mb-1">{test.name} Role Map</div>
                       {renderSmallTestMap(test)}
                     </div>
                   </div>
@@ -616,9 +728,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
             </div>
             <div className="flex justify-between">
               <dt className="text-[#6B7074] font-sans">Unknown Parameters:</dt>
-              <dd className="font-bold text-[#C5050C]">
-                {unknownParams} (ln K + ln Ss)
-              </dd>
+              <dd className="font-bold text-[#C5050C]">{unknownParams} (ln K + ln Ss)</dd>
             </div>
           </dl>
         </div>
@@ -639,18 +749,16 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
               </dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-[#6B7074] font-sans">Pumping Period P:</dt>
-              <dd className="font-bold text-[#121212]">{pumpingPeriod} seconds</dd>
+              <dt className="text-[#6B7074] font-sans">Configured periods P:</dt>
+              <dd className="font-bold text-[#121212]">{signalRange(periods)} s</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-[#6B7074] font-sans">Pumping Flow Rate Q:</dt>
-              <dd className="font-bold text-[#121212]">{pumpingRate} m³/s</dd>
+              <dt className="text-[#6B7074] font-sans">Peak pumping amplitudes:</dt>
+              <dd className="font-bold text-[#121212]">{signalRange(rates)} m³/s</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-[#6B7074] font-sans">Physical Well Positions:</dt>
-              <dd className="font-bold text-[#C5050C]">
-                {wells.length} Defined Wells
-              </dd>
+              <dd className="font-bold text-[#C5050C]">{wells.length} Defined Wells</dd>
             </div>
           </dl>
         </div>
@@ -673,13 +781,17 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
               <dd className="font-bold text-[#121212]">{totalObs} phasor components</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-[#6B7074] font-sans">{testCase === 'black_kipp' ? 'Forward Model Coefficients:' : 'Sensitivity Jacobian Size:'}</dt>
+              <dt className="text-[#6B7074] font-sans">
+                {testCase === 'black_kipp' ? 'Forward Model Coefficients:' : 'Sensitivity Jacobian Size:'}
+              </dt>
               <dd className="font-bold text-[#121212]">
                 {testCase === 'black_kipp' ? unknownParams : `${totalObs} × ${unknownParams}`}
               </dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-[#6B7074] font-sans">{testCase === 'black_kipp' ? 'Two Parameter Fields:' : 'Raw Jacobian Size:'}</dt>
+              <dt className="text-[#6B7074] font-sans">
+                {testCase === 'black_kipp' ? 'Two Parameter Fields:' : 'Raw Jacobian Size:'}
+              </dt>
               <dd className="font-bold text-[#15803D]">
                 ~{testCase === 'black_kipp' ? forwardStateMemoryMB : estimatedMemoryMB} MB
               </dd>
@@ -707,13 +819,12 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
             <tbody className="divide-y divide-[#D6DADD]">
               {wells.map((w, index) => {
                 const pumpingInTests = tests.filter((t) => t.pumpingWellId === w.id).map((t) => t.name);
-                const obsInTests = tests.filter((t) => t.observationWellIds?.includes(w.id)).map((t) => t.name);
+                const obsInTests = tests
+                  .filter((t) => t.observationWellIds?.includes(w.id))
+                  .map((t) => t.name);
 
                 return (
-                  <tr
-                    key={w.id}
-                    className={index % 2 === 0 ? 'bg-white' : 'bg-[#F7F7F7]'}
-                  >
+                  <tr key={w.id} className={index % 2 === 0 ? 'bg-white' : 'bg-[#F7F7F7]'}>
                     <td className="py-2 px-3 font-bold text-[#121212] font-sans flex items-center space-x-2">
                       <span className="w-5 h-5 rounded bg-[#121212] text-white text-[10px] font-bold flex items-center justify-center">
                         {w.name}

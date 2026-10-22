@@ -33,7 +33,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
             <div>
               <div className="font-bold text-sm text-[#121212]">Aquifer Imaging Studio</div>
               <div className="text-[11px] text-[#6B7074] font-mono">
-                Version 1.1.0-proto &bull; UW–Madison Geoscience
+                Version 1.3.0 &bull; UW–Madison Geoscience
               </div>
             </div>
           </div>

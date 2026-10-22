@@ -125,6 +125,8 @@ export interface AnalysisProgress {
 }
 
 export interface AnalysisResult {
+  /** Frontend provenance only; never submitted as a scientific solver option. */
+  forwardInput?: { sourceGrid: { nx: number; ny: number }; inversionGrid: { nx: number; ny: number }; responsePairs: number };
   observationSource?: 'field' | 'synthetic'; // User-declared provenance for imported phasors; not a solver input.
   mode: 'forward' | 'inversion';
   analysisMode: AnalysisMode;

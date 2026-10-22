@@ -19,3 +19,8 @@ web/.parcel-dev/
 web/.parcel-cache/
 web/.parcel-dev-cache/
 web/.parcel-dev-backups/
+web/.parcel-build-staging/
+web/.parcel-build-backups/
+
+# Temporary design conversion artifacts
+.superdesign/tmp/

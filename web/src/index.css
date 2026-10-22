@@ -100,3 +100,20 @@ a.accessible-link, .accessible-link {
 a.accessible-link:hover, .accessible-link:hover {
   color: #1E40AF;
 }
+
+/* Keep scientific content scrollable without shortening the sidebar on small
+   screens. Its buttons retain accessible names even in icon-only mode. */
+@media (max-width: 639px) {
+  aside[aria-label='Workspace navigation'] { width: 3.5rem; }
+  aside[aria-label='Workspace navigation'] nav button { font-size: 0; gap: 0; padding-inline: 0.6rem; }
+  aside[aria-label='Workspace navigation'] footer { display: none; }
+}
+
+@keyframes journeyReveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.journey-guide section { animation: journeyReveal 160ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .journey-guide section { animation: none; }
+}

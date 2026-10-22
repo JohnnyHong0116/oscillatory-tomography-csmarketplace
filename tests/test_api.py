@@ -277,3 +277,39 @@ def test_synthetic_demo_returns_full_scientific_diagnostics():
     assert len(result["sensitivityFields"]["lnSs"]) == payload["gridNy"]
     assert result["objectiveHistory"]
     assert math.isfinite(result["diagnostics"]["lnKFieldRmse"])
+
+
+@pytest.mark.parametrize("source_case", ["black_kipp", "inversion_10s"])
+def test_forward_pathways_feed_exact_raw_phasors_to_imported_inversion(source_case):
+    """The unified UI must transfer raw heads, not wrapped chart phase delays.
+
+    No numerical path is added here: exercise the existing forward and imported
+    inverse contracts with identical geometry and a common grid.
+    """
+    import copy
+
+    client = TestClient(app)
+    payload = request_payload()
+    payload.update(testCase=source_case, analysisMode="forward")
+    before = copy.deepcopy(payload)
+    response = client.post("/api/v1/analyze", json=payload)
+    assert response.status_code == 200
+    forward = response.json()
+    assert payload == before
+    observations = [
+        {"testId": pair["testId"], "wellId": pair["observationWellId"],
+         "real": pair["predicted"]["real"], "imag": pair["predicted"]["imag"]}
+        for pair in forward["pairs"]
+    ]
+    payload.update(testCase="inversion_10s", analysisMode="measured_inversion", observations=observations)
+    response = client.post("/api/v1/analyze", json=payload)
+    assert response.status_code == 200
+    inverse = response.json()
+    assert inverse["mode"] == "inversion"
+    assert inverse["trueFields"] is None and inverse["errorFields"] is None
+    assert inverse["fields"] and inverse["sensitivityFields"]
+    assert inverse["diagnostics"]["responseRmse"] < 1e-10
+    by_pair = {(item["testId"], item["wellId"]): item for item in observations}
+    for pair in inverse["pairs"]:
+        original = by_pair[(pair["testId"], pair["observationWellId"])]
+        assert pair["measured"] == {"real": original["real"], "imag": original["imag"]}

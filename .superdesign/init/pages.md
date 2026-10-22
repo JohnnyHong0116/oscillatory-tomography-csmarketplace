@@ -1,0 +1,128 @@
+# Existing page dependency trees
+## web/src/App.tsx
+- web/src/App.tsx
+  - web/src/types/aquifer.ts
+  - web/src/data/presets.ts
+    - web/src/types/aquifer.ts (shared)
+  - web/src/components/layout/Header.tsx
+    - web/src/types/aquifer.ts (shared)
+  - web/src/components/layout/Sidebar.tsx
+    - web/src/types/aquifer.ts (shared)
+  - web/src/components/layout/HelpDrawer.tsx
+    - web/src/data/workflowHelp.ts
+  - web/src/components/layout/BackToTopButton.tsx
+  - web/src/components/steps/Step1SelectTestCase.tsx
+    - web/src/types/aquifer.ts (shared)
+  - web/src/components/steps/Step2ConfigureModel.tsx
+    - web/src/types/aquifer.ts (shared)
+    - web/src/utils/scroll.ts
+    - web/src/components/steps/PeriodSweep.tsx
+      - web/src/types/aquifer.ts (shared)
+      - web/src/utils/periodSweep.ts
+        - web/src/types/aquifer.ts (shared)
+    - web/src/components/steps/ModelResolution.tsx
+      - web/src/types/aquifer.ts (shared)
+  - web/src/components/steps/Step3ReviewInputs.tsx
+    - web/src/types/aquifer.ts (shared)
+    - web/src/utils/scroll.ts (shared)
+    - web/src/components/steps/ScientificContext.tsx
+      - web/src/types/aquifer.ts (shared)
+      - web/src/utils/scientificReview.ts
+        - web/src/data/presets.ts (shared)
+        - web/src/types/aquifer.ts (shared)
+  - web/src/components/steps/Step4RunAnalysis.tsx
+    - web/src/types/aquifer.ts (shared)
+    - web/src/api/analysis.ts
+      - web/src/types/aquifer.ts (shared)
+    - web/src/utils/scroll.ts (shared)
+    - web/src/utils/scientificReview.ts (shared)
+  - web/src/components/steps/Step5ExploreResults.tsx
+    - web/src/types/aquifer.ts (shared)
+    - web/src/components/steps/FieldHeatmap.tsx
+      - web/src/types/aquifer.ts (shared)
+      - web/src/components/steps/PlotInspection.tsx
+        - web/src/types/aquifer.ts (shared)
+      - web/src/utils/fieldInspection.ts
+      - web/src/components/steps/ExpandablePlot.tsx
+        - web/src/components/steps/PlotInspection.tsx (shared)
+    - web/src/components/steps/ResponsePlots.tsx
+      - web/src/types/aquifer.ts (shared)
+      - web/src/components/steps/PlotInspection.tsx (shared)
+      - web/src/components/steps/ExpandablePlot.tsx (shared)
+    - web/src/components/steps/SeriesPlot.tsx
+      - web/src/components/steps/PlotInspection.tsx (shared)
+      - web/src/components/steps/ExpandablePlot.tsx (shared)
+    - web/src/components/steps/ScientificContext.tsx (shared)
+    - web/src/utils/scroll.ts (shared)
+    - web/src/utils/syntheticObservations.ts
+      - web/src/types/aquifer.ts (shared)
+  - web/src/components/modals/ReportModal.tsx
+    - web/src/types/aquifer.ts (shared)
+    - web/src/reporting/reportExport.ts
+      - web/src/types/aquifer.ts (shared)
+  - web/src/components/modals/DocumentationModal.tsx
+  - web/src/components/modals/AboutModal.tsx
+
+## web/src/components/steps/Step1SelectTestCase.tsx
+- web/src/components/steps/Step1SelectTestCase.tsx
+  - web/src/types/aquifer.ts
+
+## web/src/components/steps/Step2ConfigureModel.tsx
+- web/src/components/steps/Step2ConfigureModel.tsx
+  - web/src/types/aquifer.ts
+  - web/src/utils/scroll.ts
+  - web/src/components/steps/PeriodSweep.tsx
+    - web/src/types/aquifer.ts (shared)
+    - web/src/utils/periodSweep.ts
+      - web/src/types/aquifer.ts (shared)
+  - web/src/components/steps/ModelResolution.tsx
+    - web/src/types/aquifer.ts (shared)
+
+## web/src/components/steps/Step3ReviewInputs.tsx
+- web/src/components/steps/Step3ReviewInputs.tsx
+  - web/src/types/aquifer.ts
+  - web/src/utils/scroll.ts
+  - web/src/components/steps/ScientificContext.tsx
+    - web/src/types/aquifer.ts (shared)
+    - web/src/utils/scientificReview.ts
+      - web/src/data/presets.ts
+        - web/src/types/aquifer.ts (shared)
+      - web/src/types/aquifer.ts (shared)
+
+## web/src/components/steps/Step4RunAnalysis.tsx
+- web/src/components/steps/Step4RunAnalysis.tsx
+  - web/src/types/aquifer.ts
+  - web/src/api/analysis.ts
+    - web/src/types/aquifer.ts (shared)
+  - web/src/utils/scroll.ts
+  - web/src/utils/scientificReview.ts
+    - web/src/data/presets.ts
+      - web/src/types/aquifer.ts (shared)
+    - web/src/types/aquifer.ts (shared)
+
+## web/src/components/steps/Step5ExploreResults.tsx
+- web/src/components/steps/Step5ExploreResults.tsx
+  - web/src/types/aquifer.ts
+  - web/src/components/steps/FieldHeatmap.tsx
+    - web/src/types/aquifer.ts (shared)
+    - web/src/components/steps/PlotInspection.tsx
+      - web/src/types/aquifer.ts (shared)
+    - web/src/utils/fieldInspection.ts
+    - web/src/components/steps/ExpandablePlot.tsx
+      - web/src/components/steps/PlotInspection.tsx (shared)
+  - web/src/components/steps/ResponsePlots.tsx
+    - web/src/types/aquifer.ts (shared)
+    - web/src/components/steps/PlotInspection.tsx (shared)
+    - web/src/components/steps/ExpandablePlot.tsx (shared)
+  - web/src/components/steps/SeriesPlot.tsx
+    - web/src/components/steps/PlotInspection.tsx (shared)
+    - web/src/components/steps/ExpandablePlot.tsx (shared)
+  - web/src/components/steps/ScientificContext.tsx
+    - web/src/types/aquifer.ts (shared)
+    - web/src/utils/scientificReview.ts
+      - web/src/data/presets.ts
+        - web/src/types/aquifer.ts (shared)
+      - web/src/types/aquifer.ts (shared)
+  - web/src/utils/scroll.ts
+  - web/src/utils/syntheticObservations.ts
+    - web/src/types/aquifer.ts (shared)
