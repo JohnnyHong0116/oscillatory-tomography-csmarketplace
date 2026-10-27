@@ -74,6 +74,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
   const [internalActiveTestId, setInternalActiveTestId] = useState<string>(config.tests[0]?.id || 'test-1');
   const activeTestId = propActiveTestId || internalActiveTestId;
   const [selectedPeriod, setSelectedPeriod] = useState('all');
+  const sweepSection = useRef<HTMLDivElement>(null);
   const [editingPeriodTestId, setEditingPeriodTestId] = useState<string | null>(null);
   const selectPeriod = (period: string) => {
     setSelectedPeriod(period);
@@ -1299,21 +1300,9 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
             onSelect={selectPeriod}
             onChange={onChangeConfig}
             onAddTest={handleAddTest}
+            onOpenSweep={() => revealAfterRender(() => sweepSection.current, 'start', true)}
           />
-          {config.tests.length > 0 && (
-            <details
-              className="rounded-xl border border-[#D6DADD] bg-white p-4"
-              onToggle={(event) => {
-                if (event.currentTarget.open) {
-                  const section = event.currentTarget;
-                  revealAfterRender(() => section, 'start', false);
-                }
-              }}
-            >
-              <summary className="cursor-pointer text-xs font-bold focus-ring">
-                Repeat well setups across multiple periods (optional)
-              </summary>
-              <div className="mt-3">
+          <div ref={sweepSection} tabIndex={-1} className="outline-none scroll-mt-4">
                 <PeriodSweep
                   config={config}
                   activeTestId={activeTestId}
@@ -1323,9 +1312,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                     setActiveTestId(next.tests[0].id);
                   }}
                 />
-              </div>
-            </details>
-          )}
+          </div>
           {!config.tests.length && (
             <p className="rounded-xl border border-dashed bg-white p-5 text-sm text-[#4B4F52]">
               Start with Add test above. Assign one pumping well and one or more observers, then use the

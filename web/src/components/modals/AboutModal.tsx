@@ -11,7 +11,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-[#121212]/80 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-      <div className="bg-white text-[#121212] w-full max-w-lg rounded-xl shadow-2xl overflow-hidden border border-[#D6DADD]">
+      <div className="bg-white text-[#121212] w-full max-w-lg max-h-[90dvh] rounded-xl shadow-2xl overflow-y-auto border border-[#D6DADD]">
         <div className="p-4 bg-[#121212] text-white flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Info className="w-5 h-5 text-[#C5050C]" />

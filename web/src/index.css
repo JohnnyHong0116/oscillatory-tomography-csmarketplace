@@ -137,6 +137,23 @@ main button { touch-action:manipulation; }
 .studio-input { min-height:2.5rem; min-width:0; padding:.6rem .75rem; border:1px solid #BCC6D1; border-radius:.65rem; background:white; font-size:.8125rem; }
 .studio-disclosure { padding:1rem; border:1px solid var(--studio-line); border-radius:1rem; background:#F8FAFC; animation:studioReveal 180ms ease-out; }
 .period-workspace { display:grid; gap:1.25rem; }
+.sweep-methods { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.5rem; }
+.sweep-method { min-width:0; padding:.75rem; border:1px solid var(--studio-line); border-radius:.75rem; text-align:left; background:#F8FAFC; }
+.sweep-method strong,.sweep-method span { display:block; }
+.sweep-method strong { font-size:.8125rem; }
+.sweep-method span { margin-top:.25rem; font-size:.75rem; color:var(--studio-muted); }
+.sweep-method[aria-pressed=true] { border-color:#C5050C; box-shadow:inset 0 0 0 1px #C5050C; background:#FFF4F4; }
+/* Preserve the viewBox/aspect ratio while bounding the visual by BOTH available
+   width and viewport height. SVG letterboxing keeps probe coordinates correct. */
+.plot-content { min-width:0; }
+.field-results-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr)); }
+.diagnostic-results-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr)); }
+.plot-inline .plot-content svg[role=group] { display:block; width:100%; height:auto; max-height:clamp(180px,42svh,360px); }
+.signal-map-panel .plot-inline .plot-content svg[role=group] { max-height:clamp(160px,32svh,320px); }
+.plot-inline .plot-square { width:min(100%,clamp(160px,42svh,360px)); margin-inline:auto; }
+.plot-viewer .plot-content svg[role=group] { display:block; width:100%; height:auto; max-height:calc(100svh - 190px); min-height:160px; }
+.plot-viewer .plot-square { width:min(100%,max(160px,calc(100svh - 220px))); }
+@media(max-width:639px) { .sweep-methods { grid-template-columns:1fr; } .sweep-method { padding:.65rem .75rem; } .sweep-method span { margin-top:.1rem; } .plot-viewer .plot-content svg[role=group] { max-height:55svh; } }
 .period-rail { display:flex; gap:.7rem; overflow-x:auto; padding:4px 4px 12px; scroll-snap-type:x proximity; scrollbar-width:thin; }
 .period-tile { position:relative; flex:0 0 9.5rem; display:grid; gap:.4rem; padding:1rem; min-height:8.3rem; border:1px solid var(--studio-line); border-radius:1rem; background:#FAFBFC; color:var(--studio-muted); text-align:left; scroll-snap-align:start; overflow:hidden; transition:background 180ms,border-color 180ms,box-shadow 180ms; }
 .period-tile strong { font-size:1.3rem; color:var(--studio-ink); letter-spacing:-.04em; }

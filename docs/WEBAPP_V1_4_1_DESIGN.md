@@ -111,3 +111,38 @@ The requested `dickwu/apple-design-skill` was installed locally and its HIG
 foundation, accessibility, charting, motion and input references informed these
 changes. Installation is separate from repository dependencies; this app does
 not require that skill or any Apple runtime to build or run.
+
+## Follow-up: discoverability and responsive plot sizing
+
+The sweep was technically available but hidden behind a vague collapsed label.
+That was a discoverability failure. It now remains visible in Tests & periods,
+with a top-of-page shortcut and three explicit methods: Custom list, Linear
+increments and Logarithmic spacing. Default scope is the selected test, avoiding
+an unexpectedly large Cartesian product. Preview counts, range endpoints,
+amplitude rules, validation limits and replacement confirmation remain intact.
+Only supporting scientific guidance is collapsed.
+
+Width-only SVG sizing made map and diagnostic heights grow on wide screens.
+The shared viewer now caps inline visual height using viewport units, preserves
+aspect ratios and viewBox coordinates, and bounds square heatmaps too. Maps use
+a near-square canvas, shorter inline height and a compact control grid. Field
+and diagnostic grids choose column counts from available content width.
+Full-screen plots retain scrolling inspectors and a reachable Close action;
+documentation, About and report controls also accommodate compact/short views.
+The journey toolbar now occupies a reserved footer strip instead of covering
+form actions while the page scrolls. Its center position and expandable guide
+remain available.
+
+This applies `layout.md › Adaptability` and
+the skill's web-platform foundations. Existing colors, contrast, type and
+motion tokens above are retained. The scientific purpose remains inspectable
+well responses; no solver, sampling formula or numerical baseline changed.
+
+Follow-up verification: 57 frontend tests, TypeScript and production build
+passed. Browser QA exercised all three period entry methods, applied linear
+and logarithmic sweeps, and ran real Python forward predictions. Layout checks
+covered 1920×1080, 1111×720, 768×1024, 390×844 and 844×390. No workspace horizontal
+overflow was found in those checks; inline plots remained bounded, resized
+plots still selected the correct response, and enlarged views retained a
+reachable Close action. Browser console reported no errors. An existing local
+server was reused; no user-owned process was stopped.

@@ -11,7 +11,7 @@ export const DocumentationModal: React.FC<ModalProps> = ({ isOpen, onClose }) =>
 
   return (
     <div className="fixed inset-0 bg-[#121212]/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white text-[#121212] w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden border border-[#D6DADD]">
+      <div className="bg-white text-[#121212] w-full max-w-2xl max-h-[90dvh] flex flex-col rounded-xl shadow-2xl overflow-hidden border border-[#D6DADD]">
         <div className="p-4 bg-[#121212] text-white flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <BookOpen className="w-5 h-5 text-[#C5050C]" />
@@ -25,7 +25,7 @@ export const DocumentationModal: React.FC<ModalProps> = ({ isOpen, onClose }) =>
           </button>
         </div>
 
-        <div className="p-6 space-y-4 text-xs leading-relaxed max-h-[80vh] overflow-y-auto bg-white">
+        <div className="min-h-0 p-6 space-y-4 text-xs leading-relaxed overflow-y-auto bg-white">
           <section className="rounded-lg border border-[#D6DADD] bg-[#F7F7F7] p-4 space-y-2">
             <h3 className="text-sm font-bold">Your experiment · user workflow</h3>
             <p>Start with physical well locations in local Cartesian meters. Define the domain, cell sizes and boundary assumptions, then assign one pump and its observers for each test setup. Apply a period range or list and specify peak pumping amplitude.</p>

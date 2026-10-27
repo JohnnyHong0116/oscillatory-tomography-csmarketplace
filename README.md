@@ -102,6 +102,13 @@ preserves its earlier commits.
   without changing physical wells. Optional sweep controls remain available.
 - Period selection uses visible cycle cards with frequency and test counts.
   One test editor opens at a time; other tests retain compact role summaries.
+- **Tests & periods → Period sweep · input methods** opens the visible sweep
+  builder. Choose **Custom list**, **Linear increments**, or **Logarithmic
+  spacing**, preview the generated periods/test count, then apply. **New
+  period** remains the single-period entry. Sweeps default to the selected test.
+- Inline plots now have viewport-height limits, square fields keep their aspect
+  ratio, and result grids adapt to available content width. Enlarge opens a
+  separate viewer. The bottom journey toolbar reserves space below the page.
 - Explore chart areas with a nearest-point probe, or use arrow keys, Enter to
   pin and Escape to clear. Amplitude and phase share a selection. Enlarged
   viewers retain the inspector, beside the plot when space permits.

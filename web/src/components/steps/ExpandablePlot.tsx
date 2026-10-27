@@ -39,7 +39,7 @@ export function ExpandablePlot({ title, children, square = false, showInspection
   return <div className="group relative min-w-0" style={expanded ? { height: inlineHeight } : undefined}>
   <div ref={root} role={expanded ? 'dialog' : undefined} aria-modal={expanded ? true : undefined}
     aria-label={expanded ? `${title} enlarged plot` : undefined}
-    className={expanded ? 'fixed inset-0 z-[100] flex flex-col bg-slate-100 text-slate-900' : 'group relative min-w-0'}
+    className={expanded ? 'plot-viewer fixed inset-0 z-[100] flex flex-col bg-slate-100 text-slate-900' : 'plot-inline group relative min-w-0'}
     onKeyDownCapture={event => {
       // Escape closes the viewer without clearing the chart's existing pinned selection.
       if (expanded && event.key === 'Escape') { event.stopPropagation(); setExpanded(false); }
@@ -60,7 +60,7 @@ export function ExpandablePlot({ title, children, square = false, showInspection
     </header>}
     <div className={expanded ? 'min-h-0 flex-1 overflow-auto p-4 sm:p-6' : ''}>
       <div className={expanded ? 'mx-auto grid w-full max-w-[1800px] items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]' : ''}>
-        <div className={expanded ? `min-w-0 w-full mx-auto ${square ? 'max-w-[min(78vh,900px)]' : ''}` : ''}>{children}</div>
+        <div className={`plot-content ${square ? 'plot-square' : ''} ${expanded ? 'min-w-0 w-full mx-auto' : ''}`}>{children}</div>
         {(inspectionPanel || (expanded && showInspection)) && <aside aria-label="Plot inspection details"
           className={expanded ? 'min-w-0 lg:sticky lg:top-0 lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto' : ''}>
           {inspectionPanel ? inspectionPanel(expanded) : <ContextInspectionPanel compact />}

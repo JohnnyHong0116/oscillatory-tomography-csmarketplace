@@ -11,12 +11,14 @@ export function PeriodGroupControls({
   onSelect,
   onChange,
   onAddTest,
+  onOpenSweep,
 }: {
   config: ModelConfig;
   selected: string;
   onSelect: (period: string) => void;
   onChange: (config: ModelConfig) => void;
   onAddTest: (period: number) => void;
+  onOpenSweep?: () => void;
 }) {
   const groups = periodGroups(config);
   const [adding, setAdding] = useState(false);
@@ -42,6 +44,8 @@ export function PeriodGroupControls({
             Choose a cycle period, then define who pumps and who observes.
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+        {onOpenSweep && <button type="button" onClick={onOpenSweep} className="studio-button studio-button-secondary">Period sweep · input methods</button>}
         <button
           type="button"
           aria-expanded={adding}
@@ -59,6 +63,7 @@ export function PeriodGroupControls({
           )}{" "}
           {adding ? "Cancel new period" : "New period"}
         </button>
+        </div>
       </div>
       <div className="period-rail" role="group" aria-label="Choose a period">
         <button

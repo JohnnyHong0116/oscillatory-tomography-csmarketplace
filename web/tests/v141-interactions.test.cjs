@@ -190,3 +190,14 @@ test("full-area probe supports keyboard browsing, pinning, limits and Escape wit
   assert.equal(state.details, null);
   assert.equal(PlotProbe({ ...props, points: [] }), null);
 });
+
+test('period sweep exposes every input method and starts from the selected test amplitude', () => {
+  const { PeriodSweep } = load(path.join(root, 'components/steps/PeriodSweep.tsx'));
+  const config = createExample('inversion_10s').config;
+  config.tests[0].pumpingRate = 0.004321;
+  const html = renderToStaticMarkup(React.createElement(PeriodSweep, { config, activeTestId: config.tests[0].id, onApply() {} }));
+  for (const label of ['Period input method', 'Custom list', 'Linear increments', 'Logarithmic spacing', 'Apply period sweep']) assert.ok(html.includes(label));
+  assert.ok(html.includes('value="0.004321"'));
+  assert.match(html, /<option value="active" selected=""/);
+  assert.ok(html.includes('1 well setups × 2 periods'));
+});

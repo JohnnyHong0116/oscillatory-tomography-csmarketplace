@@ -201,7 +201,7 @@ export default function App() {
             aria-label="Experiment workspace"
             className="min-h-0 flex-1 min-w-0 overflow-y-auto outline-none"
           >
-            <div className="p-4 sm:p-6 pb-28 sm:pb-28">
+            <div className="p-4 sm:p-6">
               {view === 'examples' ? (
                 <>
                   <div className="max-w-5xl mx-auto mb-4 rounded-xl border bg-white p-4 text-sm text-[#4B4F52]">
@@ -376,6 +376,7 @@ export default function App() {
             </div>
           </main>
           {view !== 'examples' && !isHelpOpen && (
+            <div className="relative h-16 shrink-0" aria-label="Workflow navigation tools">
             <JourneyGuide
               step={currentStep}
               disabled={running}
@@ -390,6 +391,7 @@ export default function App() {
                 workspaceRef.current?.focus({ preventScroll: true });
               }}
             />
+            </div>
           )}
         </div>
         <HelpDrawer isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />

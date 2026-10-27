@@ -19,9 +19,9 @@ export function PeriodSweep({
   const [interval, setInterval] = useState(10),
     [count, setCount] = useState(20);
   const [list, setList] = useState('10, 50');
-  const [target, setTarget] = useState(blackKipp ? 'active' : 'all');
+  const [target, setTarget] = useState('active');
   const [amplitudeMode, setAmplitudeMode] = useState<'rate' | 'volume'>('rate');
-  const [amplitude, setAmplitude] = useState(config.pumpingRate);
+  const [amplitude, setAmplitude] = useState(config.tests.find(test => test.id === activeTestId)?.pumpingRate ?? config.pumpingRate);
   const [message, setMessage] = useState('');
   const setups = wellSetups(
     target === 'all' ? config.tests : config.tests.filter((test) => test.id === activeTestId),
@@ -39,38 +39,36 @@ export function PeriodSweep({
     'mt-1 w-full rounded border border-slate-300 bg-white px-2 py-2 font-mono text-xs focus-ring';
   return (
     <section
-      className="rounded-xl border border-slate-300 bg-white p-4 space-y-3"
+      className="studio-panel space-y-4 min-w-0"
       aria-label="Multi-period experiment builder"
     >
-      <h3 className="font-bold text-sm">Period sweep · same well setup, multiple periods</h3>
+      <h3 className="font-bold text-base">Period sweep</h3>
       <p className="text-xs text-slate-600">
-        Assign pumping/observation wells in the cards below first. Then generate period tests for those
-        assignments. Nothing changes until you apply.
+        Repeat a pumping/observation setup across periods. Choose how to enter the periods below.
+        For one period, use New period above and add a test in that group.
       </p>
+      <div role="group" aria-label="Period input method" className="sweep-methods">
+        {([
+          ['list', 'Custom list', 'Type exact periods, e.g. 10, 20, 50'],
+          ['linear', 'Linear increments', 'Start, end and increment in seconds'],
+          ['logarithmic', 'Logarithmic spacing', 'Start, end and number of samples'],
+        ] as const).map(([value, label, hint]) => <button key={value} type="button"
+          aria-pressed={mode === value} onClick={() => setMode(value)} className="sweep-method focus-ring">
+          <strong>{label}</strong><span>{hint}</span>
+        </button>)}
+      </div>
       <div className="grid sm:grid-cols-2 gap-3 text-xs">
         <label>
-          Well setups
+          Apply periods to
           <select className={inputClass} value={target} onChange={(event) => setTarget(event.target.value)}>
             <option value="all">All distinct current well setups</option>
-            <option value="active">Selected test’s well setup only</option>
-          </select>
-        </label>
-        <label>
-          Period sampling
-          <select
-            className={inputClass}
-            value={mode}
-            onChange={(event) => setMode(event.target.value as PeriodSampling)}
-          >
-            <option value="logarithmic">Logarithmic range (sample count)</option>
-            <option value="linear">Linear range (increment in seconds)</option>
-            <option value="list">Explicit period list</option>
+            <option value="active">{config.tests.find(test => test.id === activeTestId)?.name ?? 'Selected test'} · selected well setup only</option>
           </select>
         </label>
         {mode === 'list' ? (
           <label className="sm:col-span-2">
             Periods (s), comma-separated
-            <input className={inputClass} value={list} onChange={(event) => setList(event.target.value)} />
+            <input className={inputClass} placeholder="10, 20, 50, 100" value={list} onChange={(event) => setList(event.target.value)} />
           </label>
         ) : (
           <>
@@ -139,11 +137,12 @@ export function PeriodSweep({
           />
         </label>
       </div>
-      <p className="text-xs text-slate-600">
+      <p className="text-xs text-slate-600">{!setups.length ? 'Add a pumping test and select its observation wells below first.' : target === 'active' ? 'Using the test currently open below.' : 'Using distinct pump/observer combinations; repeated period rows are counted once.'}</p>
+      <details className="text-xs text-slate-600"><summary className="cursor-pointer w-fit focus-ring">Period & pumping amplitude guide</summary><p className="mt-2">
         P is one complete pumping cycle, not the logger sampling interval or test duration; frequency f = 1/P.
         Qmax is peak rate, not peak-to-peak. Fixed-volume mode uses Qmax = πV/P, matching the original
         MATLAB/Python example.
-      </p>
+      </p></details>
       {error ? (
         <p role="alert" className="text-xs text-red-800">
           {error}

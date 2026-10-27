@@ -35,7 +35,8 @@ export function SignalMap({
   const amplitudes = result.pairs
     .map((p) => signalValue(p, source)?.amplitude)
     .filter((v): v is number => v !== undefined);
-  const w = 640,
+  // A near-square canvas avoids empty side gutters swallowing the map on phones.
+  const w = 440,
     h = 410,
     pad = 52;
   const factor = Math.min(
@@ -59,7 +60,7 @@ export function SignalMap({
   return (
     <section
       aria-label="Spatial response map"
-      className="studio-panel space-y-4"
+      className="studio-panel signal-map-panel space-y-3"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -102,8 +103,8 @@ export function SignalMap({
           </button>
         </div>
       </div>
-      <div className="flex flex-wrap gap-4 text-xs">
-        <label className="block w-full min-w-0 sm:w-auto">
+      <div className="grid grid-cols-2 gap-3 text-xs sm:flex sm:flex-wrap">
+        <label className="block min-w-0">
           Data source{' '}
           <select
             aria-label="Map data source"
@@ -119,7 +120,7 @@ export function SignalMap({
             )}
           </select>
         </label>
-        <label className="block w-full min-w-0 sm:w-auto">
+        <label className="block min-w-0">
           Amplitude size{' '}
           <select
             aria-label="Map amplitude scale"
@@ -145,10 +146,10 @@ export function SignalMap({
               <g key={t}>
                 <line x1={left + t * plotW} x2={left + t * plotW} y1={top} y2={top + plotH} stroke="#333" />
                 <line x1={left} x2={left + plotW} y1={top + t * plotH} y2={top + t * plotH} stroke="#333" />
-                <text x={left + t * plotW} y={top + plotH + 18} textAnchor="middle" fill="#ccc" fontSize="10">
+                <text x={left + t * plotW} y={top + plotH + 18} textAnchor="middle" fill="#ccc" fontSize="12">
                   {Number((config.minX + t * (config.maxX - config.minX)).toPrecision(5))}
                 </text>
-                <text x={left - 8} y={top + t * plotH + 4} textAnchor="end" fill="#ccc" fontSize="10">
+                <text x={left - 8} y={top + t * plotH + 4} textAnchor="end" fill="#ccc" fontSize="12">
                   {Number((config.maxY - t * (config.maxY - config.minY)).toPrecision(5))}
                 </text>
               </g>
@@ -199,7 +200,7 @@ export function SignalMap({
                     x={x + (pump ? 13 : radius + 4)}
                     y={y - 5}
                     fill="white"
-                    fontSize="11"
+                    fontSize="14"
                     stroke="#121212"
                     strokeWidth="3"
                     paintOrder="stroke"
@@ -232,7 +233,7 @@ export function SignalMap({
           <span>+180°</span>
         </span>
       </div>
-      <p className="text-[11px] text-[#6B7074]">
+      <details className="text-xs text-[#566372]"><summary className="cursor-pointer w-fit rounded focus-ring">Map interpretation & scale</summary><p className="mt-2">
         Phase is arg(real + i·imag), −180° to +180°, not the separate Black–Kipp phase-delay convention. Size
         scale is shared across tests:{' '}
         {amplitudes.length
@@ -243,7 +244,7 @@ export function SignalMap({
           ? 'logarithmic radius, not area-proportional'
           : 'area scales linearly above a minimum visible size'}
         . No spatial interpolation.
-      </p>
+      </p></details>
     </section>
   );
 }

@@ -325,7 +325,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
         {!blackKipp && tab === 'fields' && result.trueFields && (
           <>
             <div
-              className={`grid sm:grid-cols-2 ${result.fields ? 'lg:grid-cols-4' : ''} gap-4 bg-[#111] rounded-xl p-5`}
+              className="field-results-grid gap-4 bg-[#111] rounded-xl p-5"
             >
               <FieldHeatmap
                 title="True ln(K)"
@@ -369,7 +369,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
           </>
         )}
         {!blackKipp && tab === 'fields' && result.fields && !result.trueFields && (
-          <div className="grid sm:grid-cols-2 gap-5 bg-[#111] rounded-xl p-5">
+          <div className="field-results-grid gap-5 bg-[#111] rounded-xl p-5">
             <FieldHeatmap title="Estimated ln(K)" subtitle="m/s" values={result.fields.lnK} config={config} />
             <FieldHeatmap
               title="Estimated ln(Ss)"
@@ -380,7 +380,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
           </div>
         )}
         {!blackKipp && tab === 'errors' && result.errorFields && (
-          <div className="grid sm:grid-cols-2 gap-5 bg-[#111] rounded-xl p-5">
+          <div className="field-results-grid gap-5 bg-[#111] rounded-xl p-5">
             <FieldHeatmap
               title="ln(K) estimation error"
               subtitle="estimate − synthetic truth"
@@ -400,7 +400,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
           </div>
         )}
         {!blackKipp && tab === 'sensitivity' && result.sensitivityFields && (
-          <div className="grid sm:grid-cols-2 gap-5 bg-[#111] rounded-xl p-5">
+          <div className="field-results-grid gap-5 bg-[#111] rounded-xl p-5">
             <FieldHeatmap
               title="ln(K) sensitivity coverage"
               subtitle="log10 column-norm of final Jacobian"
@@ -440,7 +440,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
           </div>
         )}
         {blackKipp && tab === 'properties' && (
-          <div className="grid lg:grid-cols-3 gap-4">
+          <div className="diagnostic-results-grid gap-4">
             <SeriesPlot
               title="Effective transmissivity"
               x={propertySeries[0]?.pairs.map((pair) => pair.periodSeconds) ?? []}
