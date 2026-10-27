@@ -1,6 +1,27 @@
 /** Help describes the implemented workflows and their actual output semantics. */
 export const WORKFLOW_HELP = [
   {
+    term: 'Period groups',
+    category: 'Workflow',
+    definition: 'Organize independent pumping tests by their common cycle period.',
+    details:
+      'Tests & periods groups equal numeric periods without changing test IDs or solver ordering. Choose a period in the dropdown, then Add test to group; it inherits that period, while pump, observers and Qmax remain editable per test. New period group creates an empty organizational group, not observations or a solver run. Changing a test period moves that test after editing. Invalid drafts remain visible. The optional sweep builder repeats well setups across periods and explicitly replaces the test list after confirmation.',
+  },
+  {
+    term: 'Well signal map',
+    category: 'Results',
+    definition: 'Inspect amplitudes and phasor phases at actual observation locations for one pumping test.',
+    details:
+      'The triangle marks the pump; circles mark observers. Marker radius is logarithmic in amplitude by default; an alternative scales marker area linearly above a minimum visible size. Colors use a cyclic −180° to +180° phasor phase scale (not Black–Kipp phase delay). Scales are fixed across tests for each data source. Unused wells are gray. The pumping well is not assigned an invented head value. Switch tests with the dropdown or arrows; select predictions or available imported/synthetic observations. Hover, keyboard focus, click-to-pin and full-screen inspection are supported. No contour interpolation is implied between wells.',
+  },
+  {
+    term: 'Synthetic field selection',
+    category: 'Workflow',
+    definition: 'Choose the checkerboard or geostatistical branch of the original translated test.',
+    details:
+      'In Data & run, Forward prediction can use the homogeneous initial model or a selected synthetic field; Synthetic field recovery generates data and inverts it jointly. Checkerboard means are ln(K)=−9.2 and ln(Ss)=−11.2, check lengths 10 m, jumps ±1 and ±0.05. Geostatistical truth uses the same means, variances 4 and 0.1, exponential covariance with x/y correlation lengths 20 m, and an explicit integer seed. The seed reproduces the Python field for the same grid; MATLAB random draws are not promised identical. These generating statistics are separate from inversion priors. Black–Kipp remains homogeneous because its analytical comparison is not valid for heterogeneous fields.',
+  },
+  {
     term: 'Your experiment and practice examples',
     category: 'Workflow',
     definition: 'Personal experiments start with your own well locations, not a preset choice.',

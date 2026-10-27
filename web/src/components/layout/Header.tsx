@@ -33,7 +33,7 @@ export const Header: React.FC<HeaderProps> = ({
                 Aquifer Imaging Studio
               </h1>
               <span className="hidden shrink-0 sm:inline bg-[#2A2A2A] text-[#E1E5E7] border border-[#3A3A3A] text-[10px] font-mono font-medium px-1.5 py-0.2 rounded">
-                v1.3.0
+                v1.4.1
               </span>
             </div>
             <p className="hidden sm:block text-[11px] text-[#A7ADB1] font-medium mt-0.5">

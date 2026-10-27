@@ -182,7 +182,7 @@ export function PeriodSweep({
             amplitudeMode,
             `sweep-${crypto.randomUUID()}`,
           );
-          onApply({ ...config, tests });
+          onApply({ ...config, tests, periodGroups: [] });
           setMessage(`Applied ${tests.length} tests. Review each setup below before proceeding.`);
         }}
       >

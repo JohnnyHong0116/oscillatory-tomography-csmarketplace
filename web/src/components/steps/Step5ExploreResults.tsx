@@ -8,6 +8,7 @@ import { ScientificResultGuidance } from './ScientificContext';
 import { revealAfterRender } from '../../utils/scroll';
 import { syntheticObservationCsv } from '../../utils/syntheticObservations';
 import { matchesBaselineConfiguration } from '../../utils/scientificReview';
+import { SignalMap } from './SignalMap';
 
 interface Props {
   config: ModelConfig;
@@ -16,8 +17,8 @@ interface Props {
   onTransfer: () => void;
   onPrev: () => void;
 }
-type InversionTab = 'fields' | 'errors' | 'sensitivity' | 'responses' | 'residuals';
-type BlackKippTab = 'responses' | 'properties' | 'errors';
+type InversionTab = 'fields' | 'errors' | 'sensitivity' | 'responses' | 'residuals' | 'map';
+type BlackKippTab = 'responses' | 'properties' | 'errors' | 'map';
 
 function downloadCsv(result: AnalysisResult) {
   const heading =
@@ -126,7 +127,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
   const originalBaseline = matchesBaselineConfiguration(config) && result.analysisMode === 'synthetic_demo';
   const [scope, setScope] = useState('all');
   const [tab, setTab] = useState<InversionTab | BlackKippTab>(
-    blackKipp ? 'responses' : result.fields ? 'fields' : 'responses',
+    result.mode === 'forward' ? 'map' : result.fields ? 'fields' : 'responses',
   );
   const plotSectionRef = useRef<HTMLElement>(null);
   const selectPlotTab = (nextTab: InversionTab | BlackKippTab) => {
@@ -146,6 +147,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
     ...config.tests.map((test) => ({ id: test.id, label: test.name })),
   ];
   const inversionTabs: { id: InversionTab; label: string; provenance: 'baseline' | 'derived' }[] = [
+    { id: 'map', label: 'Well signal map', provenance: 'derived' },
     { id: 'fields', label: 'Parameter fields', provenance: 'baseline' },
     { id: 'errors', label: 'Field error', provenance: 'derived' },
     { id: 'sensitivity', label: 'Sensitivity coverage', provenance: 'derived' },
@@ -153,6 +155,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
     { id: 'residuals', label: 'Residuals & convergence', provenance: 'derived' },
   ];
   const blackKippTabs: { id: BlackKippTab; label: string }[] = [
+    { id: 'map', label: 'Well signal map' },
     { id: 'responses', label: 'Response comparison' },
     { id: 'properties', label: 'Effective properties' },
     { id: 'errors', label: 'Error diagnostics' },
@@ -161,7 +164,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
     ? blackKippTabs
     : inversionTabs.filter((item) =>
         item.id === 'fields'
-          ? !!result.fields
+          ? !!result.fields || !!result.trueFields
           : item.id === 'errors'
             ? !!result.errorFields
             : item.id === 'sensitivity'
@@ -220,28 +223,35 @@ export const Step5ExploreResults: React.FC<Props> = ({
         </div>
       </div>
 
-      <div className="bg-[#111] rounded-xl p-3 text-white">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold mr-auto">Response diagnostic scope</span>
+      <div className="studio-panel !p-3">
+        <div className="flex items-center gap-3">
+          <span className="shrink-0 text-xs font-semibold">Response scope</span>
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto p-1">
           {scopes.map((item) => (
             <button
               key={item.id}
               onClick={() => setScope(item.id)}
-              className={`px-3 py-2 rounded-md text-xs font-semibold ${scope === item.id ? 'bg-[#4169E1]' : 'bg-[#202020] hover:bg-[#303030]'}`}
+              aria-pressed={scope === item.id}
+              className={`shrink-0 whitespace-nowrap px-3 py-2 rounded-lg text-xs font-semibold focus-ring ${scope === item.id ? 'bg-[#FCEBEC] text-[#9B0000] ring-1 ring-[#C5050C]' : 'bg-[#F3F5F7] text-[#566372] hover:bg-[#E8EDF2]'}`}
             >
               {item.label}
             </button>
           ))}
+          </div>
         </div>
         {!blackKipp && result.mode === 'inversion' && (
-          <p className="mt-2 text-[10px] text-[#B8BDC2]">
+          <p className="mt-2 text-xs text-[#566372]">
             Test selection filters observation-fit plots and residual rows only. Parameter fields, field
             error, sensitivity, and convergence are one joint result calculated from all configured tests.
           </p>
         )}
       </div>
 
-      <ScientificResultGuidance config={config} result={result} />
+      {result.mode === 'inversion' && result.iterations >= config.maxIterations && <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Iteration budget reached ({config.maxIterations}). Review convergence before interpreting the reconstruction.</p>}
+      <details className="rounded-xl border border-[#D9E0E7] bg-white p-3">
+        <summary className="w-fit cursor-pointer rounded text-sm font-semibold focus-ring">Interpretation & model assumptions{result.syntheticTruth || result.observationSource === 'synthetic' ? ' · synthetic, not field measurements' : ''}</summary>
+        <div className="mt-3"><ScientificResultGuidance config={config} result={result} /></div>
+      </details>
       {result.analysisMode === 'forward' && (
         <section className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs space-y-3">
           <h3 className="font-bold">Use forward predictions as synthetic inversion input</h3>
@@ -301,7 +311,9 @@ export const Step5ExploreResults: React.FC<Props> = ({
                   {item.provenance === 'baseline'
                     ? originalBaseline
                       ? 'Original baseline'
-                      : 'Joint estimate'
+                      : result.mode === 'forward'
+                        ? 'Generating truth'
+                        : 'Joint estimate'
                     : 'Derived diagnostic'}
                 </span>
               )}
@@ -309,40 +321,50 @@ export const Step5ExploreResults: React.FC<Props> = ({
           ))}
         </div>
 
-        {!blackKipp && tab === 'fields' && result.fields && result.trueFields && (
+        {tab === 'map' && <SignalMap key={scope} config={config} result={result} scope={scope} />}
+        {!blackKipp && tab === 'fields' && result.trueFields && (
           <>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-[#111] rounded-xl p-5">
+            <div
+              className={`grid sm:grid-cols-2 ${result.fields ? 'lg:grid-cols-4' : ''} gap-4 bg-[#111] rounded-xl p-5`}
+            >
               <FieldHeatmap
                 title="True ln(K)"
-                subtitle="m/s · synthetic checkerboard"
+                subtitle={`m/s · synthetic ${result.syntheticTruth?.kind ?? 'checkerboard'}`}
                 values={result.trueFields.lnK}
                 config={config}
               />
               <FieldHeatmap
                 title="True ln(Ss)"
-                subtitle="1/m · synthetic checkerboard"
+                subtitle={`1/m · synthetic ${result.syntheticTruth?.kind ?? 'checkerboard'}`}
                 values={result.trueFields.lnSs}
                 config={config}
               />
-              <FieldHeatmap
-                title="Estimated ln(K)"
-                subtitle="joint geostatistical inversion"
-                values={result.fields.lnK}
-                config={config}
-              />
-              <FieldHeatmap
-                title="Estimated ln(Ss)"
-                subtitle="joint geostatistical inversion"
-                values={result.fields.lnSs}
-                config={config}
-              />
+              {result.fields && (
+                <FieldHeatmap
+                  title="Estimated ln(K)"
+                  subtitle="joint geostatistical inversion"
+                  values={result.fields.lnK}
+                  config={config}
+                />
+              )}
+              {result.fields && (
+                <FieldHeatmap
+                  title="Estimated ln(Ss)"
+                  subtitle="joint geostatistical inversion"
+                  values={result.fields.lnSs}
+                  config={config}
+                />
+              )}
             </div>
             <p className="text-xs text-[#5F6368]">
               {originalBaseline
                 ? 'Original P=10 workflow: true and estimated fields.'
-                : 'Synthetic truth and jointly estimated fields for the configured experiment.'}{' '}
-              The scope selector filters response diagnostics; parameter fields remain the joint estimate from
-              all configured tests.
+                : result.fields
+                  ? 'Synthetic truth and jointly estimated fields for the configured experiment.'
+                  : 'Generating synthetic fields used by this forward run. No inversion has been performed.'}{' '}
+              {result.mode === 'inversion'
+                ? 'The scope selector filters response diagnostics; parameter fields remain the joint estimate from all configured tests.'
+                : 'Test selection does not change the common generating field.'}
             </p>
           </>
         )}
@@ -477,7 +499,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
               note="Circular phase difference"
             />
           </>
-        ) : result.trueFields ? (
+        ) : result.mode === 'inversion' && result.trueFields ? (
           <>
             <Metric
               label="ln(K) field RMSE"
@@ -488,6 +510,19 @@ export const Step5ExploreResults: React.FC<Props> = ({
               label="ln(Ss) field RMSE"
               value={diagnostics?.lnSsFieldRmse?.toFixed(3) ?? 'N/A'}
               note="Against labelled synthetic truth"
+            />
+          </>
+        ) : result.mode === 'forward' && result.syntheticTruth ? (
+          <>
+            <Metric
+              label="Generating field"
+              value={result.syntheticTruth.kind}
+              note="Synthetic truth, not site measurements"
+            />
+            <Metric
+              label="Random seed"
+              value={result.syntheticTruth.seed == null ? 'Not random' : String(result.syntheticTruth.seed)}
+              note="Field parameters recorded in the report"
             />
           </>
         ) : result.mode === 'forward' ? (

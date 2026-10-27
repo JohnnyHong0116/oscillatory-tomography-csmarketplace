@@ -24,6 +24,8 @@ import { revealAfterRender } from '../../utils/scroll';
 import { PeriodSweep } from './PeriodSweep';
 import { ModelResolution } from './ModelResolution';
 import { NumericInput } from '../NumericInput';
+import { PeriodGroupControls } from './PeriodGroupControls';
+import { periodOf, testsInPeriod } from '../../utils/periodGroups';
 import { modelIssues, testIssues } from '../../utils/experimentWorkflow';
 
 interface Step2Props {
@@ -71,6 +73,13 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
   // Active test being edited/visualized in "Configure Tests" sub-tab
   const [internalActiveTestId, setInternalActiveTestId] = useState<string>(config.tests[0]?.id || 'test-1');
   const activeTestId = propActiveTestId || internalActiveTestId;
+  const [selectedPeriod, setSelectedPeriod] = useState('all');
+  const [editingPeriodTestId, setEditingPeriodTestId] = useState<string | null>(null);
+  const selectPeriod = (period: string) => {
+    setSelectedPeriod(period);
+    const first = testsInPeriod(config, period)[0];
+    setActiveTestId(first?.id ?? '');
+  };
 
   const setActiveTestId = (id: string) => {
     setInternalActiveTestId(id);
@@ -125,6 +134,8 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
   };
 
   const handleSelectTest = (testId: string) => {
+    const target = config.tests.find((t) => t.id === testId);
+    if (target && selectedPeriod !== 'all') setSelectedPeriod(String(periodOf(config, target)));
     setActiveTestId(testId);
     requestAnimationFrame(() => {
       updateMapAlignment(testId);
@@ -137,14 +148,16 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
       requestAnimationFrame(() => {
         updateMapAlignment(activeTestId);
       });
-    }
-  }, [activeTestId, activeSubTab, config.tests.length]);
+    } else setMapYOffset(0);
+  }, [activeTestId, activeSubTab, config.tests, selectedPeriod]);
 
   // Review's "Edit Test" action carries a one-time focus request. Wait until
   // this screen and all test-card refs are mounted, then reveal the exact card
   // instead of leaving the user at the top of the test list.
   useEffect(() => {
     if (activeSubTab !== 'tests' || !focusTestId || handledFocusTestRef.current === focusTestId) return;
+    const focused = config.tests.find((t) => t.id === focusTestId);
+    if (focused && selectedPeriod !== 'all') setSelectedPeriod(String(periodOf(config, focused)));
     handledFocusTestRef.current = focusTestId;
     setActiveTestId(focusTestId);
     updateMapAlignment(focusTestId);
@@ -302,7 +315,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
   };
 
   // --- Test Configuration Handlers ---
-  const handleAddTest = () => {
+  const handleAddTest = (period: number = config.pumpingPeriod) => {
     if (config.tests.length >= 30) {
       alert('At most 30 tests are supported.');
       return;
@@ -317,6 +330,8 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
       name: `Test ${testNum}`,
       pumpingWellId: firstWellId,
       observationWellIds: remainingWellIds,
+      pumpingPeriod: period,
+      pumpingRate: config.pumpingRate,
     };
 
     onChangeConfig({
@@ -324,6 +339,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
       tests: [...config.tests, newTest],
     });
     handleSelectTest(newTestId);
+    if (selectedPeriod !== 'all') setSelectedPeriod(String(period));
   };
 
   const handleDuplicateTest = (testId: string) => {
@@ -356,7 +372,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
     const updated = config.tests.filter((t) => t.id !== testId);
     onChangeConfig({ ...config, tests: updated });
     if (activeTestId === testId) {
-      setActiveTestId(updated[0]?.id || '');
+      setActiveTestId(testsInPeriod({ ...config, tests: updated }, selectedPeriod)[0]?.id || '');
     }
   };
 
@@ -534,7 +550,8 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
     }
   };
 
-  const activeTest = config.tests.find((t) => t.id === activeTestId) || config.tests[0];
+  const activeTest =
+    config.tests.find((t) => t.id === activeTestId) || testsInPeriod(config, selectedPeriod)[0];
   const selectedWell = config.wells.find((w) => w.id === selectedWellId);
 
   return (
@@ -1276,19 +1293,42 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
       {/* TAB 2: CONFIGURE TESTS */}
       {activeSubTab === 'tests' && (
         <>
+          <PeriodGroupControls
+            config={config}
+            selected={selectedPeriod}
+            onSelect={selectPeriod}
+            onChange={onChangeConfig}
+            onAddTest={handleAddTest}
+          />
           {config.tests.length > 0 && (
-            <PeriodSweep
-              config={config}
-              activeTestId={activeTestId}
-              onApply={(next) => {
-                onChangeConfig(next);
-                setActiveTestId(next.tests[0].id);
+            <details
+              className="rounded-xl border border-[#D6DADD] bg-white p-4"
+              onToggle={(event) => {
+                if (event.currentTarget.open) {
+                  const section = event.currentTarget;
+                  revealAfterRender(() => section, 'start', false);
+                }
               }}
-            />
+            >
+              <summary className="cursor-pointer text-xs font-bold focus-ring">
+                Repeat well setups across multiple periods (optional)
+              </summary>
+              <div className="mt-3">
+                <PeriodSweep
+                  config={config}
+                  activeTestId={activeTestId}
+                  onApply={(next) => {
+                    onChangeConfig(next);
+                    setSelectedPeriod('all');
+                    setActiveTestId(next.tests[0].id);
+                  }}
+                />
+              </div>
+            </details>
           )}
           {!config.tests.length && (
             <p className="rounded-xl border border-dashed bg-white p-5 text-sm text-[#4B4F52]">
-              Start with Add Test below. Assign one pumping well and one or more observers, then use the
+              Start with Add test above. Assign one pumping well and one or more observers, then use the
               period sweep to repeat that setup.
             </p>
           )}
@@ -1315,14 +1355,6 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                     Configure pumping and observation well role assignments for each experiment.
                   </p>
                 </div>
-
-                <button
-                  onClick={handleAddTest}
-                  className="flex items-center space-x-1.5 bg-[#C5050C] hover:bg-[#9B0000] text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-xs transition focus-ring"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Test</span>
-                </button>
               </div>
 
               {/* Validation Banner if any test is invalid */}
@@ -1346,273 +1378,315 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
 
               {/* List of Test Cards / Accordions */}
               <div className="space-y-4">
-                {config.tests.map((test, index) => {
-                  const isActive = test.id === activeTestId;
-                  const errors = validateTest(test);
-                  const isValid = errors.length === 0;
+                {testsInPeriod(config, selectedPeriod, editingPeriodTestId).map(
+                  (test, displayIndex, displayed) => {
+                    const index = config.tests.findIndex((item) => item.id === test.id);
+                    const isActive = test.id === activeTestId;
+                    const errors = validateTest(test);
+                    const isValid = errors.length === 0;
 
-                  const pumpingWell = config.wells.find((w) => w.id === test.pumpingWellId);
-                  const obsWells = config.wells.filter((w) => test.observationWellIds.includes(w.id));
+                    const pumpingWell = config.wells.find((w) => w.id === test.pumpingWellId);
+                    const obsWells = config.wells.filter((w) => test.observationWellIds.includes(w.id));
 
-                  return (
-                    <div
-                      key={test.id}
-                      ref={(el) => {
-                        testRefs.current[test.id] = el;
-                      }}
-                      tabIndex={-1}
-                      onClick={() => handleSelectTest(test.id)}
-                      className={`bg-white border rounded-xl overflow-hidden transition shadow-xs cursor-pointer ${
-                        isActive
-                          ? 'border-[#121212] ring-2 ring-[#121212]/10'
-                          : isValid
-                            ? 'border-[#D6DADD] hover:border-[#A7ADB1]'
-                            : 'border-[#FCA5A5]'
-                      }`}
-                    >
-                      {/* Test Card Header Bar */}
-                      <div
-                        className={`p-3.5 flex items-center justify-between border-b text-xs ${
-                          isActive ? 'bg-[#121212] text-white' : 'bg-[#F7F7F7] text-[#121212]'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <span
-                            className={`w-6 h-6 rounded-md flex items-center justify-center font-bold text-xs ${
-                              isActive ? 'bg-[#C5050C] text-white' : 'bg-[#E1E5E7] text-[#121212]'
+                    return (
+                      <React.Fragment key={test.id}>
+                        {selectedPeriod === 'all' &&
+                          (displayIndex === 0 ||
+                            periodOf(config, displayed[displayIndex - 1]) !== periodOf(config, test)) && (
+                            <div className="flex items-center justify-between gap-3 border-b pb-2 pt-2 text-xs">
+                              <h4 className="font-bold font-mono">
+                                {Number.isFinite(periodOf(config, test)) && periodOf(config, test) > 0
+                                  ? `P = ${periodOf(config, test)} s`
+                                  : 'Period needs attention'}
+                              </h4>
+                              {periodOf(config, test) > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddTest(periodOf(config, test))}
+                                  className="rounded border bg-white px-2 py-1 focus-ring"
+                                >
+                                  + Add test here
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        <div
+                          key={test.id}
+                          ref={(el) => {
+                            testRefs.current[test.id] = el;
+                          }}
+                          tabIndex={-1}
+                          className={`test-editor bg-white border rounded-xl overflow-hidden transition shadow-xs ${
+                            isActive
+                              ? 'border-[#121212] ring-2 ring-[#121212]/10'
+                              : isValid
+                                ? 'border-[#D6DADD] hover:border-[#A7ADB1]'
+                                : 'border-[#FCA5A5]'
+                          }`}
+                        >
+                          {/* Test Card Header Bar */}
+                          <div
+                            className={`p-3.5 flex items-center justify-between border-b text-xs ${
+                              isActive ? 'bg-[#121212] text-white' : 'bg-[#F7F7F7] text-[#121212]'
                             }`}
                           >
-                            {index + 1}
-                          </span>
-
-                          {editingTestId === test.id ? (
-                            <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="text"
-                                value={test.name}
-                                onChange={(e) => handleUpdateTestName(test.id, e.target.value)}
-                                className="bg-white border border-[#D6DADD] text-[#121212] px-2 py-0.5 rounded text-xs font-bold"
-                                autoFocus
-                              />
-                              <button
-                                onClick={() => setEditingTestId(null)}
-                                className="p-1 text-emerald-500 hover:text-emerald-400"
+                            <div className="flex items-center space-x-3">
+                              <span
+                                className={`w-6 h-6 rounded-md flex items-center justify-center font-bold text-xs ${
+                                  isActive ? 'bg-[#C5050C] text-white' : 'bg-[#E1E5E7] text-[#121212]'
+                                }`}
                               >
-                                <Check className="w-4 h-4" />
-                              </button>
+                                {index + 1}
+                              </span>
+
+                              {editingTestId === test.id ? (
+                                <div
+                                  className="flex items-center space-x-1"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <input
+                                    type="text"
+                                    value={test.name}
+                                    onChange={(e) => handleUpdateTestName(test.id, e.target.value)}
+                                    className="bg-white border border-[#D6DADD] text-[#121212] px-2 py-0.5 rounded text-xs font-bold"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => setEditingTestId(null)}
+                                    className="p-1 text-emerald-500 hover:text-emerald-400"
+                                  >
+                                    <Check className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center space-x-2">
+                                  <button type="button" onClick={() => handleSelectTest(test.id)} aria-expanded={isActive} aria-label={`Configure ${test.name}`} className="min-h-9 rounded px-1 text-left font-bold text-sm focus-ring">{test.name}<span className="ml-2 text-xs font-normal opacity-80">{isActive ? 'Editing' : 'Configure →'}</span></button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingTestId(test.id);
+                                    }}
+                                    className={`p-1 rounded transition ${
+                                      isActive
+                                        ? 'hover:bg-[#2A2A2A] text-[#A7ADB1]'
+                                        : 'hover:bg-[#E1E5E7] text-[#6B7074]'
+                                    }`}
+                                    title="Rename test"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              )}
                             </div>
-                          ) : (
-                            <div className="flex items-center space-x-2">
-                              <span className="font-bold text-sm">{test.name}</span>
+
+                            <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+                              {!isValid && (
+                                <span className="bg-[#FEF2F2] border border-[#FECDD3] text-[#B91C1C] text-[10px] font-bold px-2 py-0.5 rounded">
+                                  Invalid Setup
+                                </span>
+                              )}
+
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingTestId(test.id);
-                                }}
-                                className={`p-1 rounded transition ${
+                                onClick={() => handleDuplicateTest(test.id)}
+                                className={`p-1.5 rounded transition ${
                                   isActive
-                                    ? 'hover:bg-[#2A2A2A] text-[#A7ADB1]'
+                                    ? 'hover:bg-[#2A2A2A] text-[#A7ADB1] hover:text-white'
                                     : 'hover:bg-[#E1E5E7] text-[#6B7074]'
                                 }`}
-                                title="Rename test"
+                                title="Duplicate test"
                               >
-                                <Edit2 className="w-3.5 h-3.5" />
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteTest(test.id)}
+                                className={`p-1.5 rounded transition ${
+                                  isActive
+                                    ? 'hover:bg-[#2A2A2A] text-[#A7ADB1] hover:text-[#FF8080]'
+                                    : 'hover:bg-[#E1E5E7] text-[#6B7074] hover:text-[#C5050C]'
+                                }`}
+                                title="Delete test"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
-                          )}
-                        </div>
+                          </div>
 
-                        <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                          {!isValid && (
-                            <span className="bg-[#FEF2F2] border border-[#FECDD3] text-[#B91C1C] text-[10px] font-bold px-2 py-0.5 rounded">
-                              Invalid Setup
-                            </span>
-                          )}
-
-                          <button
-                            onClick={() => handleDuplicateTest(test.id)}
-                            className={`p-1.5 rounded transition ${
-                              isActive
-                                ? 'hover:bg-[#2A2A2A] text-[#A7ADB1] hover:text-white'
-                                : 'hover:bg-[#E1E5E7] text-[#6B7074]'
-                            }`}
-                            title="Duplicate test"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-
-                          <button
-                            onClick={() => handleDeleteTest(test.id)}
-                            className={`p-1.5 rounded transition ${
-                              isActive
-                                ? 'hover:bg-[#2A2A2A] text-[#A7ADB1] hover:text-[#FF8080]'
-                                : 'hover:bg-[#E1E5E7] text-[#6B7074] hover:text-[#C5050C]'
-                            }`}
-                            title="Delete test"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Test Card Body */}
-                      <div className="p-4 space-y-4 text-xs bg-white">
-                        <div
-                          className="grid sm:grid-cols-2 gap-3"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <label>
-                            Period P (s)
-                            <NumericInput
-                              aria-label={`Period for ${test.name}`}
-                              min="0"
-                              step="any"
-                              value={test.pumpingPeriod ?? config.pumpingPeriod}
-                              onValueChange={(value) =>
-                                onChangeConfig({
-                                  ...config,
-                                  tests: config.tests.map((item) =>
-                                    item.id === test.id ? { ...item, pumpingPeriod: value } : item,
-                                  ),
-                                })
-                              }
-                              className="mt-1 w-full border rounded p-2 font-mono focus-ring"
-                            />
-                          </label>
-                          <label>
-                            Peak pumping amplitude Qmax (m³/s)
-                            <NumericInput
-                              aria-label={`Pumping amplitude for ${test.name}`}
-                              min="0"
-                              step="any"
-                              value={test.pumpingRate ?? config.pumpingRate}
-                              onValueChange={(value) =>
-                                onChangeConfig({
-                                  ...config,
-                                  tests: config.tests.map((item) =>
-                                    item.id === test.id ? { ...item, pumpingRate: value } : item,
-                                  ),
-                                })
-                              }
-                              className="mt-1 w-full border rounded p-2 font-mono focus-ring"
-                            />
-                          </label>
-                          <p className="sm:col-span-2 text-slate-600">
-                            P is one complete cycle; f = 1/P Hz. Qmax is the harmonic peak flow rate, not
-                            volume or peak-to-peak rate. Editing P here keeps Qmax fixed; use the sweep
-                            builder for the MATLAB fixed-volume rule.
-                          </p>
-                        </div>
-                        {/* Pumping Well Selector */}
-                        <div className="space-y-1.5">
-                          <label className="block font-bold text-[#121212] text-[11px] uppercase tracking-wider flex items-center justify-between">
-                            <span className="flex items-center space-x-1.5">
-                              <span className="w-2.5 h-2.5 bg-[#C5050C] rounded-xs inline-block" />
-                              <span>Pumping Well (Select exactly 1)</span>
-                            </span>
-                            <span className="text-[10px] text-[#6B7074] font-normal font-mono">
-                              Selected: {pumpingWell ? pumpingWell.name : 'None'}
-                            </span>
-                          </label>
-
-                          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                            {config.wells.map((well) => {
-                              const isPumping = test.pumpingWellId === well.id;
-                              return (
-                                <button
-                                  key={well.id}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSetPumpingWell(test.id, well.id);
+                          {/* Test Card Body */}
+                          {!isActive && <button type="button" aria-label={`Open ${test.name} setup`} onClick={() => handleSelectTest(test.id)} className="test-summary focus-ring">
+                            <span><strong>{pumpingWell?.name ?? 'Choose pump'}</strong> → {obsWells.length} {obsWells.length === 1 ? 'observer' : 'observers'}</span><span className="font-mono">P {periodOf(config, test)} s · Q {(test.pumpingRate ?? config.pumpingRate).toExponential(2)} m³/s</span>
+                          </button>}
+                          {isActive && <div className="p-4 space-y-4 text-xs bg-white studio-reveal">
+                            <div
+                              className="grid sm:grid-cols-2 gap-3"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <label>
+                                Period P (s)
+                                <NumericInput
+                                  aria-label={`Period for ${test.name}`}
+                                  min="0"
+                                  step="any"
+                                  value={test.pumpingPeriod ?? config.pumpingPeriod}
+                                  onFocus={() => setEditingPeriodTestId(test.id)}
+                                  onBlur={(event) => {
+                                    const value = Number(event.currentTarget.value);
+                                    if (
+                                      selectedPeriod !== 'all' &&
+                                      event.currentTarget.value &&
+                                      value > 0 &&
+                                      Number.isFinite(value)
+                                    )
+                                      setSelectedPeriod(String(value));
+                                    setEditingPeriodTestId(null);
                                   }}
-                                  className={`py-1.5 px-2 rounded text-xs font-bold border transition flex items-center justify-center space-x-1 ${
-                                    isPumping
-                                      ? 'bg-[#FEF2F2] border-[#C5050C] text-[#C5050C] ring-2 ring-[#C5050C]/20'
-                                      : 'bg-white border-[#D6DADD] text-[#121212] hover:bg-[#F7F7F7]'
-                                  }`}
-                                >
-                                  <span>{well.name}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
+                                  onValueChange={(value) =>
+                                    onChangeConfig({
+                                      ...config,
+                                      tests: config.tests.map((item) =>
+                                        item.id === test.id ? { ...item, pumpingPeriod: value } : item,
+                                      ),
+                                    })
+                                  }
+                                  className="mt-1 w-full border rounded p-2 font-mono focus-ring"
+                                />
+                              </label>
+                              <label>
+                                Peak pumping amplitude Qmax (m³/s)
+                                <NumericInput
+                                  aria-label={`Pumping amplitude for ${test.name}`}
+                                  min="0"
+                                  step="any"
+                                  value={test.pumpingRate ?? config.pumpingRate}
+                                  onValueChange={(value) =>
+                                    onChangeConfig({
+                                      ...config,
+                                      tests: config.tests.map((item) =>
+                                        item.id === test.id ? { ...item, pumpingRate: value } : item,
+                                      ),
+                                    })
+                                  }
+                                  className="mt-1 w-full border rounded p-2 font-mono focus-ring"
+                                />
+                              </label>
+                              <p className="sm:col-span-2 text-slate-600">
+                                P is one complete cycle; f = 1/P Hz. Qmax is the harmonic peak flow rate, not
+                                volume or peak-to-peak rate. Editing P here keeps Qmax fixed; use the sweep
+                                builder for the MATLAB fixed-volume rule.
+                              </p>
+                            </div>
+                            {/* Pumping Well Selector */}
+                            <div className="space-y-1.5">
+                              <label className="block font-bold text-[#121212] text-[11px] uppercase tracking-wider flex items-center justify-between">
+                                <span className="flex items-center space-x-1.5">
+                                  <span className="w-2.5 h-2.5 bg-[#C5050C] rounded-xs inline-block" />
+                                  <span>Pumping Well (Select exactly 1)</span>
+                                </span>
+                                <span className="text-[10px] text-[#6B7074] font-normal font-mono">
+                                  Selected: {pumpingWell ? pumpingWell.name : 'None'}
+                                </span>
+                              </label>
+
+                              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                {config.wells.map((well) => {
+                                  const isPumping = test.pumpingWellId === well.id;
+                                  return (
+                                    <button
+                                      key={well.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSetPumpingWell(test.id, well.id);
+                                      }}
+                                      className={`py-1.5 px-2 rounded text-xs font-bold border transition flex items-center justify-center space-x-1 ${
+                                        isPumping
+                                          ? 'bg-[#FEF2F2] border-[#C5050C] text-[#C5050C] ring-2 ring-[#C5050C]/20'
+                                          : 'bg-white border-[#D6DADD] text-[#121212] hover:bg-[#F7F7F7]'
+                                      }`}
+                                    >
+                                      <span>{well.name}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Observation Wells Selector */}
+                            <div className="space-y-1.5 pt-2 border-t border-[#D6DADD]">
+                              <label className="block font-bold text-[#121212] text-[11px] uppercase tracking-wider flex items-center justify-between">
+                                <span className="flex items-center space-x-1.5">
+                                  <span className="w-2.5 h-2.5 bg-[#2563EB] rounded-full inline-block" />
+                                  <span>Observation Wells (Select 1 or more)</span>
+                                </span>
+                                <span className="text-[10px] text-[#6B7074] font-normal font-mono">
+                                  Selected: {obsWells.length} wells
+                                </span>
+                              </label>
+
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                {config.wells.map((well) => {
+                                  const isPumping = test.pumpingWellId === well.id;
+                                  const isObs = test.observationWellIds.includes(well.id);
+
+                                  if (isPumping) {
+                                    return (
+                                      <div
+                                        key={well.id}
+                                        className="p-2 rounded border border-[#E1E5E7] bg-[#F7F7F7] opacity-60 text-[11px] flex items-center justify-between text-[#6B7074]"
+                                        title="Pumping well cannot be selected as an observation well"
+                                      >
+                                        <span className="font-semibold">{well.name}</span>
+                                        <span className="text-[9px] bg-[#E1E5E7] px-1 py-0.2 rounded font-mono">
+                                          Pumping
+                                        </span>
+                                      </div>
+                                    );
+                                  }
+
+                                  return (
+                                    <label
+                                      key={well.id}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className={`p-2 rounded border text-xs cursor-pointer transition flex items-center justify-between ${
+                                        isObs
+                                          ? 'bg-[#EFF6FF] border-[#2563EB] text-[#1D4ED8] font-bold'
+                                          : 'bg-white border-[#D6DADD] text-[#4B4F52] hover:bg-[#F7F7F7]'
+                                      }`}
+                                    >
+                                      <div className="flex items-center space-x-2">
+                                        <input
+                                          type="checkbox"
+                                          checked={isObs}
+                                          onChange={() => handleToggleObservationWell(test.id, well.id)}
+                                          className="rounded border-[#D6DADD] text-[#2563EB] focus:ring-[#2563EB]"
+                                        />
+                                        <span>{well.name}</span>
+                                      </div>
+                                      <span className="text-[10px] font-mono text-[#6B7074]">
+                                        ({well.x}m, {well.y}m)
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Summary Tagline */}
+                            <div className="bg-[#F7F7F7] border border-[#D6DADD] rounded-lg p-2.5 text-[11px] font-mono text-[#121212] flex items-center justify-between">
+                              <div>
+                                <span className="font-bold text-[#C5050C]">Pumping:</span>{' '}
+                                {pumpingWell ? pumpingWell.name : 'None'}
+                              </div>
+                              <div>
+                                <span className="font-bold text-[#2563EB]">Observations:</span>{' '}
+                                {obsWells.length > 0 ? obsWells.map((w) => w.name).join(', ') : 'None'}
+                              </div>
+                            </div>
+                          </div>}
                         </div>
-
-                        {/* Observation Wells Selector */}
-                        <div className="space-y-1.5 pt-2 border-t border-[#D6DADD]">
-                          <label className="block font-bold text-[#121212] text-[11px] uppercase tracking-wider flex items-center justify-between">
-                            <span className="flex items-center space-x-1.5">
-                              <span className="w-2.5 h-2.5 bg-[#2563EB] rounded-full inline-block" />
-                              <span>Observation Wells (Select 1 or more)</span>
-                            </span>
-                            <span className="text-[10px] text-[#6B7074] font-normal font-mono">
-                              Selected: {obsWells.length} wells
-                            </span>
-                          </label>
-
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {config.wells.map((well) => {
-                              const isPumping = test.pumpingWellId === well.id;
-                              const isObs = test.observationWellIds.includes(well.id);
-
-                              if (isPumping) {
-                                return (
-                                  <div
-                                    key={well.id}
-                                    className="p-2 rounded border border-[#E1E5E7] bg-[#F7F7F7] opacity-60 text-[11px] flex items-center justify-between text-[#6B7074]"
-                                    title="Pumping well cannot be selected as an observation well"
-                                  >
-                                    <span className="font-semibold">{well.name}</span>
-                                    <span className="text-[9px] bg-[#E1E5E7] px-1 py-0.2 rounded font-mono">
-                                      Pumping
-                                    </span>
-                                  </div>
-                                );
-                              }
-
-                              return (
-                                <label
-                                  key={well.id}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className={`p-2 rounded border text-xs cursor-pointer transition flex items-center justify-between ${
-                                    isObs
-                                      ? 'bg-[#EFF6FF] border-[#2563EB] text-[#1D4ED8] font-bold'
-                                      : 'bg-white border-[#D6DADD] text-[#4B4F52] hover:bg-[#F7F7F7]'
-                                  }`}
-                                >
-                                  <div className="flex items-center space-x-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={isObs}
-                                      onChange={() => handleToggleObservationWell(test.id, well.id)}
-                                      className="rounded border-[#D6DADD] text-[#2563EB] focus:ring-[#2563EB]"
-                                    />
-                                    <span>{well.name}</span>
-                                  </div>
-                                  <span className="text-[10px] font-mono text-[#6B7074]">
-                                    ({well.x}m, {well.y}m)
-                                  </span>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Summary Tagline */}
-                        <div className="bg-[#F7F7F7] border border-[#D6DADD] rounded-lg p-2.5 text-[11px] font-mono text-[#121212] flex items-center justify-between">
-                          <div>
-                            <span className="font-bold text-[#C5050C]">Pumping:</span>{' '}
-                            {pumpingWell ? pumpingWell.name : 'None'}
-                          </div>
-                          <div>
-                            <span className="font-bold text-[#2563EB]">Observations:</span>{' '}
-                            {obsWells.length > 0 ? obsWells.map((w) => w.name).join(', ') : 'None'}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                      </React.Fragment>
+                    );
+                  },
+                )}
               </div>
             </div>
 
@@ -1621,10 +1695,9 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
               <div
                 ref={mapContainerRef}
                 style={{
-                  transform: `translateY(${mapYOffset}px)`,
-                  transition: 'transform 300ms cubic-bezier(0.2, 0, 0, 1)',
-                }}
-                className="bg-[#121212] border border-[#2A2A2A] rounded-xl p-4 text-white shadow-md space-y-3"
+                  '--test-map-offset': `${mapYOffset}px`,
+                } as React.CSSProperties}
+                className="bg-[#121212] border border-[#2A2A2A] rounded-xl p-4 text-white shadow-md space-y-3 lg:translate-y-[var(--test-map-offset)] transition-transform duration-300 motion-reduce:transition-none"
               >
                 <div className="flex items-center justify-between border-b border-[#2A2A2A] pb-2">
                   <div className="flex items-center space-x-2">

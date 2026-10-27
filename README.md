@@ -17,7 +17,7 @@ No pnpm, Vite, or virtual-environment activation is required.
 For a new checkout:
 
 ```powershell
-git clone --branch user-workflow-studio https://github.com/JohnnyHong0116/oscillatory-tomography-csmarketplace.git
+git clone --branch webapp-playground https://github.com/JohnnyHong0116/oscillatory-tomography-csmarketplace.git
 cd .\oscillatory-tomography-csmarketplace
 py -3 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[web,test]"
@@ -30,8 +30,8 @@ dependencies if needed. Preserve or commit any local changes before switching.
 ```powershell
 cd E:\CS_Marketplace_Project\oscillatory-tomography-csmarketplace
 git fetch origin
-git switch user-workflow-studio
-git pull --ff-only origin user-workflow-studio
+git switch webapp-playground
+git pull --ff-only origin webapp-playground
 .\.venv\Scripts\python.exe -m pip install -e ".[web,test]"
 npm --prefix web ci
 ```
@@ -78,7 +78,53 @@ do not launch a second copy. To refresh an already-open UI after rebuilding,
 export any results you need first, then use Ctrl+Shift+R. Project state is
 currently session-only: refreshing clears that tab's configuration and results.
 
-Web app v1.3.0 opens **Your experiment** with an empty well inventory, rather
+### v1.4.1 update (`webapp-playground` branch)
+
+For this local update, start from the exact repository directory:
+
+```powershell
+cd E:\CS_Marketplace_Project\oscillatory-tomography-csmarketplace
+git fetch origin
+git switch webapp-playground
+git pull --ff-only origin webapp-playground
+npm --prefix web ci
+npm --prefix web run build
+.\.venv\Scripts\python.exe -m uvicorn oscillatory_tomography.api:app --host 127.0.0.1 --port 8000
+```
+
+Stop the existing server before starting this command, including after Python
+changes. Version 1.4.1 is published on `webapp-playground`; `webappv1.4` is its
+implementation branch. Updating playground uses a normal fast-forward and
+preserves its earlier commits.
+
+- Tests & periods: choose a period group or view all tests grouped by period.
+  Add a test inside a group to inherit its period; create additional groups
+  without changing physical wells. Optional sweep controls remain available.
+- Period selection uses visible cycle cards with frequency and test counts.
+  One test editor opens at a time; other tests retain compact role summaries.
+- Explore chart areas with a nearest-point probe, or use arrow keys, Enter to
+  pin and Escape to clear. Amplitude and phase share a selection. Enlarged
+  viewers retain the inspector, beside the plot when space permits.
+- Expand **Inspect response data** to search, sort and select a response row.
+  **Export visible rows** downloads that filtered table at original numerical
+  precision. Filtering and sorting do not change solver input or inversion scope.
+- Data & run: choose homogeneous forward predictions, checkerboard truth, or
+  geostatistical truth. Synthetic field recovery generates observations and
+  inverts them; forward-only synthetic runs can still be transferred to inversion.
+- Results: forward output opens on the well signal map. Inspect one pumping
+  test at a time; triangle = pump, circles = observers, size = amplitude, cyclic
+  color = raw phasor phase. Available observations are selectable separately
+  from predictions. Existing curves, fields, enlarged viewers and exports remain.
+- Geostatistical seeds reproduce the translated Python generator for the same
+  grid. They do **not** promise identical MATLAB random draws. Both synthetic
+  branches retain the original generating statistics; Black–Kipp remains homogeneous.
+
+See [v1.4 scientific and UI contract](docs/WEBAPP_V1_4.md) for implementation,
+test coverage, interpretation limits and research references. See the
+[v1.4.1 design and interaction notes](docs/WEBAPP_V1_4_1_DESIGN.md) for the
+Apple HIG-informed web layout, accessibility choices and release verification.
+
+Web app v1.4.1 opens **Your experiment** with an empty well inventory, rather
 than asking users to choose a scientific example. The workflow is Wells & model
 → Tests & periods → Review → Data & run → Results. A collapsible, translucent
 journey guide explains each stage and allows backward navigation only; use
@@ -167,7 +213,7 @@ MATLAB is not required on this branch.
 Clone this branch and enter the repository:
 
 ```powershell
-git clone --branch user-workflow-studio https://github.com/JohnnyHong0116/oscillatory-tomography-csmarketplace.git
+git clone --branch webapp-playground https://github.com/JohnnyHong0116/oscillatory-tomography-csmarketplace.git
 cd oscillatory-tomography-csmarketplace
 ```
 

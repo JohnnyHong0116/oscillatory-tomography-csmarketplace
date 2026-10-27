@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { AnalysisPair, ModelConfig } from '../../types/aquifer';
 import { InspectablePoint, PlotInspection, PlotLegendButton, responseDetails } from './PlotInspection';
 import { ExpandablePlot } from './ExpandablePlot';
+import { PlotProbe } from './PlotProbe';
+import { ResponseDataTable } from './ResponseDataTable';
 
 interface Props { config: ModelConfig; pairs: AnalysisPair[] }
 
@@ -28,17 +30,11 @@ function TomographyPlots({ pairs }: { pairs: AnalysisPair[] }) {
         {pairs.map((_, index) => index).filter(index => index === 0 || index === pairs.length - 1 || index % Math.max(1, Math.ceil(pairs.length / 6)) === 0)
           .map(index => <text key={index} x={x(index)} y={height - 32} textAnchor="middle" fill="#bbb" fontSize="10">{index + 1}</text>)}
         <text x={(left + width - right) / 2} y={height - 12} textAnchor="middle" fill="#bbb" fontSize="10">Response pair</text>
+        <PlotProbe left={left} top={top} width={width-left-right} height={height-top-bottom} points={pairs.map((pair,index)=>({cx:x(index),cy:y(value(pair)),details:responseDetails(pair)}))} />
       </svg>
     </div></ExpandablePlot>;
   };
   return <div className="bg-white border border-[#D6DADD] rounded-xl p-5 space-y-4"><div><h3 className="font-bold">Predicted response plots</h3><p className="text-xs text-[#6B7074]">Blue: finite-difference Python solver</p></div><div className="grid lg:grid-cols-2 gap-5">{plot('amplitude')}{plot('phase')}</div>
-    {/* One optional index serves both plots; point inspection remains the primary lookup. */}
-    <details className="text-xs text-slate-600">
-      <summary className="cursor-pointer w-fit rounded focus-ring">Response pair index ({pairs.length})</summary>
-      <ol className="mt-2 grid sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-1 max-h-48 overflow-y-auto list-none">
-        {pairs.map((pair, index) => <li key={`${pair.testId}-${pair.observationWellId}`}><span className="font-mono">{index + 1}.</span> {pair.testName}: {pair.pumpingWellName} → {pair.observationWellName}</li>)}
-      </ol>
-    </details>
   </div>;
 }
 
@@ -89,6 +85,9 @@ function BlackKippPlots({ config, pairs }: Props) {
         })}
         <line x1={left} x2={width - right} y1={height - bottom} y2={height - bottom} stroke="#999" />
         <text x={(left + width - right) / 2} y={height - 7} textAnchor="middle" fill="#bbb" fontSize="10">{singlePeriod ? 'Pump-observer distance (m)' : 'Pumping period (s, log scale)'}</text>
+        <PlotProbe left={left} top={top} width={width-left-right} height={height-top-bottom} points={groups.filter(group=>!hiddenGroups.includes(group.id)).flatMap(group=>group.pairs.flatMap(pair=>[false,true].map(analytical=>{
+          const base=responseDetails(pair); return {cx:x(singlePeriod?pair.distanceMeters:pair.periodSeconds),cy:y(value(pair,analytical)),details:analytical?{...base,id:`${base.id}-analytical`,heading:`${base.heading} · analytical`,rows:[['Analytical amplitude (m)',String(pair.analytical?.amplitude)],['Analytical phase (°)',String(pair.analytical?.phaseDegrees)],...base.rows.filter(([label])=>!label.startsWith('Analytical'))] as [string,string][]}:base};
+        })))} />
       </svg>
     </div></ExpandablePlot>;
   };
@@ -102,5 +101,5 @@ function BlackKippPlots({ config, pairs }: Props) {
 export const ResponsePlots: React.FC<Props> = (props) => {
   if (!props.pairs.length) return null;
   // Remount on scope changes so a pinned response cannot leak from another test.
-  return <PlotInspection key={props.pairs.map(pair => `${pair.testId}-${pair.observationWellId}`).join('|')}>{props.config.testCase === 'black_kipp' ? <BlackKippPlots {...props} /> : <TomographyPlots pairs={props.pairs} />}</PlotInspection>;
+  return <PlotInspection key={props.pairs.map(pair => `${pair.testId}-${pair.observationWellId}`).join('|')}>{props.config.testCase === 'black_kipp' ? <BlackKippPlots {...props} /> : <TomographyPlots pairs={props.pairs} />}<ResponseDataTable pairs={props.pairs} /></PlotInspection>;
 };

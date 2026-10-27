@@ -322,7 +322,8 @@ export default function App() {
                       config={config}
                       input={session.runInput}
                       existingResult={result}
-                      allowSynthetic={key === 'example' || session.runInput.analysisMode === 'synthetic_demo'}
+                      allowSynthetic={true}
+                      onChangeConfig={changeConfig}
                       onChangeInput={(runInput) =>
                         update({
                           runInput,
@@ -346,6 +347,7 @@ export default function App() {
                                     sourceGrid: { nx: source.config.gridNx, ny: source.config.gridNy },
                                     inversionGrid: { nx: config.gridNx, ny: config.gridNy },
                                     responsePairs: source.result.pairs.length,
+                                    generatingTruth: source.result.syntheticTruth ?? null,
                                   },
                                 }
                               : {}),

@@ -78,6 +78,13 @@ export function modelIssues(config: ModelConfig): string[] {
   const issues: string[] = [];
   const { minX, maxX, minY, maxY, gridNx: nx, gridNy: ny, wells, boundaries } = config;
   const max = config.testCase === 'black_kipp' ? 300 : 60;
+  if (
+    config.syntheticField === 'geostatistical' &&
+    (!Number.isInteger(config.syntheticSeed ?? 0) ||
+      (config.syntheticSeed ?? 0) < 0 ||
+      (config.syntheticSeed ?? 0) > 4294967295)
+  )
+    issues.push('Use a whole synthetic random seed from 0 to 4294967295.');
   const domainValid = [minX, maxX, minY, maxY].every(Number.isFinite) && minX < maxX && minY < maxY;
   const gridValid = [nx, ny].every((n) => Number.isInteger(n) && n >= 3 && n <= max);
   if (!domainValid) issues.push('Enter valid domain extents: minimum must be below maximum.');
@@ -106,10 +113,17 @@ export function modelIssues(config: ModelConfig): string[] {
   if (boundaries.top !== 'no_flow' || boundaries.bottom !== 'no_flow')
     issues.push('The one-layer model requires no-flow top and bottom boundaries.');
   if (
-    ![config.initialLnK, config.initialLnSs].every(n => Number.isFinite(n) && n >= -30 && n <= 0) ||
-    ![config.dataErrorVar, config.corrLengthX, config.corrLengthY].every(n => Number.isFinite(n) && n > 0) ||
-    !Number.isInteger(config.maxIterations) || config.maxIterations < 1 || config.maxIterations > 50
-  ) issues.push('Check initial log properties (−30 to 0), positive variance/correlation lengths, and 1–50 whole inversion iterations.');
+    ![config.initialLnK, config.initialLnSs].every((n) => Number.isFinite(n) && n >= -30 && n <= 0) ||
+    ![config.dataErrorVar, config.corrLengthX, config.corrLengthY].every(
+      (n) => Number.isFinite(n) && n > 0,
+    ) ||
+    !Number.isInteger(config.maxIterations) ||
+    config.maxIterations < 1 ||
+    config.maxIterations > 50
+  )
+    issues.push(
+      'Check initial log properties (−30 to 0), positive variance/correlation lengths, and 1–50 whole inversion iterations.',
+    );
   return issues;
 }
 

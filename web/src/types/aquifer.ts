@@ -43,6 +43,11 @@ export interface BoundaryConditions {
 }
 
 export interface ModelConfig {
+  /** UI-only empty period groups; actual solver periods remain on each test. */
+  periodGroups?: number[];
+  /** Undefined preserves homogeneous forward / original checkerboard demo. */
+  syntheticField?: 'checkerboard' | 'geostatistical';
+  syntheticSeed?: number;
   testCase: TestCaseType;
   // Domain
   minX: number; // m
@@ -125,8 +130,20 @@ export interface AnalysisProgress {
 }
 
 export interface AnalysisResult {
+  syntheticTruth?: {
+    kind: 'checkerboard' | 'geostatistical';
+    seed: number | null;
+    meanLnK: number;
+    meanLnSs: number;
+    parameters: Record<string, number | string>;
+  } | null;
   /** Frontend provenance only; never submitted as a scientific solver option. */
-  forwardInput?: { sourceGrid: { nx: number; ny: number }; inversionGrid: { nx: number; ny: number }; responsePairs: number };
+  forwardInput?: {
+    sourceGrid: { nx: number; ny: number };
+    inversionGrid: { nx: number; ny: number };
+    responsePairs: number;
+    generatingTruth?: AnalysisResult['syntheticTruth'];
+  };
   observationSource?: 'field' | 'synthetic'; // User-declared provenance for imported phasors; not a solver input.
   mode: 'forward' | 'inversion';
   analysisMode: AnalysisMode;

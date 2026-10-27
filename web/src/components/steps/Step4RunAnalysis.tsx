@@ -14,13 +14,15 @@ import { AnalysisMode, AnalysisProgress, AnalysisResult, ModelConfig } from '../
 import { parseObservations, runAnalysis } from '../../api/analysis';
 import { revealAfterRender } from '../../utils/scroll';
 import { matchesBaselineConfiguration } from '../../utils/scientificReview';
-import { RunInput } from '../../utils/experimentWorkflow';
+import { RunInput, testIssues } from '../../utils/experimentWorkflow';
+import { NumericInput } from '../NumericInput';
 
 interface Props {
   config: ModelConfig;
   input: RunInput;
   existingResult: AnalysisResult | null;
   allowSynthetic: boolean;
+  onChangeConfig: (config: ModelConfig) => void;
   onChangeInput: (input: RunInput) => void;
   onRunningChange: (running: boolean) => void;
   onResult: (result: AnalysisResult) => void;
@@ -34,6 +36,7 @@ export const Step4RunAnalysis: React.FC<Props> = ({
   input,
   existingResult,
   allowSynthetic,
+  onChangeConfig,
   onChangeInput,
   onRunningChange,
   onResult,
@@ -153,6 +156,8 @@ export const Step4RunAnalysis: React.FC<Props> = ({
     setReady(false);
     lastEvent.current = '';
     try {
+      const issues = testIssues(config);
+      if (issues.length) throw new Error(issues.join(' '));
       if (measurementError) throw new Error(measurementError);
       const observations = analysisMode === 'measured_inversion' ? parseObservations(csv, config) : null;
       controller.current = new AbortController();
@@ -220,13 +225,13 @@ export const Step4RunAnalysis: React.FC<Props> = ({
               [
                 [
                   'synthetic_demo',
-                  'Synthetic checkerboard inversion',
-                  'Generate checkerboard truth and invert responses at your configured periods and amplitudes. Original settings reproduce the P=10 demo.',
+                  'Synthetic field recovery',
+                  'Generate checkerboard or geostatistical truth, then jointly invert its responses. Synthetic testing, not field validation.',
                 ],
                 [
                   'forward',
                   'Forward prediction',
-                  'Calculate responses from the homogeneous initial model only.',
+                  'Calculate well responses from a homogeneous model or a chosen synthetic field. Transfer the output to inversion later.',
                 ],
                 [
                   'measured_inversion',
@@ -251,6 +256,72 @@ export const Step4RunAnalysis: React.FC<Props> = ({
                 </button>
               ))}
           </div>
+          {analysisMode !== 'measured_inversion' && (
+            <fieldset disabled={running} className="rounded-lg border bg-[#F7F7F7] p-4 space-y-3">
+              <legend className="px-1 text-xs font-bold">Generating model · MATLAB test fields</legend>
+              <label className="block text-xs font-semibold">
+                Field type
+                <select
+                  aria-label="Synthetic field type"
+                  value={
+                    config.syntheticField ??
+                    (analysisMode === 'synthetic_demo' ? 'checkerboard' : 'homogeneous')
+                  }
+                  onChange={(e) => {
+                    onChangeConfig({
+                      ...config,
+                      syntheticField:
+                        e.target.value === 'homogeneous'
+                          ? undefined
+                          : (e.target.value as ModelConfig['syntheticField']),
+                    });
+                    setReady(false);
+                  }}
+                  className="mt-1 block w-full rounded-lg border bg-white p-2.5 focus-ring"
+                >
+                  {analysisMode === 'forward' && (
+                    <option value="homogeneous">Homogeneous · configured initial ln(K) / ln(Ss)</option>
+                  )}
+                  <option value="checkerboard">Checkerboard · original synthetic baseline</option>
+                  <option value="geostatistical">Geostatistical · correlated random field</option>
+                </select>
+              </label>
+              {(config.syntheticField || analysisMode === 'synthetic_demo') && (
+                <>
+                  <p className="text-xs text-[#4B4F52]">
+                    Generating means: ln(K) = −9.2, ln(Ss) = −11.2. These truth fields are separate from the
+                    inversion starting model and its covariance priors.
+                  </p>
+                  {config.syntheticField === 'geostatistical' ? (
+                    <>
+                      <label className="block text-xs">
+                        Random seed (integer, 0–4294967295)
+                        <NumericInput
+                          aria-label="Synthetic field random seed"
+                          value={config.syntheticSeed ?? 0}
+                          onValueChange={(value) => onChangeConfig({ ...config, syntheticSeed: value })}
+                          min="0"
+                          max="4294967295"
+                          step="1"
+                          className="mt-1 block rounded border bg-white p-2 font-mono focus-ring"
+                        />
+                      </label>
+                      <p className="text-xs text-[#4B4F52]">
+                        Exponential spatial covariance; correlation lengths 20 m in x/y; variances 4 for
+                        ln(K), 0.1 for ln(Ss). Uses the translated MATLAB realization routine with NumPy RNG.
+                        Same seed + grid reproduces the Python field, not MATLAB's random numbers.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-[#4B4F52]">
+                      Checker lengths: 10 m in x/y; ln(K) jumps ±1, ln(Ss) jumps ±0.05, matching the original
+                      test.
+                    </p>
+                  )}
+                </>
+              )}
+            </fieldset>
+          )}
           {analysisMode === 'measured_inversion' && (
             <>
               <p className="text-xs text-slate-700">
@@ -568,7 +639,7 @@ export const Step4RunAnalysis: React.FC<Props> = ({
                   : analysisMode === 'synthetic_demo'
                     ? syntheticRunLabel
                     : analysisMode === 'measured_inversion'
-                      ? 'Run measured inversion'
+                      ? observationSource === 'synthetic' ? 'Run imported-data inversion' : 'Run measured inversion'
                       : 'Run forward model'}
           </button>
           {ready && (

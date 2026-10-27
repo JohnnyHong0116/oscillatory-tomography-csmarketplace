@@ -1,7 +1,7 @@
 """HTTP adapter for the existing scientific solver.
 
 The API supports three explicit workflows: a forward prediction, an inversion
-of uploaded measurements, and the original P=10 synthetic checkerboard demo.
+of uploaded measurements, and synthetic checkerboard/geostatistical recovery.
 The synthetic workflow is deliberately labelled and returns both truth and
 estimated fields so the web application can reproduce the diagnostic figures
 from the MATLAB/Python examples without presenting generated data as field data.
@@ -28,6 +28,7 @@ from .forward import run_distributed_k_ss
 from .grid import create_inputs, dimdist, plaid_cellcenter_coord
 from .inversion import quasi_linear_geostatistical_inverse
 from .models import Boundaries, Domain
+from .synthetic import synthetic_parameters
 
 
 class ApiModel(BaseModel):
@@ -81,9 +82,14 @@ class AnalyzeRequest(ApiModel):
     maxIterations: int = Field(ge=1, le=50)
     analysisMode: Literal["forward", "synthetic_demo", "measured_inversion"] = "forward"
     observations: list[ObservationInput] | None = None
+    # None preserves old clients: homogeneous forward / checkerboard demo.
+    syntheticField: Literal["checkerboard", "geostatistical"] | None = None
+    syntheticSeed: int = Field(default=0, ge=0, le=4294967295, strict=True)
 
     @model_validator(mode="after")
     def validate_experiment(self) -> "AnalyzeRequest":
+        if self.syntheticField is not None and (self.testCase == "black_kipp" or self.analysisMode == "measured_inversion"):
+            raise ValueError("Synthetic truth fields require tomography forward or synthetic inversion mode")
         if self.minX >= self.maxX or self.minY >= self.maxY:
             raise ValueError("Domain maxima must exceed minima")
         if set(self.boundaries) != {"west", "east", "south", "north", "top", "bottom"}:
@@ -130,7 +136,7 @@ class AnalyzeRequest(ApiModel):
         if self.analysisMode != "measured_inversion" and self.observations is not None:
             raise ValueError("Uploaded observations may only be used in measured inversion mode")
         if self.analysisMode == "synthetic_demo" and self.testCase != "inversion_10s":
-            raise ValueError("The synthetic checkerboard demo is only available for the P=10 inversion case")
+            raise ValueError("Synthetic field inversion is only available for the tomography case")
         return self
 
 
@@ -144,13 +150,7 @@ def _field(values: np.ndarray, ny: int, nx: int) -> list[list[float]]:
 
 def _checkerboard_truth(domain: Domain) -> np.ndarray:
     """Recreate the heterogeneous truth used by testing_inversion_2d_geostat.py."""
-    coordinates, _ = plaid_cellcenter_coord(domain)
-    x_wave = np.sin(np.pi * coordinates[:, 0] / 10)
-    y_wave = np.sin(np.pi * coordinates[:, 1] / 10)
-    x_wave[np.abs(x_wave) < 1e-12] = 0
-    y_wave[np.abs(y_wave) < 1e-12] = 0
-    checker = np.sign(x_wave) * np.sign(y_wave)
-    return np.r_[-9.2 + checker, -11.2 + 0.05 * checker]
+    return synthetic_parameters(domain, "checkerboard")
 
 
 def _response_diagnostics(measured: np.ndarray | None, predicted: np.ndarray) -> dict | None:
@@ -199,7 +199,8 @@ def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
     experiments = create_inputs(np.array([[well.x, well.y] for well in wells]), ordered_rows, domain)
     n_cells = request.gridNx * request.gridNy
     initial = np.r_[np.full(n_cells, request.initialLnK), np.full(n_cells, request.initialLnSs)]
-    truth = _checkerboard_truth(domain) if request.analysisMode == "synthetic_demo" else None
+    truth_kind = request.syntheticField or ("checkerboard" if request.analysisMode == "synthetic_demo" else None)
+    truth = synthetic_parameters(domain, truth_kind, request.syntheticSeed) if truth_kind else None
     simulation_parameters = truth if truth is not None else initial
     forward = lambda params: run_distributed_k_ss(params, domain, boundaries, experiments, 1)
     # Solve each configured pumping test separately. This produces truthful
@@ -232,7 +233,7 @@ def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
         # call. The per-test solves above remain useful for truthful progress
         # reporting, but tiny floating-point ordering differences from
         # concatenating those solves should not become inversion input.
-        measured = forward(truth)
+        measured = forward(truth) if inversion_requested else None
         true_fields = {
             "lnK": _field(truth[:n_cells], request.gridNy, request.gridNx),
             "lnSs": _field(truth[n_cells:], request.gridNy, request.gridNx),
@@ -345,13 +346,17 @@ def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
             lnSsFieldRmse=float(np.sqrt(np.mean((np.asarray(fields["lnSs"]) - np.asarray(true_fields["lnSs"])) ** 2))),
         )
     return {"mode": mode, "analysisMode": request.analysisMode, "pairs": pairs, "fields": fields,
+            "syntheticTruth": None if truth_kind is None else {"kind": truth_kind, "seed": request.syntheticSeed if truth_kind == "geostatistical" else None,
+                "meanLnK": -9.2, "meanLnSs": -11.2,
+                "parameters": {"checkLengthX": 10, "checkLengthY": 10, "jumpLnK": 1, "jumpLnSs": 0.05} if truth_kind == "checkerboard" else
+                    {"varianceLnK": 4, "varianceLnSs": 0.1, "correlationLengthX": 20, "correlationLengthY": 20, "covariance": "exponential"}},
             "trueFields": true_fields, "errorFields": error_fields, "sensitivityFields": sensitivity_fields,
             "objectiveHistory": objective_history, "diagnostics": diagnostics, "iterations": iterations,
             "objective": objective, "runtimeSeconds": perf_counter() - started,
             "grid": {"nx": request.gridNx, "ny": request.gridNy}}
 
 
-app = FastAPI(title="Oscillatory Tomography API", version="1.2.0")
+app = FastAPI(title="Oscillatory Tomography API", version="1.4.1")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:1234", "http://127.0.0.1:1234"], allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
 

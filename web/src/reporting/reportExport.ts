@@ -42,14 +42,26 @@ export const summaryFor = (config: ModelConfig, result: AnalysisResult) =>
   (config.testCase === 'black_kipp'
     ? `${config.gridNx} x ${config.gridNy} finite-difference model across ${new Set(config.tests.map((test) => test.pumpingPeriod ?? config.pumpingPeriod)).size} periods compared with the Cardiff-corrected Black-Kipp analytical solution.`
     : result.analysisMode === 'synthetic_demo'
-      ? 'Checkerboard synthetic experiment and joint geostatistical inversion at the configured periods and pumping amplitudes.'
+      ? `${result.syntheticTruth?.kind ?? 'Checkerboard'} synthetic experiment and joint geostatistical inversion at the configured periods and pumping amplitudes.`
       : result.observationSource === 'synthetic'
         ? 'Joint inversion of user-declared synthetic forward-model phasors; not field measurements.'
         : result.mode === 'inversion'
           ? 'Joint geostatistical inversion of supplied complex observations.'
-          : 'Forward predictions from the configured initial ln(K) and ln(Ss) fields.') +
+          : result.syntheticTruth
+            ? `Forward predictions from a synthetic ${result.syntheticTruth.kind} field${result.syntheticTruth.seed == null ? '' : ` (seed ${result.syntheticTruth.seed})`}; not field measurements.`
+            : 'Forward predictions from the configured initial ln(K) and ln(Ss) fields.') +
   (result.forwardInput
     ? ` Synthetic observations came from a ${result.forwardInput.sourceGrid.nx} x ${result.forwardInput.sourceGrid.ny} forward grid; inversion uses ${result.forwardInput.inversionGrid.nx} x ${result.forwardInput.inversionGrid.ny} cells. Raw complex observations were retained without resampling. Grid changes can introduce discretization error.`
+    : '') +
+  (result.syntheticTruth || result.forwardInput?.generatingTruth
+    ? (() => {
+        const truth = result.syntheticTruth ?? result.forwardInput!.generatingTruth!;
+        return ` Generating truth: ${truth.kind}; mean ln(K) ${truth.meanLnK}, mean ln(Ss) ${truth.meanLnSs}; seed ${truth.seed ?? 'not random'}; parameters ${Object.entries(
+          truth.parameters,
+        )
+          .map(([key, value]) => `${key}=${value}`)
+          .join(', ')}. Random realizations reproduce the Python generator, not MATLAB RNG draws.`;
+      })()
     : '');
 
 const responseHeader = (config: ModelConfig) =>
@@ -145,6 +157,7 @@ export function buildReportData(config: ModelConfig, result: AnalysisResult) {
             ? 'field'
             : 'none'),
       forwardInput: result.forwardInput ?? null,
+      syntheticTruth: result.syntheticTruth ?? null,
       domainMeters: { minX: config.minX, maxX: config.maxX, minY: config.minY, maxY: config.maxY },
       grid: { nx: config.gridNx, ny: config.gridNy, cells: config.gridNx * config.gridNy },
       initialLnK: config.initialLnK,

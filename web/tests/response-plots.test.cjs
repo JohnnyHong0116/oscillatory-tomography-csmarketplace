@@ -9,19 +9,20 @@ const { renderToStaticMarkup } = require('react-dom/server');
 
 const componentCache = new Map();
 function loadComponent(name) {
-  if (componentCache.has(name)) return componentCache.get(name);
-  const filename = path.join(__dirname, '../src/components/steps', `${name}.tsx`);
+  const base = path.isAbsolute(name) ? name : path.join(__dirname, '../src/components/steps', name);
+  const filename = ['.tsx','.ts'].map(ext=>base+ext).find(fs.existsSync);
+  if (componentCache.has(filename)) return componentCache.get(filename);
   const loaded = { exports: {} };
-  componentCache.set(name, loaded.exports);
+  componentCache.set(filename, loaded.exports);
   const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true,
   } });
   vm.runInNewContext(compiled.outputText, { module: loaded, exports: loaded.exports,
-    require: name => name.startsWith('./') ? loadComponent(name.slice(2)) : require(name) });
+    require: name => name.startsWith('.') ? loadComponent(path.resolve(path.dirname(filename),name)) : require(name) });
   return loaded.exports;
 }
 
-test('tomography plots share one collapsed index and retain interactive point targets', () => {
+test('tomography plots share one collapsed linked data table and retain interactive point targets', () => {
   const { ResponsePlots } = loadComponent('ResponsePlots');
   const pairs = Array.from({ length: 36 }, (_, index) => ({
     testId: `test-${index}`, testName: `Test ${index + 1}`, pumpingWellName: 'W1',
@@ -31,11 +32,11 @@ test('tomography plots share one collapsed index and retain interactive point ta
   const markup = renderToStaticMarkup(React.createElement(ResponsePlots, { config: { testCase: 'p10' }, pairs }));
   assert.equal((markup.match(/<details/g) || []).length, 1);
   assert.doesNotMatch(markup, /<details open/);
-  assert.match(markup, /Response pair index \(36\)/);
+  assert.match(markup, /Inspect response data \(36\)/);
   assert.equal((markup.match(/>Response pair<\/text>/g) || []).length, 2);
-  assert.equal((markup.match(/aria-label="Inspect /g) || []).length, 72);
+  assert.equal((markup.match(/aria-label="Inspect Test /g) || []).length, 72);
   assert.equal((markup.match(/aria-label="Enlarge /g) || []).length, 2);
-  assert.equal((markup.match(/Test 36: W1 → W2<\/li>/g) || []).length, 1);
+  assert.equal((markup.match(/Inspect data Test 36: W1 to W2/g) || []).length, 1);
 });
 
 test('property and convergence charts expose an accessible enlargement control without changing data', () => {
