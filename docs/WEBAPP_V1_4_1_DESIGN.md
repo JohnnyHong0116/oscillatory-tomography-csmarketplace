@@ -146,3 +146,11 @@ overflow was found in those checks; inline plots remained bounded, resized
 plots still selected the correct response, and enlarged views retained a
 reachable Close action. Browser console reported no errors. An existing local
 server was reused; no user-owned process was stopped.
+
+The period selector is now a compact sticky editor toolbar rather than tall
+cards at the top of the configuration page. Period groups, Add test, New period
+and Period sweep remain accessible while editing. Switching groups reveals the
+first matching test below the toolbar. A ResizeObserver measures the actual
+toolbar height for the scroll offset, including wrapping and browser zoom;
+review Edit test and test-card selection use the same top-aligned positioning.
+On compact screens the group rail and actions wrap without page overflow.

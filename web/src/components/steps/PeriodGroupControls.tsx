@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ModelConfig } from "../../types/aquifer";
 import { addPeriodGroup, periodGroups } from "../../utils/periodGroups";
 import { NumericInput } from "../NumericInput";
@@ -12,6 +12,7 @@ export function PeriodGroupControls({
   onChange,
   onAddTest,
   onOpenSweep,
+  compact = false,
 }: {
   config: ModelConfig;
   selected: string;
@@ -19,23 +20,36 @@ export function PeriodGroupControls({
   onChange: (config: ModelConfig) => void;
   onAddTest: (period: number) => void;
   onOpenSweep?: () => void;
+  compact?: boolean;
 }) {
   const groups = periodGroups(config);
   const [adding, setAdding] = useState(false);
   const [period, setPeriod] = useState(config.pumpingPeriod);
   const [error, setError] = useState("");
   const groupForm = useRef<HTMLFormElement>(null);
+  const toolbar = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const element = toolbar.current, workspace = element?.parentElement;
+    if (!compact || !element || !workspace || typeof ResizeObserver === 'undefined') return;
+    // Account for wrapped actions, zoom and an open new-period form; a fixed
+    // pixel offset can otherwise hide the editor heading under the sticky bar.
+    const update = () => workspace.style.setProperty('--period-toolbar-offset', `${element.getBoundingClientRect().height + 12}px`);
+    const observer = new ResizeObserver(update);
+    update(); observer.observe(element);
+    return () => { observer.disconnect(); workspace.style.removeProperty('--period-toolbar-offset'); };
+  }, [compact]);
   const count =
     selected === "all"
       ? config.tests.length
       : (groups.find((g) => g.period === Number(selected))?.tests.length ?? 0);
   return (
     <section
+      ref={toolbar}
       aria-label="Period groups"
-      className="period-workspace studio-panel"
+      className={`period-workspace studio-panel ${compact ? 'period-toolbar' : ''}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+        {!compact && <div>
           <div className="flex items-center gap-2">
             <Activity size={18} aria-hidden="true" className="text-[#C5050C]" />
             <h3 className="text-base font-semibold">Periods & pumping tests</h3>
@@ -43,9 +57,9 @@ export function PeriodGroupControls({
           <p className="mt-1 text-sm text-[#566372]">
             Choose a cycle period, then define who pumps and who observes.
           </p>
-        </div>
+        </div>}
         <div className="flex flex-wrap gap-2">
-        {onOpenSweep && <button type="button" onClick={onOpenSweep} className="studio-button studio-button-secondary">Period sweep · input methods</button>}
+        {onOpenSweep && <button type="button" onClick={onOpenSweep} className="studio-button studio-button-secondary">{compact ? 'Period sweep' : 'Period sweep · input methods'}</button>}
         <button
           type="button"
           aria-expanded={adding}
@@ -131,6 +145,7 @@ export function PeriodGroupControls({
         <button
           type="button"
           disabled={config.tests.length >= 30}
+          aria-label={compact ? (selected === 'all' ? 'Add pumping test' : `Add test at ${selected} s`) : undefined}
           onClick={() =>
             onAddTest(
               selected === "all" ? config.pumpingPeriod : Number(selected),
@@ -139,7 +154,7 @@ export function PeriodGroupControls({
           className="studio-button studio-button-primary"
         >
           <Plus size={16} aria-hidden="true" />{" "}
-          {selected === "all"
+          {compact ? 'Add test' : selected === "all"
             ? "Add pumping test"
             : `Add test at ${selected} s`}
         </button>

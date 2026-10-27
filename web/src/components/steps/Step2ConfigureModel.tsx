@@ -80,6 +80,9 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
     setSelectedPeriod(period);
     const first = testsInPeriod(config, period)[0];
     setActiveTestId(first?.id ?? '');
+    // Keep the edit workspace in view rather than leaving the old group's
+    // scroll offset against a newly filtered (and possibly shorter) test list.
+    if (first) revealAfterRender(() => testRefs.current[first.id], 'start');
   };
 
   const setActiveTestId = (id: string) => {
@@ -140,7 +143,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
     setActiveTestId(testId);
     requestAnimationFrame(() => {
       updateMapAlignment(testId);
-      revealAfterRender(() => testRefs.current[testId], 'center');
+      revealAfterRender(() => testRefs.current[testId], 'start');
     });
   };
 
@@ -162,7 +165,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
     handledFocusTestRef.current = focusTestId;
     setActiveTestId(focusTestId);
     updateMapAlignment(focusTestId);
-    revealAfterRender(() => testRefs.current[focusTestId], 'center');
+    revealAfterRender(() => testRefs.current[focusTestId], 'start');
     onFocusTestHandled?.();
   }, [activeSubTab, focusTestId, onFocusTestHandled]);
 
@@ -1295,6 +1298,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
       {activeSubTab === 'tests' && (
         <>
           <PeriodGroupControls
+            compact
             config={config}
             selected={selectedPeriod}
             onSelect={selectPeriod}
@@ -1302,7 +1306,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
             onAddTest={handleAddTest}
             onOpenSweep={() => revealAfterRender(() => sweepSection.current, 'start', true)}
           />
-          <div ref={sweepSection} tabIndex={-1} className="outline-none scroll-mt-4">
+          <div ref={sweepSection} tabIndex={-1} className="period-sweep-anchor outline-none">
                 <PeriodSweep
                   config={config}
                   activeTestId={activeTestId}

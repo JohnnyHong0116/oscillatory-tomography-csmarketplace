@@ -167,6 +167,22 @@ main button { touch-action:manipulation; }
 .period-context { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; padding-top:1rem; border-top:1px solid var(--studio-line); }
 .period-context strong { font-size:.875rem; }
 .period-context p { margin-top:.2rem; color:var(--studio-muted); font-size:.8125rem; }
+/* The period switcher stays with the editor, not at the far end of the page.
+   Only the pill rail scrolls horizontally; forms open inside a bounded row. */
+.period-toolbar { position:sticky; top:0; z-index:25; display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:.6rem; padding:.65rem; border-radius:.85rem; box-shadow:0 5px 18px #18222d12; }
+.period-toolbar > .period-rail { grid-column:1; grid-row:1; margin:0; padding:3px; gap:.4rem; }
+.period-toolbar > div:first-child { grid-column:3; grid-row:1; }
+.period-toolbar > .period-context { grid-column:2; grid-row:1; border:0; padding:0; }
+.period-toolbar .period-context > div { display:none; }
+.period-toolbar .period-tile { flex:0 0 auto; min-height:2.5rem; padding:.55rem .8rem; border-radius:.65rem; }
+.period-toolbar .period-tile strong { font-size:.8125rem; letter-spacing:normal; white-space:nowrap; }
+.period-toolbar .period-tile > span,.period-toolbar .period-wave { display:none; }
+.period-toolbar .studio-button { padding:.55rem .7rem; min-height:2.5rem; font-size:.75rem; white-space:nowrap; }
+.period-toolbar > form { grid-column:1/-1; max-height:40svh; overflow-y:auto; }
+.period-toolbar > p { display:none; }
+.test-editor,.period-sweep-anchor { scroll-margin-top:var(--period-toolbar-offset,5rem); }
+@media(max-width:899px) { .period-toolbar { grid-template-columns:minmax(0,1fr) auto; } .period-toolbar > .period-rail { grid-column:1/-1; } .period-toolbar > div:first-child { grid-column:2; grid-row:2; } .period-toolbar > .period-context { grid-column:1; grid-row:2; } .test-editor { scroll-margin-top:var(--period-toolbar-offset,10rem); } }
+@media(max-width:639px) { .period-toolbar > .period-rail { grid-column:1; } .period-toolbar > .period-context { grid-column:2; grid-row:1; } .period-toolbar > div:first-child { grid-column:1/-1; grid-row:2; } .period-toolbar .period-context .studio-button { width:auto; } }
 .test-editor { border-radius:1rem; }
 .test-editor button[title] { min-height:2rem; min-width:2rem; }
 .test-summary { display:flex; width:100%; flex-wrap:wrap; justify-content:space-between; gap:.5rem; padding:1rem; font-size:.8125rem; text-align:left; color:var(--studio-muted); }
