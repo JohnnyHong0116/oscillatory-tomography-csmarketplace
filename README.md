@@ -109,6 +109,10 @@ preserves its earlier commits.
 - Period groups and Add test stay visible while editing. Switching a group
   reveals its first test beneath the toolbar; no return trip to the page top is
   needed. The toolbar wraps on narrow screens.
+- Click the bottom journey guide for an optional, dimmed-screen walkthrough of
+  the current page. Next/Back highlight sections; Skip, Close, Escape or Done
+  exit. Minimize collapses the bar into a bottom-right circle, while Back to top
+  remains separate. See [page walkthroughs](docs/PAGE_WALKTHROUGHS.md).
 - Inline plots now have viewport-height limits, square fields keep their aspect
   ratio, and result grids adapt to available content width. Enlarge opens a
   separate viewer. The bottom journey toolbar reserves space below the page.

@@ -453,10 +453,10 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
         </div>
       </div>
 
-      <ScientificSetupSummary config={config} />
+      <div data-tour="review-summary"><ScientificSetupSummary config={config} /></div>
 
       {/* Validation Banners */}
-      <div className="space-y-2">
+      <div data-tour="review-readiness" className="space-y-2">
         <h3 className="text-xs font-bold uppercase tracking-wider text-[#4B4F52]">
           Validation & Readiness Check
         </h3>
@@ -490,7 +490,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
       </div>
 
       {/* REQUIREMENT 2: Per-Test Accordion / List with Small Well Map & Edit Action */}
-      <div className="bg-white border border-[#D6DADD] rounded-xl p-4 space-y-4 shadow-xs">
+      <div data-tour="review-tests" className="bg-white border border-[#D6DADD] rounded-xl p-4 space-y-4 shadow-xs">
         <div className="flex items-center justify-between border-b border-[#D6DADD] pb-3">
           <div className="flex items-center space-x-2">
             <FlaskConical className="w-4 h-4 text-[#C5050C]" />

@@ -101,6 +101,17 @@ test('canceling reset leaves the project intact; confirmed reset does not load a
   assert.equal(app.child('Step2ConfigureModel').stage, 'positions');
 });
 
+test('guide minimization survives switching workspaces and reopening restores the full control', () => {
+  const app = appHarness();
+  app.child('JourneyGuide').onMinimizedChange(true); app.render();
+  assert.equal(app.child('JourneyGuide').minimized, true);
+  app.child('Sidebar').onOpenExamples(); app.render();
+  app.child('Sidebar').onOpenProject(); app.render();
+  assert.equal(app.child('JourneyGuide').minimized, true);
+  app.child('JourneyGuide').onMinimizedChange(false); app.render();
+  assert.equal(app.child('JourneyGuide').minimized, false);
+});
+
 test('changing the checkerboard pathway to Black–Kipp cannot submit a hidden synthetic-demo mode', () => {
   const app = appHarness();
   app.child('Sidebar').onOpenExamples(); app.render();

@@ -38,6 +38,7 @@ export default function App() {
   const { step: currentStep, config, result, selectedTestId } = session;
   const [focusTestId, setFocusTestId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isGuideMinimized, setIsGuideMinimized] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isDocsOpen, setIsDocsOpen] = useState(false);
@@ -378,6 +379,8 @@ export default function App() {
           {view !== 'examples' && !isHelpOpen && (
             <div className="relative h-16 shrink-0" aria-label="Workflow navigation tools">
             <JourneyGuide
+              minimized={isGuideMinimized}
+              onMinimizedChange={setIsGuideMinimized}
               step={currentStep}
               disabled={running}
               onBack={(step) => {

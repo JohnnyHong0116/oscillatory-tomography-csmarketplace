@@ -865,7 +865,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                   </p>
                 )}
                 {/* Add Well Form */}
-                <div className="bg-[#F7F7F7] border border-[#D6DADD] p-3 rounded-lg space-y-2 mt-3">
+                <div data-tour="well-entry" className="bg-[#F7F7F7] border border-[#D6DADD] p-3 rounded-lg space-y-2 mt-3">
                   <div className="text-xs font-bold text-[#121212] flex items-center space-x-1.5">
                     <Plus className="w-3.5 h-3.5 text-[#C5050C]" />
                     <span>Add New Well Position</span>
@@ -1023,6 +1023,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
             >
               <button
                 onClick={handleToggleAdvanced}
+                data-tour="solver-settings"
                 className="w-full px-4 py-3 bg-[#F1F2F3] hover:bg-[#E1E5E7] text-[#121212] flex items-center justify-between text-xs font-bold border-b border-[#D6DADD] transition focus-ring"
               >
                 <div className="flex items-center space-x-2">
@@ -1685,6 +1686,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
             <div className="lg:col-span-5 space-y-4">
               <div
                 ref={mapContainerRef}
+                data-tour="test-map"
                 style={{
                   '--test-map-offset': `${mapYOffset}px`,
                 } as React.CSSProperties}

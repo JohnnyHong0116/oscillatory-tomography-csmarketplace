@@ -414,7 +414,7 @@ export const Step4RunAnalysis: React.FC<Props> = ({
         </div>
       )}
 
-      <div className="bg-[#121212] rounded-xl p-5 text-white space-y-4" aria-live="polite">
+      <div data-tour="run-progress" className="bg-[#121212] rounded-xl p-5 text-white space-y-4" aria-live="polite">
         <div className="flex flex-wrap justify-between gap-2">
           <div>
             <div className="text-xs text-[#F87171] font-bold uppercase">

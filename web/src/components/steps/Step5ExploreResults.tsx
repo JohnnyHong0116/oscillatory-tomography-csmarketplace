@@ -207,7 +207,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
             {result.iterations ? ` · ${result.iterations} outer inversion iterations` : ''}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div data-tour="result-export" className="flex gap-2">
           <button
             onClick={() => downloadCsv(result)}
             className="flex items-center gap-2 px-3 py-2 border rounded-md text-sm"
@@ -223,7 +223,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
         </div>
       </div>
 
-      <div className="studio-panel !p-3">
+      <div data-tour="result-scope" className="studio-panel !p-3">
         <div className="flex items-center gap-3">
           <span className="shrink-0 text-xs font-semibold">Response scope</span>
           <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto p-1">
@@ -290,6 +290,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
 
       <section
         ref={plotSectionRef}
+        data-tour="result-plots"
         className="bg-white border border-[#D6DADD] rounded-xl p-5 space-y-5 scroll-mt-4"
       >
         <div className="flex flex-wrap gap-1 border-b pb-3">
