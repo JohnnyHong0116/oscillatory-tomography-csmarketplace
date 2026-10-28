@@ -139,6 +139,7 @@ main button { touch-action:manipulation; }
 .period-workspace { display:grid; gap:1.25rem; }
 .guide-launcher { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); width:min(500px,calc(100% - 128px)); display:flex; align-items:center; gap:.4rem; padding:.4rem; border:1px solid #BCC6D1; border-radius:999px; background:#F3F5F7ed; box-shadow:0 5px 20px #18222d16; backdrop-filter:blur(12px); }
 .guide-start { min-width:0; flex:1; display:flex; align-items:center; gap:.5rem; border-radius:999px; padding:.5rem .75rem; font-size:.75rem; font-weight:600; }
+.guide-overview { position:absolute; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%); width:min(620px,calc(100vw - 96px)); max-height:min(55dvh,440px); overflow-y:auto; border:1px solid #D9E0E7; border-radius:1rem; padding:1rem; background:#fff; color:#18222D; box-shadow:0 8px 28px #18222d24; }
 .guide-bubble,.guide-to-top { position:absolute; bottom:12px; right:16px; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; padding:.6rem; border:1px solid #BCC6D1; border-radius:999px; background:#F3F5F7ed; color:#566372; box-shadow:0 4px 14px #18222d16; }
 .guide-bubble { background:#C5050C; color:white; border-color:#C5050C; width:46px; height:46px; }
 .guide-to-top-center { right:auto; left:50%; transform:translateX(-50%); }

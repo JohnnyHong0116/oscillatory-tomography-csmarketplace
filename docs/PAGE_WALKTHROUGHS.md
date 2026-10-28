@@ -11,12 +11,15 @@ The design follows the installed Apple Design skill's web foundations and its
 modal view.” Existing brand, contrast and typography tokens remain unchanged.
 The single task is explaining an oscillatory-tomography screen in place.
 
-- Click the bottom guide to dim the screen and highlight the first section.
+- Click the bottom guide for the simple five-step overview, current-step notes
+  and backward navigation to completed screens. Future steps stay locked.
+  Choose **Show me around this page** inside this overview for the detailed
+  dimmed-screen walkthrough. Closing the walkthrough returns to the overview.
 - Next/Back visit sections of this page. Done finishes; Skip, Close, Escape or
   clicking the dimmed backdrop exits immediately. No tour launches automatically.
 - Minimize journey guide replaces the bar with a 46px circle at bottom right.
   Back to top is a separate centered control. Clicking the circle restores the
-  bar and opens the current-page tour. Minimized state survives ordinary screen
+  bar and opens the simple overview. Minimized state survives ordinary screen
   and workspace changes during this app session.
 - The native modal top layer makes underlying controls inert. Tab/Shift+Tab
   remain in the explanation; closing returns keyboard focus to the launcher.

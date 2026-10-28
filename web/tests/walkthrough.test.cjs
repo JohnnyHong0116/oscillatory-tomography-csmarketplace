@@ -21,6 +21,7 @@ function load(file, overrides = {}) {
       module: mod,
       exports: mod.exports,
       document: { querySelector: () => ({ getClientRects: () => [{}] }) },
+      requestAnimationFrame: fn => { fn(); return 1; },
       require: (name) =>
         overrides[name] ??
         (name.startsWith(".")
@@ -31,6 +32,22 @@ function load(file, overrides = {}) {
   return mod.exports;
 }
 const { pageTours, tourLayout } = load(path.join(root, "utils/walkthrough.ts"));
+test('bottom bar opens the simple overview first and detailed tour remains a separate action', () => {
+  let states=[],slot=0,nodes=[],back=null;
+  const Detailed=()=>null;
+  const hooks={...React,useEffect(){},useRef:()=>({current:null}),useState(init){const i=slot++;if(!(i in states))states[i]=typeof init==='function'?init():init;return[states[i],value=>{states[i]=typeof value==='function'?value(states[i]):value;}];}};
+  const {JourneyGuide}=load(path.join(root,'components/layout/JourneyGuide.tsx'),{react:hooks,'./PageWalkthrough':{PageWalkthrough:Detailed}});
+  const render=()=>{slot=0;nodes=[];const walk=node=>{if(!React.isValidElement(node))return;nodes.push(node);React.Children.forEach(node.props.children,walk);};walk(JourneyGuide({step:2,disabled:false,onBack:n=>back=n,onTop(){}}));};
+  const overview=()=>nodes.find(n=>n.props['aria-label']==='Experiment journey');
+  render();assert.equal(overview(),undefined);assert.equal(nodes.some(n=>n.type===Detailed),false);
+  nodes.find(n=>n.props['aria-controls']==='journey-overview').props.onClick();render();
+  assert.ok(overview());assert.equal(nodes.some(n=>n.type===Detailed),false);
+  assert.ok(nodes.find(n=>n.props['aria-current']==='step').props.disabled);
+  assert.ok(nodes.filter(n=>n.props.title==='Continue from the current screen after validation').every(n=>n.props.disabled));
+  nodes.find(n=>n.props['aria-haspopup']==='dialog').props.onClick();render();
+  assert.equal(overview(),undefined);nodes.find(n=>n.type===Detailed).props.onClose();render();assert.ok(overview());
+  nodes.find(n=>n.props.title==='Wells & model').props.onClick();assert.equal(back,1);
+});
 test("every scientific workflow stage has a contextual optional tour", () => {
   for (let stage = 1; stage <= 5; stage++) {
     assert.ok(pageTours[stage].length >= 3);
