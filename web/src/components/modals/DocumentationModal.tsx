@@ -10,7 +10,7 @@ export const DocumentationModal: React.FC<ModalProps> = ({ isOpen, onClose }) =>
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-[#121212]/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div onClick={event => { if (event.target === event.currentTarget) onClose(); }} className="fixed inset-0 bg-[#121212]/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="bg-white text-[#121212] w-full max-w-2xl max-h-[90dvh] flex flex-col rounded-xl shadow-2xl overflow-hidden border border-[#D6DADD]">
         <div className="p-4 bg-[#121212] text-white flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -18,6 +18,7 @@ export const DocumentationModal: React.FC<ModalProps> = ({ isOpen, onClose }) =>
             <h2 className="font-bold text-sm">Aquifer Imaging Studio Documentation</h2>
           </div>
           <button
+            aria-label="Close Documentation"
             onClick={onClose}
             className="p-1 text-[#A7ADB1] hover:text-white rounded hover:bg-[#2A2A2A] transition focus-ring"
           >
