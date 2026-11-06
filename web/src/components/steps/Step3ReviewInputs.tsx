@@ -1,3 +1,6 @@
+import { SpatialWellMap } from './SpatialWellMap';
+import { spatialIssues } from '../../utils/spatial';
+import { periodGroups } from '../../utils/periodGroups';
 import React, { useRef, useState } from 'react';
 import {
   CheckCircle2,
@@ -64,7 +67,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
 
   const dx = (maxX - minX) / gridNx;
   const dy = (maxY - minY) / gridNy;
-  const totalCells = gridNx * gridNy;
+  const totalCells = gridNx * gridNy * (config.dimension===3?(config.gridNz??1):1);
   const unknownParams = totalCells * 2;
 
   // Experiment level metrics
@@ -84,13 +87,15 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
   const estimatedMemoryMB = Math.round(((jacobianEntries * bytesPerFloat) / (1024 * 1024)) * 10) / 10;
   const forwardStateMemoryMB = Math.round(((unknownParams * bytesPerFloat) / (1024 * 1024)) * 10) / 10;
 
-  const issues: ValidationIssue[] = [];
-  if (tests.length > 30 || wells.length > 30)
+  const issues: ValidationIssue[] = spatialIssues(config).map((message,i)=>({id:`spatial-${i}`,type:'error',title:'3D model check',message}));
+  const testLimit = config.dimension === 3 ? 108 : 30;
+  const pairLimit = config.dimension === 3 ? 1500 : 100;
+  if (tests.length > testLimit || wells.length > 30)
     issues.push({
       id: 'api-count-limits',
       type: 'error',
       title: 'API Capacity Exceeded',
-      message: 'This implementation supports at most 30 tests and 30 wells per run.',
+      message: `This implementation supports at most ${testLimit} tests and 30 wells${config.dimension === 3 ? ' for 3D forward; inversion retains a 30-test limit' : ''}.`,
     });
 
   // Reject incomplete numeric inputs here rather than relying on a late API error.
@@ -240,25 +245,24 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
     });
   }
 
-  if (totalPumpingObsPairs > 100) {
+  if (totalPumpingObsPairs > pairLimit) {
     issues.push({
       id: 'too-many-pairs',
       type: 'error',
       title: 'Too Many Responses',
-      message: 'The current API supports at most 100 test/observation pairs.',
+      message: `The current ${config.dimension === 3 ? '3D forward' : '2D'} API supports at most ${pairLimit} test/observation pairs.`,
     });
   }
 
   if (
-    config.boundaries.top !== 'no_flow' ||
-    config.boundaries.bottom !== 'no_flow' ||
-    !(['west', 'east', 'south', 'north'] as const).some((side) => config.boundaries[side] === 'constant_head')
+    (config.dimension !== 3 && (config.boundaries.top !== 'no_flow' || config.boundaries.bottom !== 'no_flow')) ||
+    !(config.dimension===3 ? ['west','east','south','north','top','bottom'] as const : ['west','east','south','north'] as const).some(side => config.boundaries[side] === 'constant_head')
   ) {
     issues.push({
       id: 'boundaries',
       type: 'error',
       title: 'Unsupported Boundaries',
-      message: 'Use no-flow top and bottom and at least one horizontal constant-head boundary.',
+      message: config.dimension===3?'Use at least one constant-head face.':'Use no-flow top and bottom and at least one horizontal constant-head boundary.',
     });
   }
 
@@ -267,7 +271,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
       id: 'high-memory',
       type: 'warning',
       title: 'High Memory Allocation Warning',
-      message: `The raw sensitivity matrix is about ${estimatedMemoryMB} MB; solver memory usage will be higher.`,
+      message: `An inversion would allocate about ${estimatedMemoryMB} MB for the raw sensitivity matrix, before other solver work. Forward prediction does not allocate this inverse Jacobian. Large 3D inverse configurations exceed the interactive budget.`,
     });
   } else if (testCase !== 'black_kipp') {
     issues.push({
@@ -293,6 +297,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
 
     const pWell = wells.find((w) => w.id === test.pumpingWellId);
 
+    if(config.dimension===3) return <SpatialWellMap config={config} test={test} label={`${test.name} 3D role map`}/>;
     return (
       <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-1.5 flex flex-col items-center">
         <svg width={width} height={height} className="select-none">
@@ -504,7 +509,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
         </div>
 
         <div className="space-y-3">
-          {tests.map((test, index) => {
+          {periodGroups(config).map(group => <section key={group.period} className="space-y-3" aria-label={`Period ${group.period} seconds`}><h4 className="sticky top-0 z-10 rounded-lg bg-slate-100 px-3 py-2 font-semibold text-sm">P = {group.period} s <span className="text-xs font-normal">· {group.tests.length} tests</span></h4>{group.tests.map((test, index) => {
             const isExpanded = expandedTestId === test.id;
             const pumpingWell = wells.find((w) => w.id === test.pumpingWellId);
             const obsWells = wells.filter((w) => test.observationWellIds?.includes(w.id));
@@ -606,7 +611,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
                           <span className="text-[10px] font-bold uppercase text-[#6B7074]">Pumping Well</span>
                           <div className="font-bold text-sm text-[#C5050C]">
                             {pumpingWell
-                              ? `${pumpingWell.name} (${pumpingWell.x}m, ${pumpingWell.y}m)`
+                              ? `${pumpingWell.name} (${pumpingWell.x}m, ${pumpingWell.y}m${config.dimension===3?`, ${pumpingWell.z}m`:""})`
                               : 'None'}
                           </div>
                         </div>
@@ -666,13 +671,13 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
                             <tbody className="divide-y divide-[#D6DADD]">
                               {obsWells.map((obs, idx) => {
                                 const dist = pumpingWell
-                                  ? Math.hypot(obs.x - pumpingWell.x, obs.y - pumpingWell.y).toFixed(1)
+                                  ? Math.hypot(obs.x - pumpingWell.x, obs.y - pumpingWell.y,config.dimension===3?(obs.z??0)-(pumpingWell.z??0):0).toFixed(1)
                                   : 'N/A';
                                 return (
                                   <tr key={obs.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#F7F7F7]'}>
                                     <td className="p-2 font-bold font-sans text-[#121212]">{obs.name}</td>
                                     <td className="p-2 text-[#4B4F52]">
-                                      ({obs.x}m, {obs.y}m)
+                                      ({obs.x}m, {obs.y}m{config.dimension===3?`, ${obs.z}m`:""})
                                     </td>
                                     <td className="p-2 text-[#2563EB] font-bold">{dist} meters</td>
                                   </tr>
@@ -693,7 +698,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
                 )}
               </div>
             );
-          })}
+          })}</section>)}
         </div>
       </div>
 
@@ -711,19 +716,19 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
             <div className="flex justify-between">
               <dt className="text-[#6B7074] font-sans">Domain Dimensions:</dt>
               <dd className="font-bold text-[#121212]">
-                {maxX - minX}m × {maxY - minY}m
+                {maxX - minX}m × {maxY - minY}m{config.dimension===3?` × ${(config.maxZ??40)-(config.minZ??-40)}m`:""}
               </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-[#6B7074] font-sans">Grid Cells (Nx × Ny):</dt>
               <dd className="font-bold text-[#121212]">
-                {gridNx} × {gridNy} ({totalCells})
+                {gridNx} × {gridNy}{config.dimension===3?` × ${config.gridNz}`:""} ({totalCells})
               </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-[#6B7074] font-sans">Cell Resolution (Δx, Δy):</dt>
               <dd className="font-bold text-[#121212]">
-                {dx.toFixed(2)}m × {dy.toFixed(2)}m
+                {dx.toFixed(2)}m × {dy.toFixed(2)}m{config.dimension===3?` × ${(((config.maxZ??40)-(config.minZ??-40))/(config.gridNz??1)).toFixed(2)}m`:""}
               </dd>
             </div>
             <div className="flex justify-between">
@@ -812,7 +817,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
               <tr>
                 <th className="py-2.5 px-3 font-semibold">Well Label</th>
                 <th className="py-2.5 px-3 font-semibold">X Position (m)</th>
-                <th className="py-2.5 px-3 font-semibold">Y Position (m)</th>
+                <th className="py-2.5 px-3 font-semibold">Y Position (m)</th>{config.dimension===3&&<th className="py-2.5 px-3 font-semibold">Z elevation (m)</th>}
                 <th className="py-2.5 px-3 font-semibold">Assigned Roles Across Tests</th>
               </tr>
             </thead>
@@ -832,7 +837,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
                       <span>{w.name}</span>
                     </td>
                     <td className="py-2 px-3 text-[#4B4F52]">{w.x} m</td>
-                    <td className="py-2 px-3 text-[#4B4F52]">{w.y} m</td>
+                    <td className="py-2 px-3 text-[#4B4F52]">{w.y} m</td>{config.dimension===3&&<td className="py-2 px-3">{w.z} m</td>}
                     <td className="py-2 px-3 text-[#4B4F52]">
                       {pumpingInTests.length > 0 && (
                         <span className="text-[10px] bg-[#FEF2F2] text-[#C5050C] border border-[#FECDD3] font-sans font-bold px-2 py-0.5 rounded mr-1.5 inline-block">

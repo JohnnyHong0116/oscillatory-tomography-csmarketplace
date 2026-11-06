@@ -1,5 +1,6 @@
+import { ExportExperiment, ImportExperiment } from './components/ExperimentExchange';
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { StepId, TestCaseType, ModelConfig } from './types/aquifer';
+import { StepId, TestCaseType, ExampleType, ModelConfig, AnalysisResult } from './types/aquifer';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { HelpDrawer } from './components/layout/HelpDrawer';
@@ -13,6 +14,7 @@ import { InversionTransfer } from './components/steps/InversionTransfer';
 import { ReportModal } from './components/modals/ReportModal';
 import { DocumentationModal } from './components/modals/DocumentationModal';
 import { AboutModal } from './components/modals/AboutModal';
+import { PracticePreviewConfirm } from './components/modals/PracticePreviewConfirm';
 import {
   createExample,
   createExperiment,
@@ -37,7 +39,7 @@ export default function App() {
   const session = sessions[key];
   const { step: currentStep, config, result, selectedTestId } = session;
   const [focusTestId, setFocusTestId] = useState<string | null>(null);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 767px)').matches);
   const [isGuideMinimized, setIsGuideMinimized] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -46,6 +48,8 @@ export default function App() {
   const [transferSource, setTransferSource] = useState<ExperimentSession | null>(null);
   const [running, setRunning] = useState(false);
   const [notice, setNotice] = useState('');
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [pendingPreview, setPendingPreview] = useState<'matlab_3d' | 'matlab_3d_quick' | null>(null);
 
   // Each callback captures its session key. A completed practice run cannot
   // accidentally write to personal work if another session is later selected.
@@ -93,6 +97,11 @@ export default function App() {
     requestAnimationFrame(resetWorkspaceScroll);
   };
   const changeConfig = (nextConfig: ModelConfig) => {
+    const {siteContext: previousContext,...previousModel}=config;
+    const {siteContext: nextContext,...nextModel}=nextConfig;
+    // Entered site planes/datum are display context, not new solver inputs.
+    // Preserve completed results and imported phasors when only context changes.
+    if(JSON.stringify(previousModel)===JSON.stringify(nextModel)) {update({config:nextConfig});return;}
     // An edited experiment cannot reuse observations as though the old geometry,
     // roles, periods and amplitudes still applied. Require a fresh input review.
     if (session.runInput.csv)
@@ -112,7 +121,7 @@ export default function App() {
       forwardSource: null,
     });
   };
-  const loadExample = (type: TestCaseType) => {
+  const loadExample = (type: ExampleType) => {
     if (running || type === 'field_data') return;
     if (
       (sessions.example.result || sessions.example.step > 1) &&
@@ -123,6 +132,26 @@ export default function App() {
       return;
     setSessions((previous) => ({ ...previous, example: createExample(type) }));
     openView('example');
+  };
+  const previewExample = async (type: 'matlab_3d' | 'matlab_3d_quick', replace = false) => {
+    if (running || loadingPreview) return;
+    if (!replace && (sessions.example.result || sessions.example.step > 1)) {setPendingPreview(type);return;}
+    setLoadingPreview(true);
+    try {
+      // Lazy chunks keep the initial app small. Saved results have their exact
+      // generating configuration; reject stale artifacts rather than relabeling.
+      const module = type === 'matlab_3d' ? await import('./data/matlab3dPreview.json') : await import('./data/matlab3dQuickPreview.json');
+      // Parcel's JSON chunks may resolve directly to module.exports; other
+      // runtimes expose an ES-module default. Accept both documented shapes.
+      const candidate = module as unknown as {config?: unknown; default?: unknown};
+      const artifact = (candidate.config ? module : candidate.default) as typeof import('./data/matlab3dPreview.json');
+      const prepared = createExample(type);
+      if (JSON.stringify(artifact.config) !== JSON.stringify(prepared.config)) throw new Error('Example preview is stale. Load inputs and run the example, or regenerate its preview.');
+      const savedResult = { ...artifact.result, examplePreview: artifact.provenance } as AnalysisResult;
+      setSessions(previous => ({...previous, example:{...prepared,step:5,result:savedResult}}));
+      openView('example');
+    } catch (cause) { setNotice((cause as Error).message); }
+    finally { setLoadingPreview(false); }
   };
   const approveProjectReplacement = () =>
     !(sessions.project.config.wells.length || sessions.project.result) ||
@@ -147,7 +176,7 @@ export default function App() {
       return;
     setSessions((previous) => ({
       ...previous,
-      [key]: key === 'project' ? createExperiment() : createExample(previous.example.config.testCase),
+      [key]: key === 'project' ? createExperiment() : createExample(previous.example.config.examplePreset ?? previous.example.config.testCase),
     }));
     setFocusTestId(null);
     setNotice('');
@@ -205,6 +234,7 @@ export default function App() {
             <div className="p-4 sm:p-6">
               {view === 'examples' ? (
                 <>
+                  {notice && <p role="status" className="max-w-5xl mx-auto mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">{notice}</p>}
                   <div className="max-w-5xl mx-auto mb-4 rounded-xl border bg-white p-4 text-sm text-[#4B4F52]">
                     Practice examples are separate from Your experiment. Start with Black–Kipp to explore
                     forward responses, then try the checkerboard inverse problem.
@@ -216,25 +246,48 @@ export default function App() {
                     </button>
                   </div>
                   <Step1SelectTestCase
-                    selectedTestCase={sessions.example.config.testCase}
+                    selectedTestCase={sessions.example.config.examplePreset ?? sessions.example.config.testCase}
                     onSelectTestCase={loadExample}
+                    onPreview={previewExample}
+                    loadingPreview={loadingPreview}
                     onNext={() => {}}
                   />
                 </>
               ) : (
                 <>
                   <section className="max-w-7xl mx-auto mb-5 space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <label className="min-w-0 text-xs font-semibold text-[#6B7074]">
+                    {config.examplePreset && <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs leading-5 text-blue-950">
+                      <strong>{config.examplePreset==='matlab_3d'?'MATLAB 3D original configuration · Python forward workflow':'MATLAB-inspired 3D · reduced recovery workflow'}</strong>
+                      <p>{config.examplePreset==='matlab_3d'?'The supplied preset has 8,000 cells, 27 ports, 104 tests and 1,404 responses. Full forward runs are supported; the complete inversion exceeds the interactive budget. Choose the quick recovery option in Examples to inspect inversion.':'The supplied quick preset uses 512 cells, the original 27 port positions, W14 pumping and 14 observers at each of four periods. It demonstrates inversion with a reduced acquisition and mesh.'} Inputs remain editable; this label records preset provenance. {config.syntheticRealization==='matlab_reference' ? 'This preset uses the MATLAB-generated legacy seed-0 truth on its matching fixed mesh.' : 'Custom NumPy realizations use a different random stream from MATLAB.'}</p>
+                      {result?.examplePreview && <p className="mt-1 font-semibold">Saved Python-computed preview · {new Date(result.examplePreview.generatedAt).toLocaleDateString()}. To recompute, return to Data & run.</p>}
+                    </div>}
+                    {result && !result.solverRevision && <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">Historical solver output: rerun with the current solver before comparing it with the MATLAB references.</p>}
+                    <div className="experiment-heading">
+                      <label className="experiment-name-label">
                         {key === 'example' ? 'EXAMPLE PRACTICE · separate workspace' : 'YOUR EXPERIMENT'}
                         <input
                           aria-label="Experiment name"
                           value={session.name}
                           onChange={(event) => update({ name: event.target.value })}
                           disabled={running}
-                          className="mt-1 block w-full max-w-sm rounded-lg border border-transparent bg-transparent px-2 py-1 text-xl font-bold text-[#121212] hover:border-[#D6DADD] focus:border-[#C5050C] focus:outline-none"
+                          className="experiment-name-input"
                         />
                       </label>
+                      {currentStep === 1 && <label className="experiment-pathway-label">Model pathway
+                          <select
+                            aria-label="Model pathway"
+                            value={config.testCase}
+                            onChange={(event) =>
+                              changeConfig({ ...config, testCase: event.target.value as TestCaseType })
+                            }
+                            className="experiment-pathway-select"
+                          >
+                            <option value="inversion_10s">Forward model / tomography-ready experiment</option>
+                            <option value="black_kipp" disabled={config.dimension===3}>
+                              Forward model with Black–Kipp analytical comparison
+                            </option>
+                          </select>
+                      </label>}
                       {key === 'example' && (
                         <button
                           disabled={running}
@@ -256,39 +309,16 @@ export default function App() {
                     {source && (
                       <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs leading-5 text-blue-950">
                         Synthetic input source retained: {source.result.pairs.length} forward responses on{' '}
-                        {source.config.gridNx} × {source.config.gridNy} cells. Current inversion grid:{' '}
-                        {config.gridNx} × {config.gridNy}. Raw observations were not resampled.{' '}
-                        {source.config.gridNx !== config.gridNx || source.config.gridNy !== config.gridNy
+                        {source.config.gridNx} × {source.config.gridNy}{source.config.dimension===3?` × ${source.config.gridNz}`:""} cells. Current inversion grid:{' '}
+                        {config.gridNx} × {config.gridNy}{config.dimension===3?` × ${config.gridNz}`:""}. Raw observations were not resampled.{' '}
+                        {source.config.gridNx !== config.gridNx || source.config.gridNy !== config.gridNy || (config.dimension===3&&source.config.gridNz!==config.gridNz)
                           ? 'Different grids introduce discretization differences.'
                           : 'Generating and inverse grid counts match.'}
                       </div>
                     )}
-                    {currentStep === 1 && (
-                      <div className="rounded-xl border border-[#D6DADD] bg-white p-4 text-xs">
-                        <label className="font-semibold">
-                          Model pathway
-                          <select
-                            aria-label="Model pathway"
-                            value={config.testCase}
-                            onChange={(event) =>
-                              changeConfig({ ...config, testCase: event.target.value as TestCaseType })
-                            }
-                            className="ml-0 mt-2 block max-w-full rounded-lg border bg-white p-2 sm:ml-3 sm:mt-0 sm:inline-block"
-                          >
-                            <option value="inversion_10s">Forward model / tomography-ready experiment</option>
-                            <option value="black_kipp">
-                              Forward model with Black–Kipp analytical comparison
-                            </option>
-                          </select>
-                        </label>
-                        <p className="mt-2 leading-5 text-[#6B7074]">
-                          Both pathways use your wells and tests. Black–Kipp compares a homogeneous,
-                          infinite-aquifer analytical solution with the finite-domain model. Forward outputs
-                          from either pathway can become synthetic inversion input. No period is fixed at 10
-                          seconds.
-                        </p>
-                      </div>
-                    )}
+                    {currentStep === 1 && <details className="experiment-pathway-help"><summary>About the model pathways</summary><p>Both pathways use your wells and tests. Black–Kipp compares a homogeneous, infinite-aquifer analytical solution with the finite-domain model. Forward outputs from either pathway can become synthetic inversion input. Periods and pumping amplitudes are configurable; no period is fixed at 10 seconds.</p></details>}
+                    {currentStep === 1 && key === 'project' && <ImportExperiment onImport={imported => { if(!approveProjectReplacement())return; setSessions(previous=>({...previous,project:imported}));setFocusTestId(null);setNotice('Experiment imported. Review inputs before running; saved results are retained as historical outputs.');window.history.replaceState(null,'',window.location.pathname+window.location.search);resetWorkspaceScroll(); }} />}
+                    {currentStep === 3 && result && <button onClick={()=>navigate(5)} className="w-fit rounded-lg border bg-white px-4 py-2 text-sm font-semibold focus-ring">View saved results</button>}
                   </section>
                   {(currentStep === 1 || currentStep === 2) && (
                     <Step2ConfigureModel
@@ -345,8 +375,8 @@ export default function App() {
                             ...(source && nextResult.observationSource === 'synthetic'
                               ? {
                                   forwardInput: {
-                                    sourceGrid: { nx: source.config.gridNx, ny: source.config.gridNy },
-                                    inversionGrid: { nx: config.gridNx, ny: config.gridNy },
+                                    sourceGrid: { nx: source.config.gridNx, ny: source.config.gridNy, ...(source.config.dimension===3?{nz:source.config.gridNz}:{}) },
+                                    inversionGrid: { nx: config.gridNx, ny: config.gridNy, ...(config.dimension===3?{nz:config.gridNz}:{}) },
                                     responsePairs: source.result.pairs.length,
                                     generatingTruth: source.result.syntheticTruth ?? null,
                                   },
@@ -359,6 +389,7 @@ export default function App() {
                       onPrev={() => navigate(3)}
                     />
                   )}
+                  {currentStep === 5 && result && <div className="max-w-7xl mx-auto mb-5"><ExportExperiment session={session}/></div>}
                   {currentStep === 5 && result && (
                     <Step5ExploreResults
                       key={key}
@@ -406,6 +437,7 @@ export default function App() {
           onTransfer={completeTransfer}
         />
       )}
+      {pendingPreview && <PracticePreviewConfirm onClose={()=>setPendingPreview(null)} onConfirm={()=>{const type=pendingPreview;setPendingPreview(null);return previewExample(type,true);}}/>}
       <ReportModal
         isOpen={isReportOpen}
         onClose={() => setIsReportOpen(false)}

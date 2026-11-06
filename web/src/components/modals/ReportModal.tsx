@@ -51,7 +51,7 @@ export const ReportModal: React.FC<Props> = ({ isOpen, onClose, config, result }
               <td>{pair.testName}</td><td>{pair.pumpingWellName} → {pair.observationWellName}</td><td>{pair.predicted.real.toExponential(3)}</td><td>{pair.predicted.imag.toExponential(3)}</td><td>{pair.predicted.amplitude.toExponential(3)}</td><td>{(config.testCase === 'black_kipp' ? pair.numericalPhaseDegrees ?? 0 : pair.predicted.phaseDegrees).toFixed(1)}</td>{result.mode === 'inversion' && <td>{pair.residualAmplitude?.toExponential(3)}</td>}{config.testCase === 'black_kipp' && <><td>{pair.analytical?.amplitude.toExponential(3)}</td><td>{pair.analytical?.phaseDegrees.toFixed(1)}</td><td>{((pair.amplitudeRelativeError ?? 0) * 100).toFixed(1)}%</td><td>{pair.phaseErrorDegrees?.toFixed(1)}</td><td>{pair.effectiveProperties?.diffusivityM2PerSecond.toExponential(3)}</td><td>{pair.effectiveProperties?.transmissivityM2PerSecond.toExponential(3)}</td><td>{pair.effectiveProperties?.storativity.toExponential(3)}</td></>}
             </tr>)}</tbody></table></div>
         </section>
-        <p className="text-xs text-[#6B7074]">Results are from the Python solver. The model assumes one horizontal layer with unit thickness and no flow through its top and bottom.</p>
+        <p className="text-xs text-[#6B7074]">Results are from the Python solver. {config.dimension===3?'This run uses a 3D volume with point ports and the configured six-face boundaries.':'This run assumes one horizontal layer with unit thickness and no-flow top/bottom.'} To restore a complete experiment later, use Save & share experiment on Results.</p>
       </div>
     </div>
   </div>;

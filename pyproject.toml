@@ -22,5 +22,8 @@ web = ["fastapi>=0.115", "uvicorn>=0.30"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+oscillatory_tomography = ["data/*.npz", "data/*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

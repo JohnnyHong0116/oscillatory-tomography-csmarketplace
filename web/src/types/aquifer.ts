@@ -1,6 +1,7 @@
 export type StepId = 1 | 2 | 3 | 4 | 5;
 
 export type TestCaseType = 'inversion_10s' | 'black_kipp' | 'field_data';
+export type ExampleType = TestCaseType | 'matlab_3d' | 'matlab_3d_quick';
 
 export type TestExecutionStatus = 'pending' | 'running' | 'complete' | 'warning' | 'failed';
 
@@ -9,6 +10,7 @@ export interface Well {
   name: string; // e.g. "W1", "W2", "W3", "W4"
   x: number; // meters
   y: number; // meters
+  z?: number; // Local elevation (positive upward), used by 3D point ports.
   color?: string;
   physicalProperties?: {
     casingDiameterM?: number;
@@ -43,12 +45,23 @@ export interface BoundaryConditions {
 }
 
 export interface ModelConfig {
+  /** Optional entered site annotations, in the same Z datum as ports. Display
+   * context only: these do not introduce a free-surface boundary condition. */
+  siteContext?: { verticalDatum?: string; groundSurfaceZ?: number; waterTableZ?: number };
+  dimension?: 2 | 3;
+  minZ?: number;
+  maxZ?: number;
+  gridNz?: number;
+  corrLengthZ?: number;
   /** UI-only empty period groups; actual solver periods remain on each test. */
   periodGroups?: number[];
   /** Undefined preserves homogeneous forward / original checkerboard demo. */
   syntheticField?: 'checkerboard' | 'geostatistical';
   syntheticSeed?: number;
+  syntheticRealization?: 'numpy' | 'matlab_reference';
   testCase: TestCaseType;
+  /** Example provenance only; the API still receives the existing solver selector. */
+  examplePreset?: 'matlab_3d' | 'matlab_3d_quick';
   // Domain
   minX: number; // m
   maxX: number; // m
@@ -130,7 +143,13 @@ export interface AnalysisProgress {
 }
 
 export interface AnalysisResult {
+  solverRevision?: string;
+  examplePreview?: {generatedAt: string; solver: string; source: string; sourceTreeSha256: string; note: string; randomNote: string};
+  dimension?: 2 | 3;
+  /** Lossless layer-major [z][y][x] volumes; 2D fields are the middle Z slice. */
+  volumeFields?: Partial<Record<'fields' | 'trueFields' | 'errorFields' | 'sensitivityFields', { lnK: number[][][]; lnSs: number[][][] }>> | null;
   syntheticTruth?: {
+    realization?: 'numpy' | 'matlab_reference';
     kind: 'checkerboard' | 'geostatistical';
     seed: number | null;
     meanLnK: number;
@@ -139,8 +158,8 @@ export interface AnalysisResult {
   } | null;
   /** Frontend provenance only; never submitted as a scientific solver option. */
   forwardInput?: {
-    sourceGrid: { nx: number; ny: number };
-    inversionGrid: { nx: number; ny: number };
+    sourceGrid: { nx: number; ny: number; nz?: number };
+    inversionGrid: { nx: number; ny: number; nz?: number };
     responsePairs: number;
     generatingTruth?: AnalysisResult['syntheticTruth'];
   };
@@ -163,7 +182,7 @@ export interface AnalysisResult {
   iterations: number;
   objective: number | null;
   runtimeSeconds: number;
-  grid: { nx: number; ny: number };
+  grid: { nx: number; ny: number; nz?: number };
 }
 
 export type AnalysisMode = 'forward' | 'synthetic_demo' | 'measured_inversion';

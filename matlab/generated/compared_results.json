@@ -1,0 +1,79 @@
+{
+  "cases": [
+    {
+      "case": "matlab3d_full",
+      "matlabVersion": "26.1.0.3346908 (R2026a) Update 5",
+      "responses": 1404,
+      "predicted": {
+        "maxAbsolute": 1.8526854844795107e-17,
+        "relativeL2": 1.196591191900409e-15
+      },
+      "maxPhaseErrorDegrees": 1.736374524825811e-13,
+      "maxRelativeAmplitudeError": 4.998548340927301e-15,
+      "truth": {
+        "maxAbsolute": 0.0,
+        "relativeL2": 0.0
+      },
+      "passed": true
+    },
+    {
+      "case": "matlab3d_quick",
+      "matlabVersion": "26.1.0.3346908 (R2026a) Update 5",
+      "responses": 56,
+      "predicted": {
+        "maxAbsolute": 1.4701811707077453e-07,
+        "relativeL2": 4.087030834484509e-05
+      },
+      "maxPhaseErrorDegrees": 0.003523558959996025,
+      "maxRelativeAmplitudeError": 0.00016888719561392477,
+      "truth": {
+        "maxAbsolute": 0.0,
+        "relativeL2": 0.0
+      },
+      "observed": {
+        "maxAbsolute": 2.168404344971009e-18,
+        "relativeL2": 5.936126388855084e-16
+      },
+      "estimatedFields": {
+        "maxAbsolute": 0.0006476773042134454,
+        "relativeL2": 7.4730665076584294e-06
+      },
+      "objectiveRelativeError": 1.966580804883777e-06,
+      "coverage": {
+        "maxAbsolute": 0.00029819179757106795,
+        "relativeL2": 8.199800232993357e-06
+      },
+      "passed": true
+    },
+    {
+      "case": "p10_checkerboard",
+      "matlabVersion": "26.1.0.3346908 (R2026a) Update 5",
+      "responses": 36,
+      "predicted": {
+        "maxAbsolute": 3.559559175361618e-08,
+        "relativeL2": 1.1183128147246842e-06
+      },
+      "maxPhaseErrorDegrees": 0.0032232912999165283,
+      "maxRelativeAmplitudeError": 6.290996203625821e-05,
+      "truth": {
+        "maxAbsolute": 0.0,
+        "relativeL2": 0.0
+      },
+      "observed": {
+        "maxAbsolute": 4.85722573273506e-17,
+        "relativeL2": 1.0826368391991665e-15
+      },
+      "estimatedFields": {
+        "maxAbsolute": 0.0001460684951695157,
+        "relativeL2": 5.892291624380613e-06
+      },
+      "objectiveRelativeError": 7.956900509944961e-06,
+      "coverage": {
+        "maxAbsolute": 0.00028167998597883326,
+        "relativeL2": 2.304196174315162e-05
+      },
+      "passed": true
+    }
+  ],
+  "note": "Black-Kipp fresh solver comparison also passes in tests/test_matlab_parity.py; these metrics summarize the regenerated 3D previews and corrected P=10 run."
+}

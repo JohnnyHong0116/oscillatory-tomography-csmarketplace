@@ -13,6 +13,7 @@ function load(file) {
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true,
   } }).outputText, { module: loaded, exports: loaded.exports, structuredClone, require: name => {
+        if (name.endsWith('.json')) return {__esModule:true,default:JSON.parse(fs.readFileSync(path.resolve(path.dirname(file),name),'utf8'))};
     if (!name.startsWith('.')) return require(name);
     const base = path.resolve(path.dirname(file), name);
     return load(['.ts', '.tsx'].map(ext => base + ext).find(candidate => fs.existsSync(candidate)));

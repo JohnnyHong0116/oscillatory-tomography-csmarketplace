@@ -1,3 +1,5 @@
+import { VolumeFieldPlot } from './VolumeFieldPlot';
+import { matchesScope, periodGroups } from '../../utils/periodGroups';
 import React, { useRef, useState } from 'react';
 import { ArrowLeft, Download, FileText, FlaskConical } from 'lucide-react';
 import { AnalysisPair, AnalysisResult, ModelConfig } from '../../types/aquifer';
@@ -118,11 +120,16 @@ function ResultsTable({ pairs, blackKipp }: { pairs: AnalysisPair[]; blackKipp: 
 
 export const Step5ExploreResults: React.FC<Props> = ({
   config,
-  result,
+  result: savedResult,
   onOpenReport,
   onTransfer,
   onPrev,
 }) => {
+  const [fieldView,setFieldView]=useState<'volume'|'layer'>('volume');
+  const [slice,setSlice]=useState(Math.floor((config.gridNz??1)/2));
+  const result:AnalysisResult={...savedResult};
+  for(const key of ['fields','trueFields','errorFields','sensitivityFields'] as const){const volume=savedResult.volumeFields?.[key];if(volume)result[key]={lnK:volume.lnK[slice],lnSs:volume.lnSs[slice]};}
+  const fieldConfig=config.dimension===3?{...config,wells:config.wells.filter(w=>Math.abs((w.z??0)-((config.minZ??-40)+(slice+.5)*((config.maxZ??40)-(config.minZ??-40))/(config.gridNz??10)))<=((config.maxZ??40)-(config.minZ??-40))/(2*(config.gridNz??10)))}:config;
   const blackKipp = config.testCase === 'black_kipp';
   const originalBaseline = matchesBaselineConfiguration(config) && result.analysisMode === 'synthetic_demo';
   const [scope, setScope] = useState('all');
@@ -136,7 +143,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
     // Retain focus on the clicked tab rather than moving it into a chart.
     revealAfterRender(() => plotSectionRef.current, 'start', false);
   };
-  const visible = result.pairs.filter((pair) => scope === 'all' || pair.testId === scope);
+  const visible = result.pairs.filter((pair) => matchesScope(config,scope,pair.testId));
   const scopes = [
     {
       id: 'all',
@@ -144,7 +151,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
         ? `All period tests (${config.tests.length})`
         : `${result.mode === 'inversion' ? 'Combined joint inversion' : 'All forward responses'} (${config.tests.length} tests)`,
     },
-    ...config.tests.map((test) => ({ id: test.id, label: test.name })),
+    ...periodGroups(config).filter(g=>g.tests.length).map(g=>({id:`period:${g.period}`,label:`P = ${g.period} s · ${g.tests.length} tests`})),
   ];
   const inversionTabs: { id: InversionTab; label: string; provenance: 'baseline' | 'derived' }[] = [
     { id: 'map', label: 'Well signal map', provenance: 'derived' },
@@ -176,7 +183,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
   const propertySeries = config.wells
     .filter((well) => well.id !== config.tests[0]?.pumpingWellId)
     .map((well, index) => {
-      const pairs = result.pairs
+      const pairs = visible
         .filter((pair) => pair.observationWellId === well.id)
         .sort((a, b) => a.periodSeconds - b.periodSeconds);
       return { well, pairs, color: ['#C5050C', '#2563EB', '#15803D', '#9333EA'][index % 4] };
@@ -207,12 +214,12 @@ export const Step5ExploreResults: React.FC<Props> = ({
             {result.iterations ? ` · ${result.iterations} outer inversion iterations` : ''}
           </p>
         </div>
-        <div data-tour="result-export" className="flex gap-2">
+        <div data-tour="result-export" className="flex flex-wrap gap-2">
           <button
             onClick={() => downloadCsv(result)}
             className="flex items-center gap-2 px-3 py-2 border rounded-md text-sm"
           >
-            <Download size={16} /> Export CSV
+            <Download size={16} /> Response-only CSV
           </button>
           <button
             onClick={onOpenReport}
@@ -239,6 +246,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
           ))}
           </div>
         </div>
+        <label className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold">Pumping test<select aria-label="Result pumping test" value={config.tests.some(t=>t.id===scope)?scope:''} onChange={e=>setScope(e.target.value || (config.tests.some(t=>t.id===scope)?`period:${config.tests.find(t=>t.id===scope)!.pumpingPeriod??config.pumpingPeriod}`:scope))} className="min-w-0 max-w-full rounded border bg-white p-2 focus-ring"><option value="">All tests in selected scope</option>{periodGroups(config).filter(g=>scope==='all'||scope===`period:${g.period}`||g.tests.some(t=>t.id===scope)).map(g=><optgroup key={g.period} label={`P = ${g.period} s`}>{g.tests.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>)}</select></label>
         {!blackKipp && result.mode === 'inversion' && (
           <p className="mt-2 text-xs text-[#566372]">
             Test selection filters observation-fit plots and residual rows only. Parameter fields, field
@@ -322,8 +330,11 @@ export const Step5ExploreResults: React.FC<Props> = ({
           ))}
         </div>
 
-        {tab === 'map' && <SignalMap key={scope} config={config} result={result} scope={scope} />}
-        {!blackKipp && tab === 'fields' && result.trueFields && (
+        {config.dimension===3&&['fields','errors','sensitivity'].includes(tab)&&<div className="flex gap-2 mb-3">{(['volume','layer'] as const).map(v=><button key={v} aria-pressed={fieldView===v} onClick={()=>setFieldView(v)} className={`rounded-lg border px-3 py-2 text-sm focus-ring ${fieldView===v?'bg-slate-800 text-white':'bg-white'}`}>{v==='volume'?'3D orthogonal slices':'Horizontal layer'}</button>)}</div>}
+        {config.dimension===3&&fieldView==='layer'&&['fields','errors','sensitivity'].includes(tab)&&<label className="flex flex-wrap items-center gap-3 text-sm font-semibold mb-4">Horizontal Z slice<select aria-label="Field Z slice" value={slice} onChange={e=>setSlice(Number(e.target.value))} className="rounded border p-2">{Array.from({length:config.gridNz??1},(_,k)=><option key={k} value={k}>Layer {k+1} · z = {((config.minZ??-40)+(k+.5)*((config.maxZ??40)-(config.minZ??-40))/(config.gridNz??10)).toPrecision(5)} m</option>)}</select><span className="text-xs font-normal">Only well ports inside this layer are overlaid. All layers are included in the experiment export.</span></label>}
+        {config.dimension===3&&fieldView==='volume'&&['fields','errors','sensitivity'].includes(tab)&&<div className="field-results-grid gap-4">{(tab==='fields'?['trueFields','fields']:tab==='errors'?['errorFields']:['sensitivityFields']).map(key=>{const group=key as 'fields'|'trueFields'|'errorFields'|'sensitivityFields',v=savedResult.volumeFields?.[group];return v&&(['lnK','lnSs'] as const).map(prop=><VolumeFieldPlot key={`${group}-${prop}`} title={`${group==='fields'?'Estimated':group==='trueFields'?'True':group==='errorFields'?'Error':'Sensitivity'} ${prop==='lnK'?'ln(K)':'ln(Ss)'}`} values={v[prop]} config={config} symmetric={group==='errorFields'}/>);})}</div>}
+        {tab === 'map'  && <SignalMap key={scope} config={config} result={result} scope={scope} />}
+        {!blackKipp && !(config.dimension===3&&fieldView==='volume') && tab === 'fields' && result.trueFields && (
           <>
             <div
               className="field-results-grid gap-4 bg-[#111] rounded-xl p-5"
@@ -332,20 +343,20 @@ export const Step5ExploreResults: React.FC<Props> = ({
                 title="True ln(K)"
                 subtitle={`m/s · synthetic ${result.syntheticTruth?.kind ?? 'checkerboard'}`}
                 values={result.trueFields.lnK}
-                config={config}
+                config={fieldConfig}
               />
               <FieldHeatmap
                 title="True ln(Ss)"
                 subtitle={`1/m · synthetic ${result.syntheticTruth?.kind ?? 'checkerboard'}`}
                 values={result.trueFields.lnSs}
-                config={config}
+                config={fieldConfig}
               />
               {result.fields && (
                 <FieldHeatmap
                   title="Estimated ln(K)"
                   subtitle="joint geostatistical inversion"
                   values={result.fields.lnK}
-                  config={config}
+                  config={fieldConfig}
                 />
               )}
               {result.fields && (
@@ -353,7 +364,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
                   title="Estimated ln(Ss)"
                   subtitle="joint geostatistical inversion"
                   values={result.fields.lnSs}
-                  config={config}
+                  config={fieldConfig}
                 />
               )}
             </div>
@@ -369,24 +380,24 @@ export const Step5ExploreResults: React.FC<Props> = ({
             </p>
           </>
         )}
-        {!blackKipp && tab === 'fields' && result.fields && !result.trueFields && (
+        {!blackKipp && !(config.dimension===3&&fieldView==='volume') && tab === 'fields' && result.fields && !result.trueFields && (
           <div className="field-results-grid gap-5 bg-[#111] rounded-xl p-5">
-            <FieldHeatmap title="Estimated ln(K)" subtitle="m/s" values={result.fields.lnK} config={config} />
+            <FieldHeatmap title="Estimated ln(K)" subtitle="m/s" values={result.fields.lnK} config={fieldConfig} />
             <FieldHeatmap
               title="Estimated ln(Ss)"
               subtitle="1/m"
               values={result.fields.lnSs}
-              config={config}
+              config={fieldConfig}
             />
           </div>
         )}
-        {!blackKipp && tab === 'errors' && result.errorFields && (
+        {!blackKipp && !(config.dimension===3&&fieldView==='volume') && tab === 'errors' && result.errorFields && (
           <div className="field-results-grid gap-5 bg-[#111] rounded-xl p-5">
             <FieldHeatmap
               title="ln(K) estimation error"
               subtitle="estimate − synthetic truth"
               values={result.errorFields.lnK}
-              config={config}
+              config={fieldConfig}
               palette="diverging"
               symmetric
             />
@@ -394,26 +405,26 @@ export const Step5ExploreResults: React.FC<Props> = ({
               title="ln(Ss) estimation error"
               subtitle="estimate − synthetic truth"
               values={result.errorFields.lnSs}
-              config={config}
+              config={fieldConfig}
               palette="diverging"
               symmetric
             />
           </div>
         )}
-        {!blackKipp && tab === 'sensitivity' && result.sensitivityFields && (
+        {!blackKipp && !(config.dimension===3&&fieldView==='volume') && tab === 'sensitivity' && result.sensitivityFields && (
           <div className="field-results-grid gap-5 bg-[#111] rounded-xl p-5">
             <FieldHeatmap
               title="ln(K) sensitivity coverage"
               subtitle="log10 column-norm of final Jacobian"
               values={result.sensitivityFields.lnK}
-              config={config}
+              config={fieldConfig}
               palette="plasma"
             />
             <FieldHeatmap
               title="ln(Ss) sensitivity coverage"
               subtitle="log10 column-norm of final Jacobian"
               values={result.sensitivityFields.lnSs}
-              config={config}
+              config={fieldConfig}
               palette="plasma"
             />
           </div>
@@ -523,7 +534,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
             <Metric
               label="Random seed"
               value={result.syntheticTruth.seed == null ? 'Not random' : String(result.syntheticTruth.seed)}
-              note="Field parameters recorded in the report"
+              note={result.syntheticTruth.realization==='matlab_reference'?'MATLAB-generated reference truth':'Custom generator; parameters recorded in report'}
             />
           </>
         ) : result.mode === 'forward' ? (
@@ -563,7 +574,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
           value={
             scope === 'all'
               ? `${config.tests.length} tests`
-              : (config.tests.find((test) => test.id === scope)?.name ?? scope)
+              : (scope.startsWith('period:')?`P = ${scope.slice(7)} s`:(config.tests.find((test) => test.id === scope)?.name ?? scope))
           }
           note={`${visible.length} response pairs shown`}
         />

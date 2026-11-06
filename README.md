@@ -78,7 +78,28 @@ do not launch a second copy. To refresh an already-open UI after rebuilding,
 export any results you need first, then use Ctrl+Shift+R. Project state is
 currently session-only: refreshing clears that tab's configuration and results.
 
-### v1.4.1 update (`webapp-playground` branch)
+### v1.5.1 update (`webapp-playground` branch)
+
+Results now includes **Save & share experiment** (complete CSV or self-contained
+link). Import either on the first Your experiment screen to open **Review inputs**.
+Response-only CSV remains a separate export. Select **3D · spatial volume** in
+Model dimensions for Z coordinates, six-face boundaries, volume slices and a 3D
+well signal map. Review and results now group tests by period. See
+[v1.5 features, exchange format and scientific limits](docs/WEBAPP_V1_5.md).
+The 3D signal map follows the field paper's Figure 4 encodings, with well traces,
+numeric XYZ axes, amplitude sizes, relative phase-delay colors and camera controls.
+Optional site elevations are display annotations supplied by the user.
+In **Examples → Professor’s MATLAB example**, use **View forward results** for
+the original 8,000-cell / 27-port / 1,404-response setup, or **View recovery
+results** for an explicitly reduced 512-cell inversion. Both are saved, genuine
+Python-computed previews. **Load original inputs / Load quick inputs** let you
+walk through configuration, review and rerun instead. Restart the Python server
+after updating to enable the expanded 3D forward acquisition limits.
+The supplied examples are now compared against actual MATLAB R2026a reference
+runs. The 3D presets use identical MATLAB-generated truth inputs, and the prior
+objective uses MATLAB's relative-residual tolerance. See
+[MATLAB comparison scope, tolerances and reproduction](docs/MATLAB_PARITY.md).
+Rerun historical saved outputs before comparing them with the corrected solver.
 
 For this local update, start from the exact repository directory:
 
@@ -130,8 +151,9 @@ preserves its earlier commits.
   test at a time; triangle = pump, circles = observers, size = amplitude, cyclic
   color = raw phasor phase. Available observations are selectable separately
   from predictions. Existing curves, fields, enlarged viewers and exports remain.
-- Geostatistical seeds reproduce the translated Python generator for the same
-  grid. They do **not** promise identical MATLAB random draws. Both synthetic
+- Custom geostatistical seeds reproduce the translated Python generator for the
+  same grid, rather than MATLAB draws. The supplied v1.5.1 3D presets instead
+  use frozen MATLAB-generated reference truth on their matching meshes. Both synthetic
   branches retain the original generating statistics; Black–Kipp remains homogeneous.
 
 See [v1.4 scientific and UI contract](docs/WEBAPP_V1_4.md) for implementation,

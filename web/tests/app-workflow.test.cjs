@@ -24,6 +24,7 @@ function appHarness() {
     vm.runInNewContext(source, { module: loaded, exports: loaded.exports, structuredClone,
       requestAnimationFrame: fn => { fn(); return 1; }, cancelAnimationFrame() {}, window: { confirm: () => approved },
       require: name => {
+        if (name.endsWith('.json')) return {__esModule:true,default:JSON.parse(fs.readFileSync(path.resolve(path.dirname(file),name),'utf8'))};
         if (name === 'react') return hooks;
         if (name.includes('/components/')) return new Proxy({}, { get: (_, key) => { const stub = () => null; stub.displayName = key; return stub; } });
         return name.startsWith('.') ? load(path.resolve(path.dirname(file), name + '.ts')) : require(name);
@@ -122,4 +123,36 @@ test('changing the checkerboard pathway to Black–Kipp cannot submit a hidden s
   app.child('Step2ConfigureModel').onNext(); app.render();
   app.child('Step3ReviewInputs').onNext(); app.render();
   assert.equal(app.child('Step4RunAnalysis').input.analysisMode, 'forward');
+});
+
+
+test('site display annotations preserve completed results and input, while scientific edits invalidate them',()=>{
+  const app=appHarness();app.child('Sidebar').onOpenExamples();app.render();
+  app.child('Step1SelectTestCase').onSelectTestCase('inversion_10s');app.render();
+  app.child('Step2ConfigureModel').onNext();app.render();app.child('Step2ConfigureModel').onNext();app.render();app.child('Step3ReviewInputs').onNext();app.render();
+  const input={analysisMode:'measured_inversion',csv:'retained raw phasors',observationSource:'field'};
+  app.child('Step4RunAnalysis').onChangeInput(input);app.render();
+  app.child('Step4RunAnalysis').onResult({mode:'inversion',analysisMode:'measured_inversion',pairs:[],grid:{nx:50,ny:50}});app.render();
+  app.child('JourneyGuide').onBack(1);app.render();
+  let editor=app.child('Step2ConfigureModel');editor.onChangeConfig({...editor.config,siteContext:{verticalDatum:'local',waterTableZ:12}});app.render();
+  app.child('Step2ConfigureModel').onNext();app.render();app.child('Step2ConfigureModel').onNext();app.render();app.child('Step3ReviewInputs').onNext();app.render();
+  assert.equal(app.child('Step4RunAnalysis').input.csv,input.csv);assert.equal(app.child('Step4RunAnalysis').existingResult.grid.nx,50);
+  app.child('JourneyGuide').onBack(1);app.render();editor=app.child('Step2ConfigureModel');
+  editor.onChangeConfig({...editor.config,wells:editor.config.wells.map((w,i)=>i? w:{...w,x:w.x+1})});app.render();
+  app.child('Step2ConfigureModel').onNext();app.render();app.child('Step2ConfigureModel').onNext();app.render();app.child('Step3ReviewInputs').onNext();app.render();
+  assert.equal(app.child('Step4RunAnalysis').existingResult,null);assert.equal(app.child('Step4RunAnalysis').input.csv,'');
+});
+
+test('MATLAB 3D previews open genuine saved results without replacing the personal experiment', async () => {
+  const app=appHarness();
+  const own=app.child('Step2ConfigureModel');own.onChangeConfig({...own.config,wells:[{id:'mine',name:'Mine',x:1,y:2}]});app.render();
+  app.child('Sidebar').onOpenExamples();app.render();
+  await app.child('Step1SelectTestCase').onPreview('matlab_3d');app.render();
+  const full=app.child('Step5ExploreResults');assert.equal(full.config.tests.length,104);assert.equal(full.result.pairs.length,1404);assert.equal(full.result.analysisMode,'forward');assert.ok(full.result.examplePreview.sourceTreeSha256);
+  app.child('Sidebar').onOpenExamples();app.render();
+  await app.child('Step1SelectTestCase').onPreview('matlab_3d_quick');app.render();
+  assert.ok(app.child('PracticePreviewConfirm')); await app.child('PracticePreviewConfirm').onConfirm();app.render();
+  const quick=app.child('Step5ExploreResults');assert.equal(quick.result.mode,'inversion');assert.equal(quick.result.pairs.length,56);assert.ok(quick.result.fields);assert.equal(quick.config.gridNx,8);
+  app.child('Sidebar').onOpenProject();app.render();
+  assert.equal(app.child('Step2ConfigureModel').config.wells[0].id,'mine');
 });

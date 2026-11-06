@@ -1,13 +1,15 @@
+import { SpatialSignalMap } from './SpatialSignalMap';
+import { matchesScope, periodGroups } from '../../utils/periodGroups';
 import React, { useState } from 'react';
 import { AnalysisResult, ModelConfig, Well } from '../../types/aquifer';
-import { phaseColor, signalRadius, signalValue } from '../../utils/signalMap';
+import { amplitudeLegend, phaseColor, signalRadius, signalValue } from '../../utils/signalMap';
 import { ExpandablePlot } from './ExpandablePlot';
 import { formatPlotNumber, InspectablePoint, PlotInspection } from './PlotInspection';
 import { PlotProbe } from './PlotProbe';
 
 /** One pumping test per map. Do not overlay different pumps/periods into a
  * fictitious experiment, interpolate point data, or invent a pumping response. */
-export function SignalMap({
+function PlanSignalMap({
   config,
   result,
   scope,
@@ -22,7 +24,7 @@ export function SignalMap({
     result.pairs.some((p) => p.measured != null) ? 'measured' : 'predicted',
   );
   const [scale, setScale] = useState<'log' | 'area'>('log');
-  const tests = scope === 'all' ? available : available.filter((t) => t.id === scope);
+  const tests = available.filter(t=>matchesScope(config,scope,t.id));
   const test = tests.find((t) => t.id === selectedId) ?? tests[0];
   if (!test) return null;
   const index = tests.indexOf(test);
@@ -49,6 +51,7 @@ export function SignalMap({
     top = (h - plotH) / 2;
   const sx = (x: number) => left + (x - config.minX) * factor;
   const sy = (y: number) => top + (config.maxY - y) * factor;
+  const position=(well:Well)=>({x:sx(well.x),y:sy(well.y),depth:0});
   const mapDetails = (well: Well) => {
     const pump=well.id===test.pumpingWellId, pair=pairs.find(p=>p.observationWellId===well.id), value=pair?signalValue(pair,source):null;
     return { id:`${test.id}-${well.id}-${source}`, heading:`${test.name} · ${well.name}${pump?' (pump)':''}`, rows:[
@@ -86,11 +89,7 @@ export function SignalMap({
               onChange={(e) => setSelectedId(e.target.value)}
               className="w-full max-w-56 rounded border bg-white p-2 focus-ring"
             >
-              {tests.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} · P = {t.pumpingPeriod ?? config.pumpingPeriod} s
-                </option>
-              ))}
+              {periodGroups(config).map(group=><optgroup key={group.period} label={`P = ${group.period} s`}>{group.tests.filter(t=>tests.some(v=>v.id===t.id)).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>)}
             </select>
           </label>
           <button
@@ -136,12 +135,12 @@ export function SignalMap({
       <PlotInspection key={`${test.id}-${source}-${scale}`}>
         <ExpandablePlot title="Well signal map" showInspection>
           <svg
-            viewBox={`0 0 ${w} ${h}`}
+            viewBox={`0 0 ${w} ${h+90}`}
             className="w-full rounded-lg bg-[#121212]"
             role="group"
             aria-label={`${sourceLabel} amplitude and phase map for ${test.name}`}
           >
-            <rect x={left} y={top} width={plotW} height={plotH} fill="#1d1d1d" stroke="#6B7074" />
+            <g><rect x={left} y={top} width={plotW} height={plotH} fill="#1d1d1d" stroke="#6B7074" />
             {[0, 0.25, 0.5, 0.75, 1].map((t) => (
               <g key={t}>
                 <line x1={left + t * plotW} x2={left + t * plotW} y1={top} y2={top + plotH} stroke="#333" />
@@ -167,12 +166,12 @@ export function SignalMap({
             >
               y (m)
             </text>
-            {config.wells.map((well) => {
+            </g>
+            {[...config.wells].sort((a,b)=>position(b).depth-position(a).depth).map((well) => {
               const pump = well.id === test.pumpingWellId;
               const pair = pairs.find((p) => p.observationWellId === well.id);
               const value = pair ? signalValue(pair, source) : null;
-              const x = sx(well.x),
-                y = sy(well.y);
+              const {x,y} = position(well);
               const radius = value ? signalRadius(value.amplitude, amplitudes, scale) : 4;
               const details = mapDetails(well);
               return (
@@ -211,10 +210,12 @@ export function SignalMap({
                 </InspectablePoint>
               );
             })}
-            <PlotProbe left={left} top={top} width={plotW} height={plotH} points={config.wells.map(well=>({cx:sx(well.x),cy:sy(well.y),details:mapDetails(well)}))} />
+            <PlotProbe left={left} top={top} width={plotW} height={plotH} points={config.wells.map(well=>({cx:position(well).x,cy:position(well).y,details:mapDetails(well)}))} />
+            <g aria-label="Amplitude size legend"><text x="20" y={h+18} fill="#DDE3EA" fontSize="11">Amplitude (m) · {scale==='log'?'log radius':'linear area + minimum marker'}</text>{amplitudeLegend(amplitudes,scale).map(({value,radius},i,entries)=>{const x=60+i*320/Math.max(1,entries.length-1);return <g key={value}><circle cx={x} cy={h+44} r={radius} fill="#94A3B8" fillOpacity=".8" stroke="white"/><text x={x} y={h+77} textAnchor="middle" fill="#DDE3EA" fontSize="11">{Number(value.toExponential(1).split("e")[0])===1?"10":`${value.toExponential(1).split("e")[0]} × 10`}<tspan baselineShift="super" fontSize="8">{Number(value.toExponential(1).split("e")[1])}</tspan></text></g>;})}</g>
           </svg>
         </ExpandablePlot>
       </PlotInspection>
+      <p className="text-xs text-slate-600">Amplitude size scale is shared across all tests for {sourceLabel.toLowerCase()}. {scale==='log'?'Equal radius increments represent orders of magnitude.':'Area grows linearly above the minimum visible area.'} Select a well for its exact value.</p>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[#4B4F52]">
         <span>
           <span className="text-[#C5050C]">▲</span> Pump (not response-scaled)
@@ -247,4 +248,9 @@ export function SignalMap({
       </p></details>
     </section>
   );
+}
+
+/** Dedicated 3D scene; the existing planar map keeps its established semantics. */
+export function SignalMap(props:{config:ModelConfig;result:AnalysisResult;scope:string}) {
+  return props.config.dimension===3?<SpatialSignalMap {...props}/>:<PlanSignalMap {...props}/>;
 }

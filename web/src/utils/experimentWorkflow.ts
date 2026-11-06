@@ -1,12 +1,14 @@
+import { spatialIssues } from './spatial';
 import {
   AnalysisMode,
   AnalysisResult,
   ModelConfig,
   StepId,
   TestCaseType,
+  ExampleType,
   TomographyTest,
 } from '../types/aquifer';
-import { BLACK_KIPP_CONFIG, DEFAULT_INVERSION_CONFIG } from '../data/presets';
+import { BLACK_KIPP_CONFIG, DEFAULT_INVERSION_CONFIG, MATLAB_3D_CONFIG, MATLAB_3D_QUICK_CONFIG } from '../data/presets';
 import { syntheticObservationCsv } from './syntheticObservations';
 
 export interface RunInput {
@@ -54,18 +56,18 @@ export function createExperiment(): ExperimentSession {
   };
 }
 
-export function createExample(type: TestCaseType): ExperimentSession {
+export function createExample(type: ExampleType): ExperimentSession {
   if (type === 'field_data') throw new Error('Raw logger import is not implemented.');
-  const config = structuredClone(type === 'black_kipp' ? BLACK_KIPP_CONFIG : DEFAULT_INVERSION_CONFIG);
+  const config = structuredClone(type === 'matlab_3d' ? MATLAB_3D_CONFIG : type === 'matlab_3d_quick' ? MATLAB_3D_QUICK_CONFIG : type === 'black_kipp' ? BLACK_KIPP_CONFIG : DEFAULT_INVERSION_CONFIG);
   return {
-    name: type === 'black_kipp' ? 'Black–Kipp practice' : 'P = 10 s checkerboard practice',
+    name: type === 'matlab_3d' ? 'MATLAB 3D · original configuration (Python forward)' : type === 'matlab_3d_quick' ? 'MATLAB-inspired 3D · reduced recovery' : type === 'black_kipp' ? 'Black–Kipp practice' : 'P = 10 s checkerboard practice',
     step: 1,
     config,
     result: null,
     selectedTestId: config.tests[0].id,
     forwardSource: null,
     runInput: {
-      analysisMode: type === 'black_kipp' ? 'forward' : 'synthetic_demo',
+      analysisMode: type === 'black_kipp' || type === 'matlab_3d' ? 'forward' : 'synthetic_demo',
       csv: '',
       observationSource: 'synthetic',
     },
@@ -75,7 +77,7 @@ export function createExample(type: TestCaseType): ExperimentSession {
 /** Shared early gate mirrors the API's geometric contract. Do not silently
  * clip coordinates, move wells to cells, or invent a new domain to pass it. */
 export function modelIssues(config: ModelConfig): string[] {
-  const issues: string[] = [];
+  const issues: string[] = spatialIssues(config);
   const { minX, maxX, minY, maxY, gridNx: nx, gridNy: ny, wells, boundaries } = config;
   const max = config.testCase === 'black_kipp' ? 300 : 60;
   if (
@@ -105,12 +107,12 @@ export function modelIssues(config: ModelConfig): string[] {
       issues.push('Keep wells within the outer cell centers; expand the domain or edit coordinates.');
   }
   if (
-    !['west', 'east', 'north', 'south'].some(
+    !(config.dimension === 3 ? ['west','east','north','south','top','bottom'] : ['west', 'east', 'north', 'south']).some(
       (side) => boundaries[side as keyof typeof boundaries] === 'constant_head',
     )
   )
-    issues.push('This solver requires at least one horizontal constant-head edge.');
-  if (boundaries.top !== 'no_flow' || boundaries.bottom !== 'no_flow')
+    issues.push(config.dimension===3?'This solver requires at least one constant-head face.':'This solver requires at least one horizontal constant-head edge.');
+  if (config.dimension !== 3 && (boundaries.top !== 'no_flow' || boundaries.bottom !== 'no_flow'))
     issues.push('The one-layer model requires no-flow top and bottom boundaries.');
   if (
     ![config.initialLnK, config.initialLnSs].every((n) => Number.isFinite(n) && n >= -30 && n <= 0) ||
@@ -130,9 +132,11 @@ export function modelIssues(config: ModelConfig): string[] {
 export function testIssues(config: ModelConfig): string[] {
   const issues = modelIssues(config);
   const ids = new Set(config.wells.map((w) => w.id));
-  if (!config.tests.length || config.tests.length > 30) issues.push('Configure 1–30 tests.');
-  if (config.tests.reduce((n, t) => n + t.observationWellIds.length, 0) > 100)
-    issues.push('The current solver supports at most 100 response pairs.');
+  const testLimit = config.dimension === 3 ? 108 : 30;
+  const pairLimit = config.dimension === 3 ? 1500 : 100;
+  if (!config.tests.length || config.tests.length > testLimit) issues.push(`Configure 1–${testLimit} tests.`);
+  if (config.tests.reduce((n, t) => n + t.observationWellIds.length, 0) > pairLimit)
+    issues.push(`The current ${config.dimension === 3 ? '3D forward' : '2D'} workflow supports at most ${pairLimit} response pairs.`);
   if (new Set(config.tests.map((t) => t.id)).size !== config.tests.length)
     issues.push('Test IDs must be unique.');
   for (const t of config.tests) {
@@ -164,12 +168,12 @@ export function testIssues(config: ModelConfig): string[] {
 /** Transfer actual phasors, never amplitudes/phases rounded for chart display.
  * Keep geometry, roles, periods, rates, boundaries and source grid metadata.
  * A coarser inverse grid is explicit; its discretization error is not erased. */
-export function prepareInversion(source: ExperimentSession, nx: number, ny: number): ExperimentSession {
+export function prepareInversion(source: ExperimentSession, nx: number, ny: number, nz: number = source.config.gridNz??1): ExperimentSession {
   if (!source.result || source.result.analysisMode !== 'forward')
     throw new Error('Complete a forward run before transferring observations.');
   if (![nx, ny].every((n) => Number.isInteger(n) && n >= 3 && n <= 60))
     throw new Error('The inversion grid must have 3–60 whole cells per axis.');
-  if (source.result.grid.nx !== source.config.gridNx || source.result.grid.ny !== source.config.gridNy)
+  if (source.result.grid.nx !== source.config.gridNx || source.result.grid.ny !== source.config.gridNy || (source.config.dimension===3&&source.result.grid.nz!==source.config.gridNz))
     throw new Error('The result grid no longer matches the configured generating model. Run forward again.');
   const expected = new Map<string, TomographyTest>(
     source.config.tests.flatMap((t) => t.observationWellIds.map((id) => [`${t.id}\0${id}`, t] as const)),
@@ -195,8 +199,9 @@ export function prepareInversion(source: ExperimentSession, nx: number, ny: numb
     testCase: 'inversion_10s' as const,
     gridNx: nx,
     gridNy: ny,
+    ...(source.config.dimension===3?{gridNz:nz}:{}),
   };
-  const problems = testIssues(config);
+  const problems = [...testIssues(config), ...spatialIssues(config,true)];
   if (problems.length) throw new Error(problems.join(' '));
   return {
     ...structuredClone(source),

@@ -44,12 +44,14 @@ export function PlotProbe({
     // Listen on the SVG, not a covering hit rectangle: individual point
     // controls remain directly clickable/focusable and never get intercepted.
     const move = (event: PointerEvent) => {
+      if (svg.closest('[data-camera-dragging="true"]')) return;
       if ((event.target as Element).closest('[role="button"]')) return;
       const point = find(event);
       inspection.hover(point?.details ?? null);
     };
     const leave = () => inspection.hover(null);
     const click = (event: MouseEvent) => {
+      if (svg.closest('[data-camera-dragging="true"]')) return;
       if ((event.target as Element).closest('[role="button"]')) return;
       const point = find(event);
       if (point) inspection.pin(point.details);

@@ -6,6 +6,7 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+/build/
 .pytest_cache/
 
 # Generated validation outputs
@@ -24,3 +25,7 @@ web/.parcel-build-backups/
 
 # Temporary design conversion artifacts
 .superdesign/tmp/
+
+# MATLAB batch process logs / crash artifacts
+matlab/generated/*.log
+matlab_crash_dump*

@@ -1,0 +1,15 @@
+{
+  "sourceCommit": "7aa7146ec4d7dce63f0a4a6922ed458d6df56d5f",
+  "rng": "MATLAB randn('state',0)",
+  "fields": {
+    "20": {
+      "sha256": "733f99da6874d09c1a9dee49f5484cef8523b8d1d64f3552c47120eba571f95f",
+      "count": 16000
+    },
+    "8": {
+      "sha256": "a03d8f36a83e685f0ac1cb014c24203a4efcdd7dc4ce2392a9a083cb14a818d2",
+      "count": 1024
+    }
+  },
+  "matlabVersion": "26.1.0.3346908 (R2026a) Update 5"
+}

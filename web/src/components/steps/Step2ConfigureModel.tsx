@@ -1,3 +1,6 @@
+import { SpatialWellMap } from './SpatialWellMap';
+import { SpatialSettings } from './SpatialSettings';
+import { nextTestName } from '../../utils/periodGroups';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Layers,
@@ -62,12 +65,14 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
   const [newWellName, setNewWellName] = useState(`W${config.wells.length + 1}`);
   const [newWellX, setNewWellX] = useState(0);
   const [newWellY, setNewWellY] = useState(0);
+  const [newWellZ,setNewWellZ]=useState(0);
   const [addWellError, setAddWellError] = useState('');
   const [mapHint, setMapHint] = useState('');
   const [editingWellId, setEditingWellId] = useState<string | null>(null);
   const [editWellName, setEditWellName] = useState('');
   const [editWellX, setEditWellX] = useState(0);
   const [editWellY, setEditWellY] = useState(0);
+  const [editWellZ,setEditWellZ]=useState(0);
   const [editWellError, setEditWellError] = useState<string | null>(null);
 
   // Active test being edited/visualized in "Configure Tests" sub-tab
@@ -195,7 +200,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
     setEditingWellId(well.id);
     setEditWellName(well.name);
     setEditWellX(well.x);
-    setEditWellY(well.y);
+    setEditWellY(well.y);setEditWellZ(well.z??0);
     setEditWellError(null);
     // Keep the auto-focused label input active while revealing the edited card.
     revealAfterRender(() => wellRefs.current[well.id], 'nearest', false);
@@ -242,7 +247,8 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
       );
       return;
     }
-    handleUpdateWell(editingWellId, { name, x: editWellX, y: editWellY });
+    if(config.dimension===3){const hz=((config.maxZ??40)-(config.minZ??-40))/(2*(config.gridNz??10));if(!Number.isFinite(editWellZ)||editWellZ<(config.minZ??-40)+hz||editWellZ>(config.maxZ??40)-hz){setEditWellError('Z must lie within the outer cell centers.');return;}}
+    handleUpdateWell(editingWellId, { name, x: editWellX, y: editWellY, ...(config.dimension===3?{z:editWellZ}:{}) });
     handleCancelEditingWell();
   };
 
@@ -272,12 +278,14 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
       setAddWellError('The current solver supports at most 30 wells.');
       return;
     }
+    if(config.dimension===3){const hz=((config.maxZ??40)-(config.minZ??-40))/(2*(config.gridNz??10));if(!Number.isFinite(newWellZ)||newWellZ<(config.minZ??-40)+hz||newWellZ>(config.maxZ??40)-hz){setAddWellError('Z must lie within the outer cell centers.');return;}}
     const id = `w-${crypto.randomUUID()}`;
     const newWell: Well = {
       id,
       name,
       x: newWellX,
       y: newWellY,
+      ...(config.dimension===3?{z:newWellZ}:{}),
     };
 
     onChangeConfig({
@@ -320,8 +328,8 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
 
   // --- Test Configuration Handlers ---
   const handleAddTest = (period: number = config.pumpingPeriod) => {
-    if (config.tests.length >= 30) {
-      alert('At most 30 tests are supported.');
+    if (config.tests.length >= (config.dimension === 3 ? 108 : 30)) {
+      alert(`At most ${config.dimension === 3 ? 108 : 30} tests are supported (${config.dimension === 3 ? '3D forward; inversion is limited to 30' : '2D'}).`);
       return;
     }
     const testNum = config.tests.length + 1;
@@ -331,7 +339,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
 
     const newTest: TomographyTest = {
       id: newTestId,
-      name: `Test ${testNum}`,
+      name: nextTestName(config, period),
       pumpingWellId: firstWellId,
       observationWellIds: remainingWellIds,
       pumpingPeriod: period,
@@ -347,8 +355,8 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
   };
 
   const handleDuplicateTest = (testId: string) => {
-    if (config.tests.length >= 30) {
-      alert('At most 30 tests are supported.');
+    if (config.tests.length >= (config.dimension === 3 ? 108 : 30)) {
+      alert(`At most ${config.dimension === 3 ? 108 : 30} tests are supported (${config.dimension === 3 ? '3D forward; inversion is limited to 30' : '2D'}).`);
       return;
     }
     const testToDup = config.tests.find((t) => t.id === testId);
@@ -646,6 +654,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Form Setup (7 cols) */}
           <div className="lg:col-span-7 space-y-5">
+            <SpatialSettings config={config} onChange={onChangeConfig}/>
             {/* Section: Define Well Positions */}
             <div className="bg-white border border-[#D6DADD] rounded-xl p-4 space-y-3 shadow-xs">
               <div className="flex items-center justify-between border-b border-[#D6DADD] pb-2">
@@ -779,6 +788,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                               />
                             </label>
                           </div>
+                          {config.dimension===3&&<label className="mt-2 block text-xs">Z elevation (m)<NumericInput aria-label="Edit well Z position" value={editWellZ} onValueChange={setEditWellZ} className="mt-1 w-full rounded border p-2 text-black bg-white"/></label>}
                           {editWellError && (
                             <p role="alert" className="mt-1.5 text-[9px] leading-tight text-[#9B0000]">
                               {editWellError}
@@ -815,7 +825,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
 
                         <div className="flex items-center space-x-2 text-[11px] font-mono">
                           <span className={isSelected ? 'text-[#E1E5E7]' : 'text-[#6B7074]'}>
-                            ({w.x}m, {w.y}m)
+                            ({w.x}m, {w.y}m{config.dimension===3?`, ${w.z??0}m`:""})
                           </span>
                           <button
                             type="button"
@@ -908,6 +918,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                     </div>
                   </div>
 
+                  {config.dimension===3&&<label className="block mb-3 text-xs font-semibold">Z elevation (m)<NumericInput aria-label="New well Z position" value={newWellZ} onValueChange={setNewWellZ} className="mt-1 w-full rounded border bg-white p-2"/></label>}
                   <button
                     onClick={handleAddWell}
                     className="w-full bg-[#121212] hover:bg-[#2A2A2A] text-white font-bold text-xs py-1.5 rounded transition focus-ring flex items-center justify-center space-x-1"
@@ -1006,7 +1017,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                 <div className="col-span-2 bg-[#F1F2F3] border border-[#D6DADD] rounded p-2 text-[11px] font-mono flex items-center justify-between text-[#121212]">
                   <span>Total Grid Cells:</span>
                   <span className="font-bold text-[#C5050C]">
-                    {config.gridNx * config.gridNy} cells (
+                    {config.gridNx * config.gridNy * (config.dimension===3?(config.gridNz??1):1)} cells (
                     {((config.maxX - config.minX) / config.gridNx).toFixed(1)}m ×{' '}
                     {((config.maxY - config.minY) / config.gridNy).toFixed(1)}m)
                   </span>
@@ -1104,8 +1115,10 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
               )}
             </div>
 
+
             {/* Navigation Button to Next Sub-tab */}
             <div className="pt-2 flex flex-col items-end gap-3">
+              {editingWellId && <p role="status" className="w-full rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Save or cancel the well you are editing before continuing.</p>}
               {geometryIssues.length > 0 && (
                 <ul
                   className="w-full rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900"
@@ -1134,25 +1147,25 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                 <div className="flex items-center space-x-2">
                   <MapPin className="w-4 h-4 text-[#C5050C]" />
                   <h3 className="font-bold text-xs uppercase tracking-wider text-white">
-                    Well Positions Map
+                    Well Positions Map {config.dimension===3?'· 3D':''}
                   </h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedWellId(null);
+                    if(config.dimension===3){setMapHint('Enter X, Y and Z below to add a port. Drag the 3D map to change the view; click a port to select it.');revealAfterRender(()=>document.querySelector<HTMLElement>('[data-tour="well-entry"]'),'nearest',true);return;}
                     setMapHint(
                       'Click inside the map to pick coordinates for a new well, then confirm with Add Well.',
                     );
                   }}
                   className="shrink-0 rounded border border-[#555] px-2 py-1 text-[10px] hover:bg-[#333] focus-ring"
                 >
-                  Pick new well
+                  {config.dimension===3?'Add well':'Pick new well'}
                 </button>
               </div>
 
-              {/* Neutral SVG Map */}
-              <div className="relative bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-2 flex flex-col items-center justify-center">
+              {config.dimension===3 ? <SpatialWellMap config={config} label="Well positions map" selectedWellId={selectedWellId} onSelectWell={setSelectedWellId} onEditWell={handleStartEditingWell} draft={!selectedWellId?{x:newWellX,y:newWellY,z:newWellZ,name:newWellName}:undefined}/> : <div className="relative bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-2 flex flex-col items-center justify-center">
                 <svg
                   viewBox={`0 0 ${svgWidth} ${svgHeight}`}
                   role="img"
@@ -1289,7 +1302,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                     ? 'drag selected well or click map to relocate'
                     : 'click map to pick a draft location'}
                 </div>
-              </div>
+              </div>}
             </div>
           </div>
         </div>
@@ -1654,7 +1667,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                                         <span>{well.name}</span>
                                       </div>
                                       <span className="text-[10px] font-mono text-[#6B7074]">
-                                        ({well.x}m, {well.y}m)
+                                        ({well.x}m, {well.y}m{config.dimension===3?`, ${well.z??0}m`:''})
                                       </span>
                                     </label>
                                   );
@@ -1706,7 +1719,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
 
                 {/* Interactive SVG Test Map */}
                 <div className="relative bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-2 flex flex-col items-center justify-center">
-                  <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full max-w-[440px] select-none">
+                  {config.dimension===3?<SpatialWellMap config={config} test={activeTest} label="Configured test 3D well roles"/>:<svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full max-w-[440px] select-none">
                     {/* Background Domain */}
                     <rect
                       x={padding}
@@ -1847,7 +1860,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
                         </g>
                       );
                     })}
-                  </svg>
+                  </svg>}
 
                   {/* LEGEND - REQUIREMENT 3: Appears ONLY on Configure Tests screen */}
                   <div className="w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded-lg p-3 mt-2 space-y-1.5 text-xs text-[#E1E5E7]">

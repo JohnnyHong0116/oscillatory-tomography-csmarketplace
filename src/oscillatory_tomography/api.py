@@ -40,6 +40,7 @@ class WellInput(ApiModel):
     name: str = Field(min_length=1)
     x: float
     y: float
+    z: float = 0
 
 
 class TestInput(ApiModel):
@@ -59,6 +60,11 @@ class ObservationInput(ApiModel):
 
 
 class AnalyzeRequest(ApiModel):
+    dimension: Literal[2, 3] = 2
+    minZ: float = -40
+    maxZ: float = 40
+    gridNz: int = Field(default=10, ge=3, le=60)
+    corrLengthZ: float = Field(default=5, gt=0)
     testCase: Literal["inversion_10s", "black_kipp"] = "inversion_10s"
     minX: float
     maxX: float
@@ -70,7 +76,7 @@ class AnalyzeRequest(ApiModel):
     gridNx: int = Field(ge=3, le=300)
     gridNy: int = Field(ge=3, le=300)
     wells: list[WellInput] = Field(min_length=2, max_length=30)
-    tests: list[TestInput] = Field(min_length=1, max_length=30)
+    tests: list[TestInput] = Field(min_length=1, max_length=108)
     boundaries: dict[Literal["west", "east", "south", "north", "top", "bottom"], Literal["constant_head", "no_flow"]]
     initialLnK: float = Field(ge=-30, le=0)
     initialLnSs: float = Field(ge=-30, le=0)
@@ -85,9 +91,35 @@ class AnalyzeRequest(ApiModel):
     # None preserves old clients: homogeneous forward / checkerboard demo.
     syntheticField: Literal["checkerboard", "geostatistical"] | None = None
     syntheticSeed: int = Field(default=0, ge=0, le=4294967295, strict=True)
+    syntheticRealization: Literal["numpy", "matlab_reference"] = "numpy"
 
     @model_validator(mode="after")
     def validate_experiment(self) -> "AnalyzeRequest":
+        if self.syntheticRealization == "matlab_reference" and (
+            self.dimension != 3 or self.syntheticField != "geostatistical" or self.syntheticSeed != 0
+            or self.analysisMode == "measured_inversion"
+            or self.gridNx not in (8,20) or self.gridNy != self.gridNx or self.gridNz != self.gridNx
+            or (self.minX,self.maxX,self.minY,self.maxY,self.minZ,self.maxZ) != (-40,40,-40,40,-40,40)
+        ):
+            raise ValueError("MATLAB reference field requires seed 0, domain -40…40 m on XYZ and a uniform 8³ or 20³ mesh. Choose NumPy realization for a custom field.")
+        # Full upstream 3D acquisition has 104 pumping setups / 1,404 pairs.
+        # Forward runs are sparse solves; dense inverse work retains its budget.
+        large_forward = self.dimension == 3 and self.analysisMode == "forward"
+        test_limit, pair_limit = (108, 1500) if large_forward else (30, 100)
+        if len(self.tests) > test_limit:
+            raise ValueError(f"At most {test_limit} pumping tests are supported for this run mode")
+        if self.dimension == 3:
+            if self.testCase == "black_kipp":
+                raise ValueError("Black-Kipp analytical comparison is a 2D confined-aquifer benchmark; use tomography for 3D")
+            if self.minZ >= self.maxZ:
+                raise ValueError("Z maximum must exceed minimum")
+            # Bound interactive work explicitly; never silently coarsen a mesh.
+            limit = 8000 if self.analysisMode == "forward" else 3600
+            if self.gridNx * self.gridNy * self.gridNz > limit:
+                raise ValueError(f"3D grid exceeds the interactive {limit}-cell limit for this run mode")
+            hz = (self.maxZ-self.minZ)/(2*self.gridNz)
+            if any(not self.minZ+hz <= w.z <= self.maxZ-hz for w in self.wells):
+                raise ValueError("Well Z coordinates must lie within the outer grid cell centers")
         if self.syntheticField is not None and (self.testCase == "black_kipp" or self.analysisMode == "measured_inversion"):
             raise ValueError("Synthetic truth fields require tomography forward or synthetic inversion mode")
         if self.minX >= self.maxX or self.minY >= self.maxY:
@@ -96,9 +128,9 @@ class AnalyzeRequest(ApiModel):
             raise ValueError("All six boundary conditions are required")
         if self.testCase != "black_kipp" and (self.gridNx > 60 or self.gridNy > 60):
             raise ValueError("Tomography inversion grids are limited to 60 x 60 cells")
-        if not any(self.boundaries[side] == "constant_head" for side in ("west", "east", "south", "north")):
-            raise ValueError("At least one horizontal constant-head boundary is required")
-        if self.boundaries["top"] != "no_flow" or self.boundaries["bottom"] != "no_flow":
+        if not any(self.boundaries[side] == "constant_head" for side in (tuple(self.boundaries) if self.dimension == 3 else ("west", "east", "south", "north"))):
+            raise ValueError("At least one constant-head face is required" if self.dimension == 3 else "At least one horizontal constant-head boundary is required")
+        if self.dimension == 2 and (self.boundaries["top"] != "no_flow" or self.boundaries["bottom"] != "no_flow"):
             raise ValueError("The 2D solver requires no-flow top and bottom boundaries")
         well_ids = [well.id for well in self.wells]
         test_ids = [test.id for test in self.tests]
@@ -123,8 +155,8 @@ class AnalyzeRequest(ApiModel):
                 if any((self.wells[well_ids.index(obs_id)].x, self.wells[well_ids.index(obs_id)].y) == (pump.x, pump.y)
                        for obs_id in test.observationWellIds if obs_id in well_ids):
                     raise ValueError("Black-Kipp analytical comparison requires a nonzero pump-observer distance")
-        if len(pairs) > 100:
-            raise ValueError("At most 100 test-observation pairs are supported")
+        if len(pairs) > pair_limit:
+            raise ValueError(f"At most {pair_limit} test-observation pairs are supported for this run mode")
         if self.observations is not None:
             if self.testCase == "black_kipp":
                 raise ValueError("Black-Kipp is a forward-model comparison; measurements belong to tomography inversion")
@@ -189,36 +221,57 @@ def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
     domain = Domain(
         x=np.linspace(request.minX, request.maxX, request.gridNx + 1),
         y=np.linspace(request.minY, request.maxY, request.gridNy + 1),
-        z=np.array([0.0, 1.0]),
+        z=np.linspace(request.minZ, request.maxZ, request.gridNz + 1) if request.dimension == 3 else np.array([0.0, 1.0]),
     )
     sides = ("west", "east", "south", "north", "bottom", "top")
     boundaries = Boundaries(
         types=np.array([int(request.boundaries[side] == "constant_head") for side in sides]),
         values=np.zeros(6),
     )
-    experiments = create_inputs(np.array([[well.x, well.y] for well in wells]), ordered_rows, domain)
-    n_cells = request.gridNx * request.gridNy
+    locations = np.array([[w.x, w.y, w.z] if request.dimension == 3 else [w.x,w.y] for w in wells])
+    experiments = create_inputs(locations, ordered_rows, domain)
+    nz = request.gridNz if request.dimension == 3 else 1
+    n_cells = request.gridNx * request.gridNy * nz
+    volumes = {}
+    def serialize(values, group, prop):
+        if request.dimension == 2:
+            return _field(values, request.gridNy, request.gridNx)
+        # Transport layer-major slices [z][y][x], retaining MATLAB y/x/z ordering internally.
+        volume = values.reshape((request.gridNy, request.gridNx, nz), order="F").transpose(2,0,1)
+        volumes.setdefault(group, {})[prop] = volume.tolist()
+        return volume[nz//2].tolist()
     initial = np.r_[np.full(n_cells, request.initialLnK), np.full(n_cells, request.initialLnSs)]
     truth_kind = request.syntheticField or ("checkerboard" if request.analysisMode == "synthetic_demo" else None)
-    truth = synthetic_parameters(domain, truth_kind, request.syntheticSeed) if truth_kind else None
+    truth = synthetic_parameters(domain, truth_kind, request.syntheticSeed, request.syntheticRealization) if truth_kind else None
     simulation_parameters = truth if truth is not None else initial
     forward = lambda params: run_distributed_k_ss(params, domain, boundaries, experiments, 1)
-    # Solve each configured pumping test separately. This produces truthful
-    # per-test completion events for the run screen while retaining the joint
-    # experiment for the subsequent inversion and final prediction.
+    # Small interactive experiments solve per test for detailed progress. For
+    # the full 3D acquisition, batch each period using the scientific core's
+    # existing shared-frequency solve (as the MATLAB script does). Rebuilding
+    # and factoring an 8,000-cell matrix 104 times needlessly slows the example.
+    # Completion events are emitted only after that period's solve has returned.
     predicted = np.empty(2 * len(ordered_rows), dtype=float)
     inversion_requested = request.analysisMode in ("synthetic_demo", "measured_inversion")
     forward_span = 40 if inversion_requested else 88
-    for test_number, test in enumerate(request.tests):
-        positions = [i for i, (mapped_test, _) in enumerate(ordered_mapping) if mapped_test.id == test.id]
+    groups = [[test] for test in request.tests]
+    if request.dimension == 3 and len(request.tests) > 30:
+        periods = dict.fromkeys(test.pumpingPeriod for test in request.tests)
+        groups = [[test for test in request.tests if test.pumpingPeriod == period] for period in periods]
+    completed_count = 0
+    for group in groups:
+        ids = {test.id for test in group}
+        positions = [i for i, (mapped_test, _) in enumerate(ordered_mapping) if mapped_test.id in ids]
         if progress:
-            progress("forward", 5 + int(forward_span * test_number / len(request.tests)), test.id, f"Solving {test.name}")
-        subset = create_inputs(np.array([[well.x, well.y] for well in wells]), ordered_rows[positions], domain)
+            message = f"Solving P = {group[0].pumpingPeriod:g} s ({len(group)} pumping tests)" if len(group) > 1 else f"Solving {group[0].name}"
+            progress("forward", 5 + int(forward_span * completed_count / len(request.tests)), group[0].id, message)
+        subset = create_inputs(locations, ordered_rows[positions], domain)
         values = run_distributed_k_ss(simulation_parameters, domain, boundaries, subset, 1)
         predicted[positions] = values[:len(positions)]
         predicted[np.asarray(positions) + len(ordered_rows)] = values[len(positions):]
-        if progress:
-            progress("forward", 5 + int(forward_span * (test_number + 1) / len(request.tests)), test.id, f"Completed {test.name}")
+        for test in group:
+            completed_count += 1
+            if progress:
+                progress("forward", 5 + int(forward_span * completed_count / len(request.tests)), test.id, f"Completed {test.name}")
     mode = "forward"
     iterations = 0
     objective = None
@@ -235,8 +288,8 @@ def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
         # concatenating those solves should not become inversion input.
         measured = forward(truth) if inversion_requested else None
         true_fields = {
-            "lnK": _field(truth[:n_cells], request.gridNy, request.gridNx),
-            "lnSs": _field(truth[n_cells:], request.gridNy, request.gridNx),
+            "lnK": serialize(truth[:n_cells], "trueFields", "lnK"),
+            "lnSs": serialize(truth[n_cells:], "trueFields", "lnSs"),
         }
     elif request.observations is not None:
         by_pair = {(item.testId, item.wellId): item for item in request.observations}
@@ -250,9 +303,9 @@ def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
             progress("inversion", 48, None, "Starting joint geostatistical inversion")
         coordinates, _ = plaid_cellcenter_coord(domain)
         distances = dimdist(coordinates[0:1], coordinates)[0]
-        correlation = np.exp(-np.sqrt((distances[:, 0] / request.corrLengthX) ** 2 + (distances[:, 1] / request.corrLengthY) ** 2))
+        correlation = np.exp(-np.sqrt((distances[:, 0] / request.corrLengthX) ** 2 + (distances[:, 1] / request.corrLengthY) ** 2 + ((distances[:, 2] / request.corrLengthZ) ** 2 if request.dimension == 3 else 0)))
         covariance_rows = (4.0 * correlation, 0.1 * correlation)
-        covariance = lambda values: covariance_product_k_ss(covariance_rows, values, (request.gridNy, request.gridNx))
+        covariance = lambda values: covariance_product_k_ss(covariance_rows, values, ((request.gridNy, request.gridNx, nz) if request.dimension == 3 else (request.gridNy, request.gridNx)))
         drift = np.block([[np.ones((n_cells, 1)), np.zeros((n_cells, 1))], [np.zeros((n_cells, 1)), np.ones((n_cells, 1))]])
         def report_iteration(iteration: int, nlap: float) -> None:
             objective_history.append({"iteration": iteration, "objective": float(nlap)})
@@ -269,18 +322,18 @@ def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
         )
         predicted = forward(inverted.parameters)
         fields = {
-            "lnK": _field(inverted.parameters[:n_cells], request.gridNy, request.gridNx),
-            "lnSs": _field(inverted.parameters[n_cells:], request.gridNy, request.gridNx),
+            "lnK": serialize(inverted.parameters[:n_cells], "fields", "lnK"),
+            "lnSs": serialize(inverted.parameters[n_cells:], "fields", "lnSs"),
         }
         if truth is not None:
             error_fields = {
-                "lnK": _field(inverted.parameters[:n_cells] - truth[:n_cells], request.gridNy, request.gridNx),
-                "lnSs": _field(inverted.parameters[n_cells:] - truth[n_cells:], request.gridNy, request.gridNx),
+                "lnK": serialize(inverted.parameters[:n_cells] - truth[:n_cells], "errorFields", "lnK"),
+                "lnSs": serialize(inverted.parameters[n_cells:] - truth[n_cells:], "errorFields", "lnSs"),
             }
         sensitivity = np.asarray(inverted.sensitivity)
         sensitivity_fields = {
-            "lnK": _field(np.log10(np.sqrt(np.sum(sensitivity[:, :n_cells] ** 2, axis=0)) + 1e-30), request.gridNy, request.gridNx),
-            "lnSs": _field(np.log10(np.sqrt(np.sum(sensitivity[:, n_cells:] ** 2, axis=0)) + 1e-30), request.gridNy, request.gridNx),
+            "lnK": serialize(np.log10(np.sqrt(np.sum(sensitivity[:, :n_cells] ** 2, axis=0)) + 1e-30), "sensitivityFields", "lnK"),
+            "lnSs": serialize(np.log10(np.sqrt(np.sum(sensitivity[:, n_cells:] ** 2, axis=0)) + 1e-30), "sensitivityFields", "lnSs"),
         }
         mode = "inversion"
         iterations = inverted.iterations
@@ -297,7 +350,7 @@ def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
             "pumpingWellId": pump.id, "pumpingWellName": pump.name,
             "observationWellId": observation_well.id, "observationWellName": observation_well.name,
             "periodSeconds": test.pumpingPeriod, "pumpingRateM3PerSecond": test.pumpingRate,
-            "distanceMeters": float(np.hypot(pump.x - observation_well.x, pump.y - observation_well.y)),
+            "distanceMeters": float(np.linalg.norm([pump.x-observation_well.x, pump.y-observation_well.y, pump.z-observation_well.z])) if request.dimension == 3 else float(np.hypot(pump.x-observation_well.x, pump.y-observation_well.y)),
             "predicted": {"real": float(phasor.real), "imag": float(phasor.imag),
                           "amplitude": float(abs(phasor)), "phaseDegrees": float(np.angle(phasor, deg=True))},
             "measured": measured_pair,
@@ -345,18 +398,26 @@ def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
             lnKFieldRmse=float(np.sqrt(np.mean((np.asarray(fields["lnK"]) - np.asarray(true_fields["lnK"])) ** 2))),
             lnSsFieldRmse=float(np.sqrt(np.mean((np.asarray(fields["lnSs"]) - np.asarray(true_fields["lnSs"])) ** 2))),
         )
-    return {"mode": mode, "analysisMode": request.analysisMode, "pairs": pairs, "fields": fields,
+        if request.dimension == 3:
+            # Summaries cover the entire volume, not the compatibility middle slice.
+            diagnostics.update(
+                lnKFieldRmse=float(np.sqrt(np.mean((inverted.parameters[:n_cells]-truth[:n_cells])**2))),
+                lnSsFieldRmse=float(np.sqrt(np.mean((inverted.parameters[n_cells:]-truth[n_cells:])**2))),
+            )
+    return {"solverRevision": "matlab-parity-1", "mode": mode, "analysisMode": request.analysisMode, "pairs": pairs, "fields": fields,
             "syntheticTruth": None if truth_kind is None else {"kind": truth_kind, "seed": request.syntheticSeed if truth_kind == "geostatistical" else None,
+                "realization": request.syntheticRealization,
                 "meanLnK": -9.2, "meanLnSs": -11.2,
-                "parameters": {"checkLengthX": 10, "checkLengthY": 10, "jumpLnK": 1, "jumpLnSs": 0.05} if truth_kind == "checkerboard" else
-                    {"varianceLnK": 4, "varianceLnSs": 0.1, "correlationLengthX": 20, "correlationLengthY": 20, "covariance": "exponential"}},
+                "parameters": {"checkLengthX": 15 if request.dimension == 3 else 10, "checkLengthY": 15 if request.dimension == 3 else 10, **({"checkLengthZ": 15} if request.dimension == 3 else {}), "jumpLnK": 1, "jumpLnSs": 0.05} if truth_kind == "checkerboard" else
+                    {"varianceLnK": 4, "varianceLnSs": 0.1, "correlationLengthX": 20, "correlationLengthY": 20, "covariance": "exponential", **({"correlationLengthZ": 4} if request.dimension == 3 else {})}},
             "trueFields": true_fields, "errorFields": error_fields, "sensitivityFields": sensitivity_fields,
             "objectiveHistory": objective_history, "diagnostics": diagnostics, "iterations": iterations,
             "objective": objective, "runtimeSeconds": perf_counter() - started,
-            "grid": {"nx": request.gridNx, "ny": request.gridNy}}
+            "dimension": request.dimension, "volumeFields": volumes or None,
+            "grid": {"nx": request.gridNx, "ny": request.gridNy, **({"nz": nz} if request.dimension == 3 else {})}}
 
 
-app = FastAPI(title="Oscillatory Tomography API", version="1.4.1")
+app = FastAPI(title="Oscillatory Tomography API", version="1.5.1")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:1234", "http://127.0.0.1:1234"], allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
 

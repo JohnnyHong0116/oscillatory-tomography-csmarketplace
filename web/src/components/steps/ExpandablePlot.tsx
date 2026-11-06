@@ -47,8 +47,8 @@ export function ExpandablePlot({ title, children, square = false, showInspection
     onKeyDown={event => {
       if (!expanded) return;
       if (event.key === 'Tab') {
-        const targets = Array.from(root.current!.querySelectorAll<HTMLElement>('button, [tabindex="0"], summary, a[href]'))
-          .filter(element => !element.hasAttribute('disabled') && element.getClientRects().length > 0);
+        const targets = Array.from(root.current!.querySelectorAll<HTMLElement>('button, input, select, textarea, [tabindex="0"], summary, a[href]'))
+          .filter(element => !element.hasAttribute('disabled') && element.tabIndex >= 0 && element.getClientRects().length > 0);
         const first = targets[0], last = targets[targets.length - 1];
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -69,6 +69,6 @@ export function ExpandablePlot({ title, children, square = false, showInspection
     </div>
     {!expanded && <button ref={trigger} type="button" onClick={() => { setInlineHeight(root.current?.getBoundingClientRect().height); setExpanded(true); }}
       aria-label={`Enlarge ${title}`} title="Enlarge plot"
-      className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300/60 bg-white/70 text-slate-700 shadow-sm backdrop-blur-sm opacity-0 transition duration-200 hover:bg-white/95 hover:scale-105 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 focus-ring [@media(hover:none)]:opacity-100 motion-reduce:transition-none motion-reduce:hover:scale-100"><Maximize2 size={17} /></button>}
+      className="plot-enlarge-button absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300/60 bg-white/70 text-slate-700 shadow-sm backdrop-blur-sm opacity-0 transition duration-200 hover:bg-white/95 hover:scale-105 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 focus-ring [@media(hover:none)]:opacity-100 motion-reduce:transition-none motion-reduce:hover:scale-100"><Maximize2 size={17} /></button>}
   </div></div>;
 }

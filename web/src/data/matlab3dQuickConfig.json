@@ -1,0 +1,323 @@
+{
+  "testCase": "inversion_10s",
+  "dimension": 3,
+  "minX": -40,
+  "maxX": 40,
+  "minY": -40,
+  "maxY": 40,
+  "minZ": -40,
+  "maxZ": 40,
+  "gridNx": 8,
+  "gridNy": 8,
+  "gridNz": 8,
+  "corrLengthZ": 5,
+  "pumpingPeriod": 5,
+  "pumpingRate": 0.006283185307179587,
+  "wells": [
+    {
+      "id": "w-1",
+      "name": "W1",
+      "x": -20,
+      "y": -20,
+      "z": -20
+    },
+    {
+      "id": "w-2",
+      "name": "W2",
+      "x": -20,
+      "y": 0,
+      "z": -20
+    },
+    {
+      "id": "w-3",
+      "name": "W3",
+      "x": -20,
+      "y": 20,
+      "z": -20
+    },
+    {
+      "id": "w-4",
+      "name": "W4",
+      "x": 0,
+      "y": -20,
+      "z": -20
+    },
+    {
+      "id": "w-5",
+      "name": "W5",
+      "x": 0,
+      "y": 0,
+      "z": -20
+    },
+    {
+      "id": "w-6",
+      "name": "W6",
+      "x": 0,
+      "y": 20,
+      "z": -20
+    },
+    {
+      "id": "w-7",
+      "name": "W7",
+      "x": 20,
+      "y": -20,
+      "z": -20
+    },
+    {
+      "id": "w-8",
+      "name": "W8",
+      "x": 20,
+      "y": 0,
+      "z": -20
+    },
+    {
+      "id": "w-9",
+      "name": "W9",
+      "x": 20,
+      "y": 20,
+      "z": -20
+    },
+    {
+      "id": "w-10",
+      "name": "W10",
+      "x": -20,
+      "y": -20,
+      "z": 0
+    },
+    {
+      "id": "w-11",
+      "name": "W11",
+      "x": -20,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "id": "w-12",
+      "name": "W12",
+      "x": -20,
+      "y": 20,
+      "z": 0
+    },
+    {
+      "id": "w-13",
+      "name": "W13",
+      "x": 0,
+      "y": -20,
+      "z": 0
+    },
+    {
+      "id": "w-14",
+      "name": "W14",
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "id": "w-15",
+      "name": "W15",
+      "x": 0,
+      "y": 20,
+      "z": 0
+    },
+    {
+      "id": "w-16",
+      "name": "W16",
+      "x": 20,
+      "y": -20,
+      "z": 0
+    },
+    {
+      "id": "w-17",
+      "name": "W17",
+      "x": 20,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "id": "w-18",
+      "name": "W18",
+      "x": 20,
+      "y": 20,
+      "z": 0
+    },
+    {
+      "id": "w-19",
+      "name": "W19",
+      "x": -20,
+      "y": -20,
+      "z": 20
+    },
+    {
+      "id": "w-20",
+      "name": "W20",
+      "x": -20,
+      "y": 0,
+      "z": 20
+    },
+    {
+      "id": "w-21",
+      "name": "W21",
+      "x": -20,
+      "y": 20,
+      "z": 20
+    },
+    {
+      "id": "w-22",
+      "name": "W22",
+      "x": 0,
+      "y": -20,
+      "z": 20
+    },
+    {
+      "id": "w-23",
+      "name": "W23",
+      "x": 0,
+      "y": 0,
+      "z": 20
+    },
+    {
+      "id": "w-24",
+      "name": "W24",
+      "x": 0,
+      "y": 20,
+      "z": 20
+    },
+    {
+      "id": "w-25",
+      "name": "W25",
+      "x": 20,
+      "y": -20,
+      "z": 20
+    },
+    {
+      "id": "w-26",
+      "name": "W26",
+      "x": 20,
+      "y": 0,
+      "z": 20
+    },
+    {
+      "id": "w-27",
+      "name": "W27",
+      "x": 20,
+      "y": 20,
+      "z": 20
+    }
+  ],
+  "initialLnK": -9,
+  "initialLnSs": -11,
+  "dataErrorVar": 1e-08,
+  "corrLengthX": 15,
+  "corrLengthY": 15,
+  "maxIterations": 30,
+  "syntheticField": "geostatistical",
+  "syntheticSeed": 0,
+  "boundaries": {
+    "west": "constant_head",
+    "east": "constant_head",
+    "south": "constant_head",
+    "north": "constant_head",
+    "top": "constant_head",
+    "bottom": "constant_head"
+  },
+  "examplePreset": "matlab_3d_quick",
+  "tests": [
+    {
+      "id": "quick-p-5",
+      "name": "P = 5 s \u00b7 W14",
+      "pumpingWellId": "w-14",
+      "observationWellIds": [
+        "w-1",
+        "w-3",
+        "w-5",
+        "w-7",
+        "w-9",
+        "w-11",
+        "w-13",
+        "w-15",
+        "w-17",
+        "w-19",
+        "w-21",
+        "w-23",
+        "w-25",
+        "w-27"
+      ],
+      "pumpingPeriod": 5,
+      "pumpingRate": 0.006283185307179587,
+      "status": "pending"
+    },
+    {
+      "id": "quick-p-10",
+      "name": "P = 10 s \u00b7 W14",
+      "pumpingWellId": "w-14",
+      "observationWellIds": [
+        "w-1",
+        "w-3",
+        "w-5",
+        "w-7",
+        "w-9",
+        "w-11",
+        "w-13",
+        "w-15",
+        "w-17",
+        "w-19",
+        "w-21",
+        "w-23",
+        "w-25",
+        "w-27"
+      ],
+      "pumpingPeriod": 10,
+      "pumpingRate": 0.0031415926535897933,
+      "status": "pending"
+    },
+    {
+      "id": "quick-p-50",
+      "name": "P = 50 s \u00b7 W14",
+      "pumpingWellId": "w-14",
+      "observationWellIds": [
+        "w-1",
+        "w-3",
+        "w-5",
+        "w-7",
+        "w-9",
+        "w-11",
+        "w-13",
+        "w-15",
+        "w-17",
+        "w-19",
+        "w-21",
+        "w-23",
+        "w-25",
+        "w-27"
+      ],
+      "pumpingPeriod": 50,
+      "pumpingRate": 0.0006283185307179587,
+      "status": "pending"
+    },
+    {
+      "id": "quick-p-100",
+      "name": "P = 100 s \u00b7 W14",
+      "pumpingWellId": "w-14",
+      "observationWellIds": [
+        "w-1",
+        "w-3",
+        "w-5",
+        "w-7",
+        "w-9",
+        "w-11",
+        "w-13",
+        "w-15",
+        "w-17",
+        "w-19",
+        "w-21",
+        "w-23",
+        "w-25",
+        "w-27"
+      ],
+      "pumpingPeriod": 100,
+      "pumpingRate": 0.00031415926535897936,
+      "status": "pending"
+    }
+  ],
+  "syntheticRealization": "matlab_reference"
+}

@@ -11,7 +11,7 @@ function loadSource(file) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   vm.runInNewContext(source, { module: loaded, exports: loaded.exports,
-    require: specifier => specifier.startsWith('.') ? loadSource(path.resolve(path.dirname(file), specifier + '.ts')) : require(specifier) });
+    require: specifier => specifier.endsWith('.json') ? {__esModule:true,default:JSON.parse(fs.readFileSync(path.resolve(path.dirname(file),specifier),'utf8'))} : specifier.startsWith('.') ? loadSource(path.resolve(path.dirname(file), specifier + '.ts')) : require(specifier) });
   return loaded.exports;
 }
 const root = path.join(__dirname, '../src');

@@ -1,4 +1,12 @@
 import { ModelConfig } from '../types/aquifer';
+import matlab3d from './matlab3dConfig.json';
+import matlab3dQuick from './matlab3dQuickConfig.json';
+
+/** Canonical, reviewable inputs also consumed by the reproducible Python preview
+ * generator. Original geometry, periods and Qmax rule follow upstream 7aa7146.
+ * Python seed 0 is reproducible, but is not MATLAB randn('state',0) parity. */
+export const MATLAB_3D_CONFIG = matlab3d as ModelConfig;
+export const MATLAB_3D_QUICK_CONFIG = matlab3dQuick as ModelConfig;
 
 /** Faithful browser preset for examples/testing_inversion_2d_geostat.py.
  *  The eight tests contain the original 36 unique pump/observer pairs. */

@@ -8,7 +8,7 @@ function load(relative, extras = {}) {
   const loaded = { exports: {} };
   const source = fs.readFileSync(path.join(__dirname, '../src', relative), 'utf8');
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
-    { module: loaded, exports: loaded.exports, require, ...extras });
+    { module: loaded, exports: loaded.exports, require: name => name.endsWith('.json') ? {__esModule:true,default:JSON.parse(fs.readFileSync(path.resolve(__dirname,'../src',path.dirname(relative),name),'utf8'))} : require(name), ...extras });
   return loaded.exports;
 }
 const { makePeriods, wellSetups, sweepTests } = load('utils/periodSweep.ts');

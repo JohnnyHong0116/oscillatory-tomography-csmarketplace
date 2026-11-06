@@ -26,6 +26,7 @@ function loader(overrides = {}) {
       exports: mod.exports,
       structuredClone,
       require: (name) => {
+        if (name.endsWith('.json')) return {__esModule:true,default:JSON.parse(fs.readFileSync(path.resolve(path.dirname(file),name),'utf8'))};
         if (overrides[name]) return overrides[name];
         if (!name.startsWith(".")) return require(name);
         const base = path.resolve(path.dirname(file), name);

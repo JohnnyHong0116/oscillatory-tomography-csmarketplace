@@ -5,8 +5,11 @@ import { ModelConfig } from '../types/aquifer';
  * Matching inputs is not a claim of bit-for-bit MATLAB/Python result parity. */
 function numericalInputs(config: ModelConfig) {
   return {
+    dimension: config.dimension??2,
+    ...(config.dimension===3?{z:[config.minZ,config.maxZ,config.gridNz,config.corrLengthZ],wellZ:config.wells.map(w=>w.z)}:{}),
     testCase: config.testCase,
     syntheticField: config.syntheticField ?? 'checkerboard',
+    syntheticRealization: config.syntheticRealization ?? 'numpy',
     syntheticSeed: config.syntheticField === 'geostatistical' ? (config.syntheticSeed ?? 0) : null,
     domain: [config.minX, config.maxX, config.minY, config.maxY, config.gridNx, config.gridNy],
     priors: [
@@ -50,14 +53,14 @@ export function scientificDesignSummary(config: ModelConfig) {
     for (const id of test.observationWellIds) {
       const observer = config.wells.find((well) => well.id === id);
       if (observer)
-        shortestDistance = Math.min(shortestDistance, Math.hypot(observer.x - pump.x, observer.y - pump.y));
+        shortestDistance = Math.min(shortestDistance, Math.hypot(observer.x - pump.x, observer.y - pump.y,config.dimension===3?(observer.z??0)-(pump.z??0):0));
     }
   }
   return {
     periods: periods.length,
     pairs,
     realComponents: pairs * 2,
-    unknowns: config.gridNx * config.gridNy * 2,
+    unknowns: config.gridNx * config.gridNy * (config.dimension===3?(config.gridNz??1):1) * 2,
     dx,
     dy,
     shortestDistance: Number.isFinite(shortestDistance) ? shortestDistance : null,

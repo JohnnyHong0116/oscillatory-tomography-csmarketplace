@@ -33,7 +33,7 @@ export function ScientificSetupSummary({ config }: { config: ModelConfig }) {
         <div>
           <dt>Cell resolution</dt>
           <dd className="font-semibold">
-            {summary.dx.toPrecision(4)} × {summary.dy.toPrecision(4)} m
+            {summary.dx.toPrecision(4)} × {summary.dy.toPrecision(4)}{config.dimension===3?` × ${(((config.maxZ??40)-(config.minZ??-40))/(config.gridNz??1)).toPrecision(4)}`:""} m
           </dd>
         </div>
       </dl>
@@ -62,8 +62,7 @@ export function ScientificSetupSummary({ config }: { config: ModelConfig }) {
         field averages.
       </p>
       <p className="text-slate-600">
-        Model scope: one horizontal layer with unit thickness; no-flow top/bottom. Coordinates are local
-        Cartesian x/y in meters, not latitude/longitude. Phasor heads use meters; pumping rate uses m³/s.
+        Model scope: {config.dimension===3?'3D finite-volume model with point ports and configured six-face boundaries.':'One horizontal layer with unit thickness; no-flow top/bottom.'} Coordinates are local Cartesian {config.dimension===3?'x/y/z':'x/y'} in meters, not latitude/longitude. Phasor heads use meters; pumping rate uses m³/s.
       </p>
     </aside>
   );

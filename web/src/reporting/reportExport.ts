@@ -40,7 +40,7 @@ const titleFor = (config: ModelConfig) =>
 
 export const summaryFor = (config: ModelConfig, result: AnalysisResult) =>
   (config.testCase === 'black_kipp'
-    ? `${config.gridNx} x ${config.gridNy} finite-difference model across ${new Set(config.tests.map((test) => test.pumpingPeriod ?? config.pumpingPeriod)).size} periods compared with the Cardiff-corrected Black-Kipp analytical solution.`
+    ? `${config.gridNx} x ${config.gridNy}${config.dimension===3?` x ${config.gridNz}`:""} finite-difference model across ${new Set(config.tests.map((test) => test.pumpingPeriod ?? config.pumpingPeriod)).size} periods compared with the Cardiff-corrected Black-Kipp analytical solution.`
     : result.analysisMode === 'synthetic_demo'
       ? `${result.syntheticTruth?.kind ?? 'Checkerboard'} synthetic experiment and joint geostatistical inversion at the configured periods and pumping amplitudes.`
       : result.observationSource === 'synthetic'
@@ -60,7 +60,7 @@ export const summaryFor = (config: ModelConfig, result: AnalysisResult) =>
           truth.parameters,
         )
           .map(([key, value]) => `${key}=${value}`)
-          .join(', ')}. Random realizations reproduce the Python generator, not MATLAB RNG draws.`;
+          .join(', ')}. ${truth.realization === 'matlab_reference' ? "Truth values are frozen from MATLAB randn('state',0); Python computes all outputs." : 'Custom random realizations reproduce the Python generator, not MATLAB RNG draws.'}`;
       })()
     : '');
 
@@ -158,12 +158,12 @@ export function buildReportData(config: ModelConfig, result: AnalysisResult) {
             : 'none'),
       forwardInput: result.forwardInput ?? null,
       syntheticTruth: result.syntheticTruth ?? null,
-      domainMeters: { minX: config.minX, maxX: config.maxX, minY: config.minY, maxY: config.maxY },
-      grid: { nx: config.gridNx, ny: config.gridNy, cells: config.gridNx * config.gridNy },
+      domainMeters: { minX: config.minX, maxX: config.maxX, minY: config.minY, maxY: config.maxY, ...(config.dimension===3?{minZ:config.minZ,maxZ:config.maxZ}:{}) },
+      grid: { nx: config.gridNx, ny: config.gridNy, nz: config.dimension===3?config.gridNz:1, cells: config.gridNx * config.gridNy * (config.dimension===3?(config.gridNz??1):1) },
       initialLnK: config.initialLnK,
       initialLnSs: config.initialLnSs,
       dataErrorVariance: config.dataErrorVar,
-      correlationLengthMeters: { x: config.corrLengthX, y: config.corrLengthY },
+      correlationLengthMeters: { x: config.corrLengthX, y: config.corrLengthY, ...(config.dimension===3?{z:config.corrLengthZ}:{}) },
       boundaries: config.boundaries,
       wells: config.wells,
       tests: config.tests,
@@ -176,6 +176,7 @@ export function buildReportData(config: ModelConfig, result: AnalysisResult) {
       objectiveHistory: result.objectiveHistory,
     },
     responses: result.pairs,
+    volumeFields: result.volumeFields??null,
     fields: {
       true: result.trueFields,
       estimated: result.fields,
@@ -183,8 +184,10 @@ export function buildReportData(config: ModelConfig, result: AnalysisResult) {
       logSensitivityCoverage: result.sensitivityFields,
     },
     assumptions: [
-      'One horizontal layer with unit thickness.',
-      'No flow through the top and bottom boundaries.',
+      `Solver revision: ${result.solverRevision ?? 'historical / unrecorded; rerun before comparing with current MATLAB references'}.`,
+      ...(result.examplePreview ? [`Saved computed example: ${result.examplePreview.generatedAt}. ${result.examplePreview.note} ${result.examplePreview.randomNote}`] : []),
+      config.dimension===3?'3D volume; local Z is elevation, positive upward. Point ports, not screened intervals.':'One horizontal layer with unit thickness.',
+      config.dimension===3?`Six-face boundary conditions: ${JSON.stringify(config.boundaries)}. Zero head perturbation on constant-head faces.`:'No flow through the top and bottom boundaries.',
     ],
   };
 }
@@ -205,7 +208,7 @@ function markdown(config: ModelConfig, result: AnalysisResult) {
     '',
     `- Analysis mode: ${result.analysisMode}`,
     `- Domain: x ${config.minX} to ${config.maxX} m; y ${config.minY} to ${config.maxY} m`,
-    `- Grid: ${config.gridNx} x ${config.gridNy} (${config.gridNx * config.gridNy} cells)`,
+    `- Grid: ${config.gridNx} x ${config.gridNy}${config.dimension===3?` x ${config.gridNz}`:""} (${config.gridNx * config.gridNy * (config.dimension===3?(config.gridNz??1):1)} cells)`,
     `- Wells: ${config.wells.length}`,
     `- Tests: ${config.tests.length}`,
     `- Response pairs: ${result.pairs.length}`,
@@ -263,7 +266,7 @@ function html(config: ModelConfig, result: AnalysisResult) {
   const comparisonHtml = comparison
     ? `<h2>Comparison diagnostics</h2><dl><dt>Mean relative amplitude error</dt><dd>${comparison.meanAmplitudeErrorPercent.toFixed(5)}%</dd><dt>Mean absolute phase error</dt><dd>${comparison.meanPhaseErrorDegrees.toFixed(5)} deg</dd></dl>`
     : '';
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(data.title)}</title><style>body{font:14px/1.5 Inter,Arial,sans-serif;color:#171717;max-width:1100px;margin:40px auto;padding:0 24px}h1{border-bottom:4px solid #c5050c;padding-bottom:12px}h2{margin-top:30px}dl{display:grid;grid-template-columns:220px 1fr;gap:6px 18px;background:#f5f5f5;padding:18px}dt{font-weight:700}dd{margin:0}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:10px}th,td{border:1px solid #ddd;padding:5px;text-align:left;white-space:nowrap}th{background:#171717;color:white}tr:nth-child(even){background:#f7f7f7}.note{color:#555}@media print{body{margin:0}.page-break{break-before:page}}</style></head><body><h1>${escapeHtml(data.title)}</h1><p>${escapeHtml(data.summary)}</p><p class="note">Generated ${escapeHtml(data.generatedAt)}</p><h2>Experiment summary</h2><dl><dt>Analysis mode</dt><dd>${escapeHtml(result.analysisMode)}</dd><dt>Domain</dt><dd>x ${config.minX} to ${config.maxX} m; y ${config.minY} to ${config.maxY} m</dd><dt>Grid</dt><dd>${config.gridNx} x ${config.gridNy}</dd><dt>Wells / tests / responses</dt><dd>${config.wells.length} / ${config.tests.length} / ${result.pairs.length}</dd><dt>Runtime</dt><dd>${result.runtimeSeconds.toFixed(3)} s</dd><dt>Iterations / objective</dt><dd>${result.iterations} / ${result.objective?.toPrecision(7) ?? 'N/A'}</dd></dl>${comparisonHtml}<h2>Test configuration</h2><ul>${config.tests.map((test) => `<li><strong>${escapeHtml(test.name)}</strong>: pump ${escapeHtml(config.wells.find((well) => well.id === test.pumpingWellId)?.name)}; observe ${escapeHtml(test.observationWellIds.map((id) => config.wells.find((well) => well.id === id)?.name).join(', '))}; period ${test.pumpingPeriod ?? config.pumpingPeriod} s.</li>`).join('')}</ul><h2 class="page-break">Computed complex responses</h2><div class="table-wrap"><table><thead><tr>${responseHeader(
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(data.title)}</title><style>body{font:14px/1.5 Inter,Arial,sans-serif;color:#171717;max-width:1100px;margin:40px auto;padding:0 24px}h1{border-bottom:4px solid #c5050c;padding-bottom:12px}h2{margin-top:30px}dl{display:grid;grid-template-columns:220px 1fr;gap:6px 18px;background:#f5f5f5;padding:18px}dt{font-weight:700}dd{margin:0}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:10px}th,td{border:1px solid #ddd;padding:5px;text-align:left;white-space:nowrap}th{background:#171717;color:white}tr:nth-child(even){background:#f7f7f7}.note{color:#555}@media print{body{margin:0}.page-break{break-before:page}}</style></head><body><h1>${escapeHtml(data.title)}</h1><p>${escapeHtml(data.summary)}</p><p class="note">Generated ${escapeHtml(data.generatedAt)}</p><h2>Experiment summary</h2><dl><dt>Analysis mode</dt><dd>${escapeHtml(result.analysisMode)}</dd><dt>Domain</dt><dd>x ${config.minX} to ${config.maxX} m; y ${config.minY} to ${config.maxY} m</dd><dt>Grid</dt><dd>${config.gridNx} x ${config.gridNy}${config.dimension===3?` x ${config.gridNz}`:""}</dd><dt>Wells / tests / responses</dt><dd>${config.wells.length} / ${config.tests.length} / ${result.pairs.length}</dd><dt>Runtime</dt><dd>${result.runtimeSeconds.toFixed(3)} s</dd><dt>Iterations / objective</dt><dd>${result.iterations} / ${result.objective?.toPrecision(7) ?? 'N/A'}</dd></dl>${comparisonHtml}<h2>Test configuration</h2><ul>${config.tests.map((test) => `<li><strong>${escapeHtml(test.name)}</strong>: pump ${escapeHtml(config.wells.find((well) => well.id === test.pumpingWellId)?.name)}; observe ${escapeHtml(test.observationWellIds.map((id) => config.wells.find((well) => well.id === id)?.name).join(', '))}; period ${test.pumpingPeriod ?? config.pumpingPeriod} s.</li>`).join('')}</ul><h2 class="page-break">Computed complex responses</h2><div class="table-wrap"><table><thead><tr>${responseHeader(
     config,
   )
     .map((item) => `<th>${escapeHtml(item)}</th>`)
@@ -304,7 +307,7 @@ async function pdf(config: ModelConfig, result: AnalysisResult, basename: string
   const details = [
     ['Analysis mode', result.analysisMode],
     ['Domain', `x ${config.minX} to ${config.maxX} m; y ${config.minY} to ${config.maxY} m`],
-    ['Grid', `${config.gridNx} x ${config.gridNy}`],
+    ['Grid', `${config.gridNx} x ${config.gridNy}${config.dimension===3?` x ${config.gridNz}`:""}`],
     ['Wells / tests / responses', `${config.wells.length} / ${config.tests.length} / ${result.pairs.length}`],
     ['Runtime', `${result.runtimeSeconds.toFixed(3)} s`],
     ['Iterations / objective', `${result.iterations} / ${result.objective?.toPrecision(7) ?? 'N/A'}`],
@@ -368,7 +371,7 @@ async function docx(config: ModelConfig, result: AnalysisResult, basename: strin
           new Paragraph(`Analysis mode: ${result.analysisMode}`),
           new Paragraph(`Domain: x ${config.minX} to ${config.maxX} m; y ${config.minY} to ${config.maxY} m`),
           new Paragraph(
-            `Grid: ${config.gridNx} x ${config.gridNy}; wells: ${config.wells.length}; tests: ${config.tests.length}; responses: ${result.pairs.length}`,
+            `Grid: ${config.gridNx} x ${config.gridNy}${config.dimension===3?` x ${config.gridNz}`:""}; wells: ${config.wells.length}; tests: ${config.tests.length}; responses: ${result.pairs.length}`,
           ),
           new Paragraph(
             `Solver runtime: ${result.runtimeSeconds.toFixed(3)} s; iterations: ${result.iterations}; objective: ${result.objective?.toPrecision(7) ?? 'N/A'}`,
@@ -391,8 +394,8 @@ async function docx(config: ModelConfig, result: AnalysisResult, basename: strin
           new Paragraph({ text: 'Computed complex responses', heading: HeadingLevel.HEADING_1 }),
           new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE } }),
           new Paragraph({ text: 'Assumptions', heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ text: 'One horizontal layer with unit thickness.', bullet: { level: 0 } }),
-          new Paragraph({ text: 'No flow through the top and bottom boundaries.', bullet: { level: 0 } }),
+          new Paragraph({ text: config.dimension===3?'3D volume; local Z is elevation, positive upward. Point ports, not screened intervals.':'One horizontal layer with unit thickness.', bullet: { level: 0 } }),
+          new Paragraph({ text: config.dimension===3?`Six-face boundary conditions: ${JSON.stringify(config.boundaries)}. Zero head perturbation on constant-head faces.`:'No flow through the top and bottom boundaries.', bullet: { level: 0 } }),
         ],
       },
     ],

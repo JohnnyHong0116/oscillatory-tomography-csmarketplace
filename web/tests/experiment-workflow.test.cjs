@@ -8,7 +8,7 @@ const ts = require('typescript');
 function load(file) {
   const loaded = { exports: {} };
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
-    { module: loaded, exports: loaded.exports, structuredClone, require: name => name.startsWith('.') ? load(path.resolve(path.dirname(file), name + '.ts')) : require(name) });
+    { module: loaded, exports: loaded.exports, structuredClone, require: name => name.endsWith('.json') ? {__esModule:true,default:JSON.parse(fs.readFileSync(path.resolve(path.dirname(file),name),'utf8'))} : name.startsWith('.') ? load(path.resolve(path.dirname(file), name + '.ts')) : require(name) });
   return loaded.exports;
 }
 const { createExperiment, createExample, modelIssues, testIssues, prepareInversion } = load(path.join(__dirname, '../src/utils/experimentWorkflow.ts'));
@@ -82,4 +82,35 @@ test('model and test gates reject invalid inputs before run without changing the
   const problems = testIssues(s.config).join(' ');
   assert.match(problems, /domain extents/); assert.match(problems, /whole grid counts/); assert.match(problems, /positive/); assert.match(problems, /one pump/);
   assert.equal(s.config.tests[0].pumpingPeriod, 0);
+});
+
+test('three 3D ports can continue after explicitly applying a supported mesh', () => {
+  const { suggestedSpatialGrid } = load(path.join(__dirname, '../src/utils/spatial.ts'));
+  const c = createExperiment().config;
+  Object.assign(c, {dimension:3,minZ:-40,maxZ:40,gridNz:10,corrLengthZ:5});
+  c.wells=[{id:'a',name:'A',x:-20,y:0,z:-10},{id:'b',name:'B',x:0,y:0,z:0},{id:'c',name:'C',x:20,y:0,z:10}];
+  assert.match(modelIssues(c).join(' '), /16000 cells/);
+  const originalWells=JSON.stringify(c.wells),originalDomain=[c.minX,c.maxX,c.minY,c.maxY,c.minZ,c.maxZ];
+  const grid=suggestedSpatialGrid(c);
+  assert.equal(grid.gridNz,10);
+  assert.ok(grid.gridNx*grid.gridNy*grid.gridNz<=3600);
+  assert.equal(c.gridNx,40, 'suggestion must not silently mutate the mesh');
+  const adjusted={...c,...grid};
+  assert.equal(modelIssues(adjusted).length,0);
+  assert.equal(JSON.stringify(adjusted.wells),originalWells);
+  assert.deepEqual([adjusted.minX,adjusted.maxX,adjusted.minY,adjusted.maxY,adjusted.minZ,adjusted.maxZ],originalDomain);
+});
+
+test('MATLAB full acquisition is navigable for forward and cannot silently enter an inverse run',()=>{
+ const full=createExample('matlab_3d');assert.equal(full.config.dimension,3);assert.equal(full.config.gridNx*full.config.gridNy*full.config.gridNz,8000);assert.equal(full.config.tests.length,104);assert.equal(testIssues(full.config).length,0);assert.equal(full.runInput.analysisMode,'forward');
+ const quick=createExample('matlab_3d_quick');assert.equal(testIssues(quick.config).length,0);assert.equal(quick.runInput.analysisMode,'synthetic_demo');assert.equal(quick.config.tests.length,4);
+ const {spatialIssues}=load(path.join(__dirname,'../src/utils/spatial.ts'));assert.ok(spatialIssues(full.config,true).length);assert.equal(spatialIssues(quick.config,true).length,0);
+ full.config.wells[0].z=100;assert.equal(createExample('matlab_3d').config.wells[0].z,-20);
+});
+
+test('MATLAB reference inputs cannot silently be resized or reseeded; custom realization remains available',()=>{
+ const c=createExample('matlab_3d').config;assert.equal(c.syntheticRealization,'matlab_reference');assert.equal(modelIssues(c).length,0);
+ assert.match(modelIssues({...c,gridNx:18}).join(' '),/MATLAB reference truth/);
+ assert.match(modelIssues({...c,syntheticSeed:1}).join(' '),/MATLAB reference truth/);
+ assert.equal(modelIssues({...c,gridNx:18,syntheticRealization:'numpy'}).length,0);
 });

@@ -13,6 +13,39 @@ from scipy.linalg import null_space, orth
 Covariance = np.ndarray | Callable[[np.ndarray], np.ndarray]
 
 
+def _relative_residual_minres(operator: LinearOperator, rhs: np.ndarray,
+                             tolerance: float = 1e-4, maxiter: int = 10_000) -> np.ndarray:
+    """Use the residual stopping contract of MATLAB's MINRES call.
+
+    NLAP_eval.m requests ||b-Qx|| / ||b|| <= 1e-4. SciPy's ``rtol`` is a
+    backward-error criterion involving ||Q|| and ||x||, so passing the same
+    numeric tolerance can stop much earlier and change the inversion objective.
+    Retain SciPy's Krylov iteration, but stop on the actual relative residual.
+    No MATLAB implementation code is copied here.
+    """
+    target = tolerance * np.linalg.norm(rhs)
+    if target == 0:
+        return np.zeros_like(rhs)
+    solution = None
+
+    class ResidualReached(Exception):
+        pass
+
+    def check(candidate):
+        nonlocal solution
+        if np.linalg.norm(rhs - operator @ candidate) <= target:
+            solution = candidate.copy()
+            raise ResidualReached
+
+    try:
+        candidate, info = minres(operator, rhs, rtol=0.0, maxiter=maxiter, callback=check)
+    except ResidualReached:
+        return solution
+    if info != 0 or np.linalg.norm(rhs - operator @ candidate) > target:
+        raise RuntimeError(f"MINRES did not meet the relative-residual tolerance (info={info})")
+    return candidate
+
+
 @dataclass(frozen=True)
 class InversionResult:
     """Results returned by the quasi-linear geostatistical inversion."""
@@ -141,9 +174,7 @@ def negative_log_a_posteriori(
             matvec=lambda value: np.asarray(parameter_covariance(value)).reshape(-1),
             dtype=float,
         )
-        q_inverse_deviation, info = minres(operator, deviation, rtol=1e-4, maxiter=10_000)
-        if info != 0:
-            raise RuntimeError(f"MINRES did not converge while evaluating the prior (info={info})")
+        q_inverse_deviation = _relative_residual_minres(operator, deviation)
     else:
         q_inverse_deviation = np.linalg.solve(parameter_covariance, deviation)
     prior_part = 0.5 * float(deviation @ q_inverse_deviation)

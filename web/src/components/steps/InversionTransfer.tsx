@@ -15,12 +15,13 @@ export function InversionTransfer({
   const dialog = useRef<HTMLDialogElement>(null);
   const [nx, setNx] = useState(Math.min(60, source.config.gridNx));
   const [ny, setNy] = useState(Math.min(60, source.config.gridNy));
+  const [nz,setNz]=useState(source.config.gridNz??1);
   const [accepted, setAccepted] = useState(false);
-  const changed = nx !== source.config.gridNx || ny !== source.config.gridNy;
+  const changed = nx !== source.config.gridNx || ny !== source.config.gridNy || (source.config.dimension===3&&nz!==source.config.gridNz);
   let error = '',
     prepared: ExperimentSession | null = null;
   try {
-    prepared = prepareInversion(source, nx, ny);
+    prepared = prepareInversion(source, nx, ny,nz);
   } catch (cause) {
     error = (cause as Error).message;
   }
@@ -64,10 +65,10 @@ export function InversionTransfer({
         </p>
         <div className="rounded-xl border bg-[#F7F7F7] p-4 text-sm">
           <strong>
-            Generating grid: {source.config.gridNx} × {source.config.gridNy}
+            Generating grid: {source.config.gridNx} × {source.config.gridNy}{source.config.dimension===3?` × ${source.config.gridNz}`:""}
           </strong>
           <p className="mt-1 text-xs text-[#6B7074]">
-            The existing inverse solver supports at most 60 × 60 cells. The original forward run will be
+            The inverse solver supports {source.config.dimension===3?'3,600 total 3D cells':'60 × 60 cells'}. The original forward run will be
             retained separately.
           </p>
         </div>
@@ -76,6 +77,7 @@ export function InversionTransfer({
             [
               ['Inversion Nx', nx, setNx],
               ['Inversion Ny', ny, setNy],
+              ...(source.config.dimension===3?[["Inversion Nz",nz,setNz] as const]:[]),
             ] as const
           ).map(([label, value, setter]) => (
             <label key={label} className="text-sm font-semibold">

@@ -38,7 +38,8 @@ export function sweepTests(config: ModelConfig, setups: TomographyTest[], period
   if (!periods.length || periods.some(period => !Number.isFinite(period) || period <= 0) || !Number.isFinite(amplitude) || amplitude <= 0) throw new Error('Periods and pumping amplitude must be finite and positive.');
   const testCount = setups.length * periods.length;
   const pairCount = setups.reduce((sum, setup) => sum + setup.observationWellIds.length, 0) * periods.length;
-  if (testCount > 30 || pairCount > 100) throw new Error(`Sweep would create ${testCount} tests and ${pairCount} response pairs. Current limits: 30 tests / 100 pairs. Use fewer periods, fewer setups, or fewer observers.`);
+  const testLimit=config.dimension===3?108:30, pairLimit=config.dimension===3?1500:100;
+  if (testCount > testLimit || pairCount > pairLimit) throw new Error(`Sweep would create ${testCount} tests and ${pairCount} response pairs. Current limits: ${testLimit} tests / ${pairLimit} pairs${config.dimension===3?' for forward; inversion remains 30 tests / 100 pairs':''}. Use fewer periods, fewer setups, or fewer observers.`);
   const generated = periods.flatMap((period, periodIndex) => setups.map((setup, setupIndex) => ({
     id: `${idPrefix}-${periodIndex + 1}-${setupIndex + 1}`,
     name: `${config.wells.find(well => well.id === setup.pumpingWellId)?.name ?? 'Pump'} · P=${Number(period.toPrecision(7))} s`,

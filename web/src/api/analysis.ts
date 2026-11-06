@@ -23,6 +23,8 @@ export async function runAnalysis(
     headers: { 'Content-Type': 'application/json' },
     signal,
     body: JSON.stringify({
+      dimension: config.dimension ?? 2,
+      ...(config.dimension === 3 ? { minZ: config.minZ, maxZ: config.maxZ, gridNz: config.gridNz, corrLengthZ: config.corrLengthZ } : {}),
       testCase: config.testCase,
       minX: config.minX,
       maxX: config.maxX,
@@ -30,7 +32,7 @@ export async function runAnalysis(
       maxY: config.maxY,
       gridNx: config.gridNx,
       gridNy: config.gridNy,
-      wells: config.wells.map(({ id, name, x, y }) => ({ id, name, x, y })),
+      wells: config.wells.map(({ id, name, x, y, z }) => ({ id, name, x, y, ...(config.dimension===3 ? {z:z??0} : {}) })),
       tests: config.tests.map((test) => ({
         id: test.id,
         name: test.name,
@@ -58,6 +60,7 @@ export async function runAnalysis(
           ? (config.syntheticSeed ?? 0)
           : 0,
       observations,
+      syntheticRealization: config.syntheticField === 'geostatistical' && analysisMode !== 'measured_inversion' ? (config.syntheticRealization ?? 'numpy') : 'numpy',
     }),
   });
   const payload = await response.json();

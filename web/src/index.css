@@ -221,3 +221,102 @@ svg:has(.plot-probe) { cursor:crosshair; }
 @media(prefers-reduced-motion:reduce) { .studio-reveal,.studio-disclosure { animation:none; } .studio-button,.period-tile { transition:none; } .studio-button:active { transform:none; } }
 @media(prefers-reduced-transparency:reduce) { .journey-guide { backdrop-filter:none; background:#fff; } }
 @media(prefers-contrast:more) { .studio-panel,.period-tile,.plot-inspector { border-color:#566372; } .period-tile[aria-pressed=true] { border-width:2px; } }
+
+/* Shared scientific 3D camera. Selection is disabled only on the scene/HUD;
+   numeric inspection panels and the rest of the app remain selectable. */
+.spatial-viewport { --camera-bg:#fff; --camera-ink:#334155; --camera-line:#d9e0e7; --camera-muted:#64748b; min-width:0; border:1px solid var(--camera-line); border-radius:12px; background:var(--camera-bg); color:var(--camera-ink); overflow:visible; }
+.spatial-viewport[data-theme=dark] { --camera-bg:#121212; --camera-ink:#e4eaf1; --camera-line:#35404b; --camera-muted:#a8b4c1; }
+.spatial-scene { position:relative; min-width:0; border-radius:11px 11px 0 0; isolation:isolate; touch-action:none; user-select:none; -webkit-user-select:none; }
+.spatial-scene svg { font-family:inherit; user-select:none; -webkit-user-select:none; }
+.spatial-scene > svg[data-spatial-scene] { display:block; width:100%; height:auto; border-radius:11px 11px 0 0; }
+.spatial-scene:focus-visible { outline:2px solid #c5050c; outline-offset:3px; }
+.spatial-navigation { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 12px; border-top:1px solid var(--camera-line); font-size:12px; }
+.spatial-view-name { color:var(--camera-muted); }
+.spatial-nav-actions { display:flex; gap:4px; }
+.spatial-nav-actions button { display:flex; align-items:center; justify-content:center; gap:6px; min-width:32px; min-height:32px; border-radius:7px; color:inherit; }
+.spatial-nav-actions button:hover { background:#94a3b822; }
+.spatial-gesture-hint { margin:0; padding:0 12px 10px; color:var(--camera-muted); font-size:11px; line-height:1.5; }
+.spatial-view-cube { position:absolute; right:8px; top:8px; width:112px; z-index:6; color:var(--camera-ink); user-select:none; -webkit-user-select:none; }
+.orientation-cube { display:block; width:100%; overflow:visible; filter:drop-shadow(0 2px 3px #00000012); }
+.cube-face { cursor:pointer; outline:none; }
+.cube-face polygon { fill:#f5f7fa; stroke:#adbac8; stroke-width:1.4; stroke-linejoin:round; }
+.cube-face text { fill:#354252; font:600 12px Inter,-apple-system,BlinkMacSystemFont,sans-serif; pointer-events:none; }
+.cube-face:hover polygon,.cube-face:focus-visible polygon { fill:#ffe7e8; stroke:#c5050c; stroke-width:2; }
+.cube-edge { cursor:pointer; outline:none; }
+.cube-edge line { stroke:transparent; stroke-width:7; }
+.cube-edge:hover line,.cube-edge:focus-visible line { stroke:#c5050c99; }
+.cube-corner { cursor:pointer; outline:none; }
+.cube-corner circle { fill:#ccd5de; stroke:#fff; stroke-width:1; }
+.cube-corner:hover circle,.cube-corner:focus-visible circle { fill:#c5050c; r:6; }
+.cube-arrow { fill:var(--camera-muted); cursor:pointer; outline:none; }
+.cube-arrow:hover,.cube-arrow:focus-visible { fill:#c5050c; }
+.cube-actions { display:flex; align-items:center; justify-content:flex-end; gap:4px; margin-top:3px; }
+.cube-actions button { display:flex; align-items:center; justify-content:center; gap:4px; min-height:30px; min-width:30px; padding:3px 6px; border:1px solid var(--camera-line); background:var(--camera-bg); border-radius:6px; color:inherit; font-size:11px; font-weight:600; }
+.cube-view-menu { position:absolute; top:100%; right:0; margin-top:6px; min-width:170px; padding:5px; border:1px solid var(--camera-line); border-radius:10px; background:var(--camera-bg); color:var(--camera-ink); box-shadow:0 10px 30px #0003; }
+.cube-view-menu p { display:flex; justify-content:space-between; padding:7px 8px; font-size:10px; color:var(--camera-muted); }
+.cube-view-menu button { display:flex; justify-content:space-between; gap:20px; min-height:34px; width:100%; padding:7px 9px; border-radius:6px; font-size:12px; }
+.cube-view-menu button:hover,.cube-view-menu button[aria-pressed=true] { background:#c5050c12; color:#c5050c; }
+.cube-view-menu button span { color:var(--camera-muted); font-size:10px; }
+.spatial-map-options { display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; padding:10px 12px; font-size:12px; color:#566372; }
+.spatial-map-options > span { font-weight:600; }
+.spatial-map-options label { display:flex; align-items:center; gap:5px; }
+.spatial-well-selection { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; padding:10px 0 0; font-size:12px; }
+.spatial-well-selection span { font-size:11px; color:#a8b4c1; }
+.spatial-well-selection button { margin-left:auto; border:1px solid #52606e; border-radius:6px; padding:5px 8px; font-size:11px; }
+.well-camera-port { cursor:pointer; }
+.spatial-slice-controls { color:#e4eaf1; font-size:12px; padding:8px 0 12px; }
+.spatial-slice-controls summary { display:flex; justify-content:space-between; gap:12px; cursor:pointer; padding:6px 2px; }
+.spatial-slice-controls summary span { color:#a8b4c1; font:11px 'JetBrains Mono',monospace; }
+.spatial-slice-controls > div { padding:8px 0 0; }
+.spatial-field-scale { padding-top:12px; color:#ccd5de; }
+.spatial-field-scale > div { height:7px; border-radius:9px; }
+.spatial-field-scale p { display:flex; justify-content:space-between; gap:12px; margin:6px 0 0; font:11px 'JetBrains Mono',monospace; }
+/* Keep the enlarged 3D content's dark controls readable on the light dialog. */
+.plot-viewer .spatial-slice-controls { padding:10px 12px; margin-bottom:8px; border:1px solid #d9e0e7; border-radius:10px; color:#334155; background:#fff; }
+.plot-viewer .spatial-field-scale { color:#566372; }
+@media(max-width:639px) {
+ .spatial-view-cube { width:88px; right:5px; top:5px; }
+ .cube-actions button { min-height:32px; }
+ .cube-view-menu button { min-height:44px; }
+ .spatial-nav-actions button { min-width:38px; min-height:38px; }
+ .spatial-gesture-hint { font-size:10px; }
+ .spatial-map-options { padding:8px 0; gap:8px 12px; }
+}
+
+/* Experiment setup uses the same UI typeface and compact rhythm as the workspace. */
+.experiment-heading { display:flex; flex-wrap:wrap; align-items:end; gap:16px 24px; }
+.experiment-name-label { flex:1 1 280px; min-width:0; font-size:11px; font-weight:700; letter-spacing:.06em; color:#6B7074; }
+.experiment-name-input { display:block; width:100%; padding:6px 0; border:1px solid transparent; border-radius:8px; font:700 22px/1.4 Inter, sans-serif; letter-spacing:-.02em; color:#121212; background:transparent; }
+.experiment-name-input:hover { border-color:#D6DADD; } .experiment-name-input:focus { outline:2px solid #C5050C; outline-offset:2px; }
+.experiment-pathway-label { flex:0 1 400px; min-width:0; font-size:12px; font-weight:600; color:#555e67; }
+.experiment-pathway-select { display:block; margin-top:6px; width:100%; max-width:100%; border:1px solid #D6DADD; border-radius:10px; background:white; padding:10px 12px; font:500 13px/1.5 Inter,sans-serif; color:#202a35; }
+.experiment-pathway-help { font-size:12px; color:#687380; line-height:1.6; }
+.experiment-pathway-help summary { cursor:pointer; width:fit-content; } .experiment-pathway-help p { margin-top:6px; max-width:850px; }
+.experiment-import { padding:16px 18px; border:1px solid #DDE2E8; border-radius:14px; background:white; font-family:Inter,sans-serif; }
+.experiment-import-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px 20px; }
+.experiment-import h3 { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:650; color:#202a35; }
+.experiment-import p { font-size:12px; color:#667385; line-height:1.6; margin-top:3px; }
+.experiment-import-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.experiment-file-button,.experiment-link-toggle,.experiment-link-row button { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:7px; border:1px solid #D6DADD; border-radius:8px; padding:9px 12px; min-height:38px; background:#fff; font:600 12px/1.5 Inter,sans-serif; cursor:pointer; }
+.experiment-file-button:hover,.experiment-link-toggle:hover { background:#f5f6f8; }
+.experiment-file-button:focus-within { outline:2px solid #C5050C; outline-offset:2px; }
+.experiment-file-input { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
+.experiment-link-row { display:flex; align-items:end; gap:10px; padding-top:14px; margin-top:14px; border-top:1px solid #E7EAED; }
+.experiment-link-row label { flex:1; min-width:0; font-size:12px; font-weight:600; }
+.experiment-link-row input { display:block; margin-top:6px; width:100%; min-width:0; border:1px solid #D6DADD; padding:9px 12px; border-radius:8px; font:400 13px/1.5 Inter,sans-serif; }
+.experiment-link-row button:disabled { opacity:.45; cursor:default; }
+/* Leave the cube unobstructed by the shared fullscreen trigger. */
+.plot-inline:has(.spatial-viewport) > .plot-enlarge-button { top:auto; bottom:10px; right:10px; }
+@media(max-width:640px) { .experiment-pathway-label { flex:1 1 100%; } .experiment-import { padding:14px; } .experiment-name-input { font-size:20px; } }
+
+/* The full slice header is a disclosure target, with a persistent direction cue. */
+.spatial-slice-controls summary { align-items:center; padding:10px 12px; border:1px solid #46515c; border-radius:9px; background:#ffffff06; list-style:none; }
+.spatial-slice-controls summary::-webkit-details-marker { display:none; }
+.spatial-slice-controls summary:hover { background:#94a3b816; }
+.spatial-slice-controls summary:focus-visible { outline:2px solid #78a3f1; outline-offset:3px; }
+.spatial-slice-controls summary .slice-disclosure-label { flex:1; color:inherit; font:600 12px/1.5 Inter,sans-serif; }
+.slice-disclosure-label small { display:block; font-size:11px; font-weight:400; opacity:.7; }
+.slice-disclosure-chevron { flex-shrink:0; transition:transform .18s ease; opacity:.8; }
+.spatial-slice-controls[open] .slice-disclosure-chevron { transform:rotate(180deg); }
+.plot-viewer .spatial-slice-controls summary { border-color:#d9e0e7; }
+@media(prefers-reduced-motion:reduce) { .slice-disclosure-chevron { transition:none; } }
