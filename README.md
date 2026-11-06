@@ -78,6 +78,12 @@ do not launch a second copy. To refresh an already-open UI after rebuilding,
 export any results you need first, then use Ctrl+Shift+R. Project state is
 currently session-only: refreshing clears that tab's configuration and results.
 
+### v1.5.2 update (`webapp-playground` branch)
+
+3D views now have a view cube, drag to orbit, Ctrl+drag to pan, and wheel
+zoom. Shaded domain walls help show orientation, and the slice panel has
+an expandable control for the X, Y and Z positions.
+
 ### v1.5.1 update (`webapp-playground` branch)
 
 Results now includes **Save & share experiment** (complete CSV or self-contained
