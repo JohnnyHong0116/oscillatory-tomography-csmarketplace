@@ -10,11 +10,11 @@ const stages = [
   "Results",
 ];
 const notes = [
-  'Locate physical wells in meters. Set domain extents, cell size and boundary assumptions before assigning test roles.',
-  'Choose one pump and its observers per setup. Repeat a setup over a period range; specify peak pumping amplitude, not peak-to-peak flow.',
+  'Place wells in local coordinates. Use X and Y for a 2D layer or add Z elevation for a 3D volume. Set resolution and boundaries before assigning roles.',
+  'Choose a period group, then assign a pump and observers to each test. Specify peak pumping amplitude Qmax. Use the sweep builder to repeat a setup across periods.',
   'Check geometry, spatial resolution, response count and model assumptions. Edit any test without losing the rest of your experiment.',
   'Predict responses from a forward model, or invert processed complex observations. Keep synthetic and field data clearly identified.',
-  'Inspect plots and export a report. Forward real/imaginary responses can become inversion inputs after explicit review of the inversion grid.',
+  'Inspect maps and fields, then use Save to Folders to keep the complete experiment. Export a CSV or share link for a portable copy.',
 ];
 export function JourneyGuide({
   step,

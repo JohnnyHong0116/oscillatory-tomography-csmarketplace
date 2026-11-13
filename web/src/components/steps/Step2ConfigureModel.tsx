@@ -1,3 +1,4 @@
+import { acquisitionLimits } from '../../utils/acquisitionLimits';
 import { SpatialWellMap } from './SpatialWellMap';
 import { SpatialSettings } from './SpatialSettings';
 import { nextTestName } from '../../utils/periodGroups';
@@ -327,12 +328,12 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
   };
 
   // --- Test Configuration Handlers ---
+  const { testLimit } = acquisitionLimits(config.dimension);
   const handleAddTest = (period: number = config.pumpingPeriod) => {
-    if (config.tests.length >= (config.dimension === 3 ? 108 : 30)) {
-      alert(`At most ${config.dimension === 3 ? 108 : 30} tests are supported (${config.dimension === 3 ? '3D forward; inversion is limited to 30' : '2D'}).`);
+    if (config.tests.length >= testLimit) {
+      alert(`At most ${testLimit} tests are supported (${config.dimension === 3 ? '3D forward; inversion is limited to 30' : '2D'}).`);
       return;
     }
-    const testNum = config.tests.length + 1;
     const newTestId = `test-${crypto.randomUUID()}`;
     const firstWellId = config.wells[0]?.id || 'w-1';
     const remainingWellIds = config.wells.filter((w) => w.id !== firstWellId).map((w) => w.id);
@@ -355,8 +356,8 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
   };
 
   const handleDuplicateTest = (testId: string) => {
-    if (config.tests.length >= (config.dimension === 3 ? 108 : 30)) {
-      alert(`At most ${config.dimension === 3 ? 108 : 30} tests are supported (${config.dimension === 3 ? '3D forward; inversion is limited to 30' : '2D'}).`);
+    if (config.tests.length >= testLimit) {
+      alert(`At most ${testLimit} tests are supported (${config.dimension === 3 ? '3D forward; inversion is limited to 30' : '2D'}).`);
       return;
     }
     const testToDup = config.tests.find((t) => t.id === testId);
@@ -571,7 +572,7 @@ export const Step2ConfigureModel: React.FC<Step2Props> = ({
       {/* Header */}
       <div className="bg-white border border-[#D6DADD] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
         <div>
-          <h2 className="text-lg font-bold text-[#121212] tracking-tight">
+          <h2 className="workspace-title">
             {stage === 'positions'
               ? 'Define wells & model'
               : stage === 'tests'

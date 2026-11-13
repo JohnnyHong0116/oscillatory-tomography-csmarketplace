@@ -13,6 +13,27 @@ export function SpatialSettings({
   const issues = spatialIssues(c);
   const suggested = suggestedSpatialGrid(c);
   const cellCount = c.gridNx * c.gridNy * (c.gridNz ?? 10);
+  const changeDimension = (dimension: 2 | 3) => {
+    if (dimension === (c.dimension ?? 2)) return;
+    if (dimension === 2 && !window.confirm(
+      `Switch to 2D? Z coordinates will be retained but excluded from the one-layer solve.${c.syntheticRealization === 'matlab_reference' ? ' The fixed 3D MATLAB truth will be replaced by a custom NumPy realization.' : ''}`,
+    )) return;
+
+    onChange({
+      ...c,
+      dimension,
+      ...(dimension === 3
+        ? {
+            testCase: 'inversion_10s',
+            minZ: c.minZ ?? -40,
+            maxZ: c.maxZ ?? 40,
+            gridNz: c.gridNz ?? 10,
+            corrLengthZ: c.corrLengthZ ?? 5,
+            wells: c.wells.map(well => ({ ...well, z: well.z ?? 0 })),
+          }
+        : { syntheticRealization: 'numpy', boundaries: { ...c.boundaries, top: 'no_flow', bottom: 'no_flow' } }),
+    });
+  };
   return (
     <section className="studio-panel space-y-3" aria-label="Spatial model dimensions">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -22,39 +43,22 @@ export function SpatialSettings({
             2D horizontal layer or a 3D volume with point pumping / observation ports.
           </p>
         </div>
-        <select
-          aria-label="Model dimensions"
-          value={c.dimension ?? 2}
-          onChange={(e) => {
-            const d = Number(e.target.value) as 2 | 3;
-            if (
-              d === 2 &&
-              c.dimension === 3 &&
-              !window.confirm(
-                `Switch to 2D? Z coordinates will be retained but excluded from the one-layer solve.${c.syntheticRealization==='matlab_reference'?' The fixed 3D MATLAB truth will be replaced by a custom NumPy realization.':''}`,
-              )
-            )
-              return;
-            onChange({
-              ...c,
-              dimension: d,
-              ...(d === 3
-                ? {
-                    testCase: 'inversion_10s',
-                    minZ: c.minZ ?? -40,
-                    maxZ: c.maxZ ?? 40,
-                    gridNz: c.gridNz ?? 10,
-                    corrLengthZ: c.corrLengthZ ?? 5,
-                    wells: c.wells.map((w) => ({ ...w, z: w.z ?? 0 })),
-                  }
-                : { syntheticRealization: 'numpy', boundaries: { ...c.boundaries, top: 'no_flow', bottom: 'no_flow' } }),
-            });
-          }}
-          className="rounded-lg border bg-white p-2 focus-ring"
-        >
-          <option value={2}>2D · horizontal layer</option>
-          <option value={3}>3D · spatial volume</option>
-        </select>
+        <div role="group" aria-label="Model dimensions" className="flex flex-wrap gap-2">
+          {([2, 3] as const).map(dimension => {
+            const selected = dimension === (c.dimension ?? 2);
+            return (
+              <button
+                key={dimension}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => changeDimension(dimension)}
+                className={`studio-button focus-ring ${selected ? 'studio-button-primary' : 'studio-button-secondary'}`}
+              >
+                {dimension === 2 ? '2D · horizontal layer' : '3D · spatial volume'}
+              </button>
+            );
+          })}
+        </div>
       </div>
       {c.dimension === 3 && (
         <>

@@ -224,14 +224,20 @@ export function InspectablePoint({
   cy,
   details,
   children,
+  marker,
 }: {
   cx: number;
   cy: number;
   details: PlotDetails;
   children: React.ReactNode;
+  marker?: { shape: "circle" | "square"; radius: number };
 }) {
   const inspection = useContext(InspectionContext);
   const selected = inspection?.details?.id === details.id;
+  const outlineRadius = (marker?.radius ?? 5) + 4;
+  const outline = marker?.shape === "square"
+    ? <rect x={cx - outlineRadius} y={cy - outlineRadius} width={2 * outlineRadius} height={2 * outlineRadius} />
+    : <circle cx={cx} cy={cy} r={outlineRadius} />;
   return (
     <g
       role="button"
@@ -251,18 +257,14 @@ export function InspectablePoint({
         }
       }}
     >
-      {selected && (
-        <circle
-          cx={cx}
-          cy={cy}
-          r="8"
-          fill="none"
-          stroke="#F59E0B"
-          strokeWidth="2"
-        />
-      )}
       {children}
-      <circle cx={cx} cy={cy} r="9" fill="transparent" />
+      {selected && (
+        <g pointerEvents="none" aria-hidden="true" fill="none">
+          {marker && <g stroke="white" strokeWidth="4">{outline}</g>}
+          <g stroke={marker ? "#1D4ED8" : "#F59E0B"} strokeWidth="2">{outline}</g>
+        </g>
+      )}
+      <circle cx={cx} cy={cy} r={Math.max(9, marker?.radius ?? 0)} fill="transparent" />
     </g>
   );
 }

@@ -22,7 +22,7 @@ function executeReset(approved, key = 'project', running = false) {
     confirm(message) { calls.push(['confirm', message]); return approved; },
   } };
   context.setSessions = update => calls.push(['setSessions', update(previous)]);
-  for (const name of ['setFocusTestId', 'setNotice', 'resetWorkspaceScroll']) {
+  for (const name of ['setSavedExperimentId', 'setFocusTestId', 'setNotice', 'resetWorkspaceScroll']) {
     context[name] = value => calls.push([name, value]);
   }
   vm.runInNewContext(`(() => ${body})()`, context);
@@ -39,9 +39,11 @@ test('canceling reset preserves all configuration, results, and navigation state
 test('confirming reset creates a blank personal project and preserves practice', () => {
   const calls = executeReset(true);
   assert.equal(calls[0][0], 'confirm');
-  assert.equal(calls[1][0], 'setSessions');
-  assert.equal(calls[1][1].project.blank, true);
-  assert.equal(calls[1][1].example.config.testCase, 'black_kipp');
+  assert.equal(calls[1][0], 'setSavedExperimentId');
+  assert.equal(calls[1][1], null);
+  const [, sessions] = calls.find(([name]) => name === 'setSessions');
+  assert.equal(sessions.project.blank, true);
+  assert.equal(sessions.example.config.testCase, 'black_kipp');
   assert.equal(calls.filter(call => call[0] === 'resetWorkspaceScroll').length, 2);
 });
 

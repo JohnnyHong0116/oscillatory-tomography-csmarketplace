@@ -140,7 +140,7 @@ test("walkthrough Next, Back, Skip, Done and dismissal execute actual component 
   assert.equal(heading(), "Place your physical wells");
   button("Skip tour").props.onClick();
   assert.equal(closed, 1);
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     button("Next").props.onClick();
     render();
   }

@@ -27,7 +27,7 @@ const examples = [
 export const Step1SelectTestCase: React.FC<Step1Props> = ({ selectedTestCase, onSelectTestCase, onNext, onPreview, loadingPreview }) => <div className="max-w-5xl mx-auto space-y-6 py-2">
   <header className="bg-white border border-[#D6DADD] rounded-xl p-5 shadow-xs">
     <p className="text-xs font-semibold text-[#C5050C]">Step 1 · Choose an example</p>
-    <h2 className="text-xl font-bold mt-2">Start with Black–Kipp, then explore tomography</h2>
+    <h2 className="workspace-title mt-2">Start with Black–Kipp, then explore tomography</h2>
     <p className="text-xs text-slate-600 mt-2">Explore analytical validation, 2D recovery, then the professor’s 3D experiment. Examples include editable well locations and predefined tests. Preset locations are synthetic geometry, not surveyed field coordinates.</p>
   </header>
   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">{examples.map(({ id, Icon, stage, title, description, baseline, features }) => <article key={id}

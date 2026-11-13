@@ -13,6 +13,31 @@ export function useSpatialCamera(width=440,height=410,centerX=width/2,centerY=he
   const pointers=useRef(new Map<number,{x:number;y:number}>());
   const gesture=useRef<{camera:SpatialCamera;x:number;y:number;distance:number;pan:boolean;scale:number;moved:boolean}|null>(null);
   const suppress=useRef(false);
+  const pendingCamera=useRef<SpatialCamera | null>(null);
+  const animationFrame=useRef<number | null>(null);
+  const flushCamera = () => {
+    if (animationFrame.current !== null) cancelAnimationFrame(animationFrame.current);
+    animationFrame.current = null;
+    if (pendingCamera.current) {
+      latest.current = pendingCamera.current;
+      setCamera(pendingCamera.current);
+      pendingCamera.current = null;
+    }
+  };
+  const queueCamera = (next: SpatialCamera) => {
+    pendingCamera.current = next;
+    if (typeof requestAnimationFrame !== 'function') {
+      flushCamera();
+    } else if (animationFrame.current === null) {
+      animationFrame.current = requestAnimationFrame(() => {
+        animationFrame.current = null;
+        flushCamera();
+      });
+    }
+  };
+  useEffect(() => () => {
+    if (animationFrame.current !== null) cancelAnimationFrame(animationFrame.current);
+  }, []);
   const localScale=()=>ref.current?.querySelector<SVGSVGElement>('svg[data-spatial-scene]')?.getScreenCTM()?.a || (ref.current?.clientWidth??width)/width;
   const begin=()=>{
     const p=[...pointers.current.values()];
@@ -64,17 +89,19 @@ export function useSpatialCamera(width=440,height=410,centerX=width/2,centerY=he
       if(p.length>1){
         const distance=Math.hypot(p[1].x-p[0].x,p[1].y-p[0].y);
         const zoomed=zoomAt(g.camera,g.distance>0?distance/g.distance:1);
-        setCamera({...zoomed,panX:zoomed.panX+dx/g.scale,panY:zoomed.panY+dy/g.scale});
-      }else if(g.pan)setCamera({...g.camera,panX:g.camera.panX+dx/g.scale,panY:g.camera.panY+dy/g.scale});
+        queueCamera({...zoomed,panX:zoomed.panX+dx/g.scale,panY:zoomed.panY+dy/g.scale});
+      }else if(g.pan)queueCamera({...g.camera,panX:g.camera.panX+dx/g.scale,panY:g.camera.panY+dy/g.scale});
       // Follow the grabbed front surface: dragging down increases pitch.
-      else setCamera({...g.camera,yaw:wrapAngle(g.camera.yaw+dx*.45),pitch:Math.max(-90,Math.min(90,g.camera.pitch+dy*.45))});
+      else queueCamera({...g.camera,yaw:wrapAngle(g.camera.yaw+dx*.45),pitch:Math.max(-90,Math.min(90,g.camera.pitch+dy*.45))});
     },
     onPointerUpCapture(e:React.PointerEvent<HTMLDivElement>){
+      if (!pointers.current.has(e.pointerId)) return;
+      flushCamera();
       pointers.current.delete(e.pointerId);
       if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);
       if(pointers.current.size)begin();else{gesture.current=null;setDragging(false);}
     },
-    onPointerCancelCapture(e:React.PointerEvent<HTMLDivElement>){pointers.current.clear();gesture.current=null;setDragging(false);suppress.current=true;},
+    onPointerCancelCapture(){flushCamera();pointers.current.clear();gesture.current=null;setDragging(false);suppress.current=true;},
     onLostPointerCapture(){if(!pointers.current.size){gesture.current=null;setDragging(false);}},
     onClickCapture(e:React.MouseEvent<HTMLDivElement>){if(suppress.current&&!(e.target as Element).closest('[data-camera-control]')){e.preventDefault();e.stopPropagation();suppress.current=false;}},
     onContextMenu(e:React.MouseEvent<HTMLDivElement>){if(!(e.target as Element).closest('[data-camera-control]'))e.preventDefault();},

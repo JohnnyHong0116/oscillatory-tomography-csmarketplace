@@ -1,3 +1,4 @@
+import { acquisitionLimits } from './acquisitionLimits';
 import { spatialIssues } from './spatial';
 import {
   AnalysisMode,
@@ -132,8 +133,7 @@ export function modelIssues(config: ModelConfig): string[] {
 export function testIssues(config: ModelConfig): string[] {
   const issues = modelIssues(config);
   const ids = new Set(config.wells.map((w) => w.id));
-  const testLimit = config.dimension === 3 ? 108 : 30;
-  const pairLimit = config.dimension === 3 ? 1500 : 100;
+  const { testLimit, pairLimit } = acquisitionLimits(config.dimension);
   if (!config.tests.length || config.tests.length > testLimit) issues.push(`Configure 1–${testLimit} tests.`);
   if (config.tests.reduce((n, t) => n + t.observationWellIds.length, 0) > pairLimit)
     issues.push(`The current ${config.dimension === 3 ? '3D forward' : '2D'} workflow supports at most ${pairLimit} response pairs.`);

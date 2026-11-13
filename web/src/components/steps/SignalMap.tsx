@@ -175,7 +175,8 @@ function PlanSignalMap({
               const radius = value ? signalRadius(value.amplitude, amplitudes, scale) : 4;
               const details = mapDetails(well);
               return (
-                <InspectablePoint key={well.id} cx={x} cy={y} details={details}>
+                <InspectablePoint key={well.id} cx={x} cy={y} details={details}
+                  marker={pump ? { shape: "square", radius: 11 } : { shape: "circle", radius }}>
                   <title>{`${details.heading}${value ? ` · ${value.amplitude.toExponential(3)} m · ${value.phase?.toFixed(2) ?? 'undefined'}°` : ''}`}</title>
                   {pump ? (
                     <polygon
@@ -210,7 +211,7 @@ function PlanSignalMap({
                 </InspectablePoint>
               );
             })}
-            <PlotProbe left={left} top={top} width={plotW} height={plotH} points={config.wells.map(well=>({cx:position(well).x,cy:position(well).y,details:mapDetails(well)}))} />
+            <PlotProbe showSelectionMarker={false} left={left} top={top} width={plotW} height={plotH} points={config.wells.map(well=>({cx:position(well).x,cy:position(well).y,details:mapDetails(well)}))} />
             <g aria-label="Amplitude size legend"><text x="20" y={h+18} fill="#DDE3EA" fontSize="11">Amplitude (m) · {scale==='log'?'log radius':'linear area + minimum marker'}</text>{amplitudeLegend(amplitudes,scale).map(({value,radius},i,entries)=>{const x=60+i*320/Math.max(1,entries.length-1);return <g key={value}><circle cx={x} cy={h+44} r={radius} fill="#94A3B8" fillOpacity=".8" stroke="white"/><text x={x} y={h+77} textAnchor="middle" fill="#DDE3EA" fontSize="11">{Number(value.toExponential(1).split("e")[0])===1?"10":`${value.toExponential(1).split("e")[0]} × 10`}<tspan baselineShift="super" fontSize="8">{Number(value.toExponential(1).split("e")[1])}</tspan></text></g>;})}</g>
           </svg>
         </ExpandablePlot>

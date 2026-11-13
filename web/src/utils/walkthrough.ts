@@ -10,12 +10,17 @@ export const pageTours: Record<StepId, TourStop[]> = {
     {
       selector: '[data-tour="well-entry"]',
       title: "Place your physical wells",
-      text: "Enter a label and local X/Y coordinates in meters. Add each real well here; pumping and observation roles are assigned separately for each test on the next screen.",
+      text: "Enter a name and local X/Y coordinates in meters. In 3D, enter Z as elevation using a common datum. Add each real well here; pumping and observation roles are assigned separately for each test on the next screen.",
     },
     {
       selector: '[aria-label="Physical well positions in local coordinates"]',
       title: "Check the well layout",
-      text: "Compare this map with your site. Select a well to move it, or use its edit control for exact coordinates. All wells share the same local coordinate origin.",
+      text: "Compare this map with your site. Select a well and use its edit control for exact coordinates. All wells share the same local coordinate origin.",
+    },
+    {
+      selector: '[data-tour="spatial-wells"]',
+      title: "Inspect the 3D layout",
+      text: "Drag to rotate, Ctrl-drag to pan, and scroll to zoom. The cube switches between standard views. Select a well to check its coordinates or double-click to edit.",
     },
     {
       selector: '[aria-label="Cell size and boundary conditions"]',
@@ -32,7 +37,7 @@ export const pageTours: Record<StepId, TourStop[]> = {
     {
       selector: '[aria-label="Period groups"]',
       title: "Switch periods beside the editor",
-      text: "This toolbar stays visible while editing. Choose a group or All periods. Add test inherits the selected period; New period creates another group.",
+      text: "This toolbar stays visible while editing. Select a period group to see its tests. Add test inherits that period. Create a new group to configure another period.",
     },
     {
       selector: '[aria-label="Multi-period experiment builder"]',
@@ -64,7 +69,7 @@ export const pageTours: Record<StepId, TourStop[]> = {
     {
       selector: '[data-tour="review-tests"]',
       title: "Check every test",
-      text: "Verify pumping/observation assignments, periods and amplitudes. Edit test returns to that exact test. Continue to Data & run using the normal page action when satisfied.",
+      text: "Verify pumping/observation assignments, periods and amplitudes. Edit test returns to that exact test. Select Continue to Data & run after the readiness checks pass.",
     },
   ],
   4: [
@@ -93,17 +98,22 @@ export const pageTours: Record<StepId, TourStop[]> = {
     {
       selector: '[data-tour="result-scope"]',
       title: "Choose responses to inspect",
-      text: "Select one test or the combined scope. In a joint inversion, test selection filters response diagnostics; parameter fields remain the one joint estimate.",
+      text: "Use the results scope to select a period, a test, or all responses. In a joint inversion, test selection filters response diagnostics; parameter fields remain the one joint estimate.",
     },
     {
       selector: '[data-tour="result-plots"]',
       title: "Explore the actual output",
-      text: "Change plots with these tabs. Hover or click to inspect, use arrow keys and Enter to pin values, or enlarge a plot. On the map, size represents amplitude and color represents phasor phase.",
+      text: "Change plots with these tabs. Hover or click to inspect, use arrow keys and Enter to pin values, or enlarge a plot. The signal map uses marker size for amplitude. In 3D, choose relative phase delay or raw phase for color. Open Slice positions to adjust X, Y and Z for volume fields.",
     },
     {
       selector: '[data-tour="result-export"]',
       title: "Export results",
-      text: "Export CSV for numerical data, or Generate report to choose a report format. Save results before refreshing: experiment state is currently kept in this browser session.",
+      text: "Export response CSV for numerical data, or Generate report for a formatted summary. Save & share experiment creates a complete CSV or share link.",
+    },
+    {
+      selector: '[data-tour="save-experiment"]',
+      title: "Save the experiment in a folder",
+      text: "Save the current setup, observations, and results. Choose a folder and add tags. Open Folders in the sidebar to find and resume experiments saved in this browser.",
     },
     {
       selector: '[aria-label="Forward result actions"]',

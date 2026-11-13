@@ -76,7 +76,20 @@ at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 If a port is already in use, stop its existing server terminal with Ctrl+C;
 do not launch a second copy. To refresh an already-open UI after rebuilding,
 export any results you need first, then use Ctrl+Shift+R. Project state is
-currently session-only: refreshing clears that tab's configuration and results.
+held in memory until you use **Save to Folders**. Reopen saved work from **Folders** after refreshing.
+
+### v1.6.0 update (webapp-playground)
+
+Use **Save to Folders** to keep the complete experiment, including its
+configuration, observations, and results. **Folders** in the sidebar lets you
+reopen, move, tag, search, favorite, or export saved experiments. Saves belong
+to this browser and site address. Use a complete CSV export to back up or move
+an experiment.
+
+The journey guide covers 2D and 3D setup, period groups, result inspection and
+saving. The 3D signal map uses a larger viewport and clips rulers and geometry
+together. The review screen uses the same action and typography styles as the
+workspace.
 
 ### v1.5.2 update (`webapp-playground` branch)
 
@@ -175,7 +188,7 @@ validated Continue actions to advance. The full-height sidebar holds Your
 experiment, Examples, Documentation and About. Help & Glossary and Reset remain
 at the top right. Reset requires confirmation and affects only the active
 workspace. Personal work and example practice are isolated in memory for the
-current browser session; refreshing the page starts a new session.
+current browser session until saved with **Save to Folders**.
 
 Result plots support hover/focus inspection and click/Enter to pin exact solver
 values in a detail panel. Escape or Clear selection releases a pinned point.

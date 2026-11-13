@@ -29,87 +29,97 @@ export function VolumeFieldPlot({
     [iy, setY] = useState(Math.floor(ny / 2)),
     [iz, setZ] = useState(Math.floor(nz / 2));
   const controller=useSpatialCamera(600,500,260,245);
-  const all = useMemo(() => values.flat(2), [values]);
-  const bound = Math.max(...all.map(Math.abs)),
-    lo = symmetric ? -bound : Math.min(...all),
-    hi = symmetric ? bound : Math.max(...all);
+  const [lo, hi] = useMemo(() => {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const layer of values) for (const row of layer) for (const value of row) {
+      min = Math.min(min, value);
+      max = Math.max(max, value);
+    }
+    const bound = Math.max(Math.abs(min), Math.abs(max));
+    return symmetric ? [-bound, bound] : [min, max];
+  }, [values, symmetric]);
   const minZ = config.minZ ?? -40,
     maxZ = config.maxZ ?? 40,
     dx = (config.maxX - config.minX) / nx,
     dy = (config.maxY - config.minY) / ny,
     dz = (maxZ - minZ) / nz;
   const { project } = spatialCameraProjection(config,controller.camera,460,420,260,245);
-  const cells: { x: number; y: number; z: number; axis: number }[] = [];
-  for (let z = 0; z < nz; z++) for (let y = 0; y < ny; y++) cells.push({ x: ix, y, z, axis: 0 });
-  for (let z = 0; z < nz; z++) for (let x = 0; x < nx; x++) cells.push({ x, y: iy, z, axis: 1 });
-  for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) cells.push({ x, y, z: iz, axis: 2 });
-  const polygons = cells
-    .map((c) => {
-      const x = config.minX + c.x * dx,
-        y = config.minY + c.y * dy,
-        z = minZ + c.z * dz;
-      const center = project(x + dx / 2, y + dy / 2, z + dz / 2);
-      const corners =
-        c.axis === 0
-          ? [
-              [x + dx / 2, y, z],
-              [x + dx / 2, y + dy, z],
-              [x + dx / 2, y + dy, z + dz],
-              [x + dx / 2, y, z + dz],
-            ]
-          : c.axis === 1
+  const slices = useMemo(() => {
+    const cells: { x: number; y: number; z: number; axis: number }[] = [];
+    for (let z = 0; z < nz; z++) for (let y = 0; y < ny; y++) cells.push({ x: ix, y, z, axis: 0 });
+    for (let z = 0; z < nz; z++) for (let x = 0; x < nx; x++) cells.push({ x, y: iy, z, axis: 1 });
+    for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) cells.push({ x, y, z: iz, axis: 2 });
+    return cells
+      .map((c) => {
+        const x = config.minX + c.x * dx,
+          y = config.minY + c.y * dy,
+          z = minZ + c.z * dz;
+        const center = [x + dx / 2, y + dy / 2, z + dz / 2] as const;
+        const corners =
+          c.axis === 0
             ? [
-                [x, y + dy / 2, z],
-                [x + dx, y + dy / 2, z],
-                [x + dx, y + dy / 2, z + dz],
-                [x, y + dy / 2, z + dz],
+                [x + dx / 2, y, z],
+                [x + dx / 2, y + dy, z],
+                [x + dx / 2, y + dy, z + dz],
+                [x + dx / 2, y, z + dz],
               ]
-            : [
-                [x, y, z + dz / 2],
-                [x + dx, y, z + dz / 2],
-                [x + dx, y + dy, z + dz / 2],
-                [x, y + dy, z + dz / 2],
-              ];
-      const value = values[c.z][c.y][c.x],
-        t = (value - lo) / (hi - lo || 1);
-      const stops = symmetric
-        ? [
-            [49, 54, 149],
-            [247, 247, 247],
-            [165, 0, 38],
-          ]
-        : [
-            [68, 1, 84],
-            [33, 145, 140],
-            [253, 231, 37],
-          ];
-      const segment = Math.min(1, Math.floor(t * 2)),
-        mix = Math.max(0, Math.min(1, t * 2 - segment));
-      const color = `rgb(${stops[segment].map((v, i) => Math.round(v + (stops[segment + 1][i] - v) * mix)).join(',')})`;
-      return {
-        c,
-        center,
-        color,
-        value,
-        points: corners
-          .map((p) => {
-            const v = project(p[0], p[1], p[2]);
-            return `${v.x},${v.y}`;
-          })
-          .join(' '),
-        details: {
-          id: `${title}-${c.x}-${c.y}-${c.z}`,
-          heading: `${title} · cell (${c.x + 1}, ${c.y + 1}, ${c.z + 1})`,
-          rows: [
-            ['X center (m)', formatPlotNumber(x + dx / 2)],
-            ['Y center (m)', formatPlotNumber(y + dy / 2)],
-            ['Z center (m)', formatPlotNumber(z + dz / 2)],
-            [title, formatPlotNumber(value)],
-          ] as [string, string][],
-        },
-      };
-    })
-    .sort((a, b) => b.center.depth - a.center.depth);
+            : c.axis === 1
+              ? [
+                  [x, y + dy / 2, z],
+                  [x + dx, y + dy / 2, z],
+                  [x + dx, y + dy / 2, z + dz],
+                  [x, y + dy / 2, z + dz],
+                ]
+              : [
+                  [x, y, z + dz / 2],
+                  [x + dx, y, z + dz / 2],
+                  [x + dx, y + dy, z + dz / 2],
+                  [x, y + dy, z + dz / 2],
+                ];
+        const value = values[c.z][c.y][c.x],
+          t = (value - lo) / (hi - lo || 1);
+        const stops = symmetric
+          ? [
+              [49, 54, 149],
+              [247, 247, 247],
+              [165, 0, 38],
+            ]
+          : [
+              [68, 1, 84],
+              [33, 145, 140],
+              [253, 231, 37],
+            ];
+        const segment = Math.min(1, Math.floor(t * 2)),
+          mix = Math.max(0, Math.min(1, t * 2 - segment));
+        const color = `rgb(${stops[segment].map((v, i) => Math.round(v + (stops[segment + 1][i] - v) * mix)).join(',')})`;
+        return {
+          c,
+          center,
+          color,
+          value,
+          corners,
+          details: {
+            id: `${title}-${c.x}-${c.y}-${c.z}`,
+            heading: `${title} · cell (${c.x + 1}, ${c.y + 1}, ${c.z + 1})`,
+            rows: [
+              ['X center (m)', formatPlotNumber(x + dx / 2)],
+              ['Y center (m)', formatPlotNumber(y + dy / 2)],
+              ['Z center (m)', formatPlotNumber(z + dz / 2)],
+              [title, formatPlotNumber(value)],
+            ] as [string, string][],
+          },
+        };
+      });
+  }, [nx, ny, nz, ix, iy, iz, dx, dy, dz, minZ, config.minX, config.minY, values, lo, hi, symmetric, title]);
+  const polygons = slices.map(slice => ({
+    ...slice,
+    center: project(...slice.center),
+    points: slice.corners.map(([x, y, z]) => {
+      const point = project(x,y,z);
+      return `${point.x},${point.y}`;
+    }).join(' '),
+  })).sort((a, b) => b.center.depth - a.center.depth);
   return (
     <section className="rounded-xl bg-[#121212] p-3 text-white space-y-3">
       <h3 className="font-semibold text-sm">{title} · 3D slices</h3>
@@ -147,8 +157,8 @@ export function VolumeFieldPlot({
             aria-label={`${title} computed 3D volume slices`}
           >
             <SpatialFrame config={config} camera={controller.camera} width={460} height={420} centerX={260} centerY={245}/>
-            {polygons.map((p, i) => (
-              <polygon key={i} points={p.points} fill={p.color}>
+            {polygons.map((p) => (
+              <polygon key={`${p.details.id}-${p.c.axis}`} points={p.points} fill={p.color}>
                 <title>
                   {p.details.heading}: {p.value}
                 </title>

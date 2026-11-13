@@ -11,6 +11,7 @@ export function PlotProbe({
   width,
   height,
   dark = true,
+  showSelectionMarker = true,
 }: {
   points: ProbePoint<PlotDetails>[];
   left: number;
@@ -18,6 +19,7 @@ export function PlotProbe({
   width: number;
   height: number;
   dark?: boolean;
+  showSelectionMarker?: boolean;
 }) {
   const inspection = useInspectionContext();
   const root = useRef<SVGGElement>(null);
@@ -171,14 +173,16 @@ export function PlotProbe({
             strokeOpacity=".35"
             strokeDasharray="4 4"
           />
-          <circle
-            cx={selected.cx}
-            cy={selected.cy}
-            r="7"
-            fill="none"
-            stroke={dark ? "#F8CF79" : "#C5050C"}
-            strokeWidth="2"
-          />
+          {showSelectionMarker && (
+            <circle
+              cx={selected.cx}
+              cy={selected.cy}
+              r="7"
+              fill="none"
+              stroke={dark ? "#F8CF79" : "#C5050C"}
+              strokeWidth="2"
+            />
+          )}
           {!inspection.pinned && (
             <>
               <rect

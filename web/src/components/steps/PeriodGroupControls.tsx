@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import { acquisitionLimits } from '../../utils/acquisitionLimits';
+import React, { useEffect, useId, useRef, useState } from "react";
 import { ModelConfig } from "../../types/aquifer";
 import { addPeriodGroup, periodGroups } from "../../utils/periodGroups";
 import { NumericInput } from "../NumericInput";
@@ -22,6 +23,9 @@ export function PeriodGroupControls({
   onOpenSweep?: () => void;
   compact?: boolean;
 }) {
+  const { testLimit } = acquisitionLimits(config.dimension);
+  const limitHint = useId();
+  const atLimit = config.tests.length >= testLimit;
   const groups = periodGroups(config);
   const [adding, setAdding] = useState(false);
   const [period, setPeriod] = useState(config.pumpingPeriod);
@@ -144,7 +148,8 @@ export function PeriodGroupControls({
         </div>
         <button
           type="button"
-          disabled={config.tests.length >= 30}
+          disabled={atLimit}
+          aria-describedby={atLimit ? limitHint : undefined}
           aria-label={compact ? (selected === 'all' ? 'Add pumping test' : `Add test at ${selected} s`) : undefined}
           onClick={() =>
             onAddTest(
@@ -159,6 +164,11 @@ export function PeriodGroupControls({
             : `Add test at ${selected} s`}
         </button>
       </div>
+      {atLimit && (
+        <p id={limitHint} className="w-full text-xs text-slate-600">
+          All {testLimit} test slots are used. Remove a test to add another.
+        </p>
+      )}
       {adding && (
         <form
           ref={groupForm}

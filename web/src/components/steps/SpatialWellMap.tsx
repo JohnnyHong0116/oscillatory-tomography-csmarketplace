@@ -18,7 +18,7 @@ export function SpatialWellMap({config,test,label='3D well locations',selectedWe
   const selected=config.wells.find(w=>w.id===selectedWellId);
   const ports=[...config.wells].sort((a,b)=>project(b.x,b.y,b.z??0).depth-project(a.x,a.y,a.z??0).depth);
   const validDraft=draft&&[draft.x,draft.y,draft.z].every(Number.isFinite)&&draft.x>=config.minX&&draft.x<=config.maxX&&draft.y>=config.minY&&draft.y<=config.maxY&&draft.z>=(config.minZ??-40)&&draft.z<=(config.maxZ??40);
-  return <div className="spatial-well-map">
+  return <div className="spatial-well-map" data-tour="spatial-wells">
     <SpatialViewport controller={controller} label={label} dark>
       <svg viewBox="0 0 600 500" data-spatial-scene role="group" aria-label={label} className="w-full rounded-lg bg-[#121212]">
         <SpatialFrame config={config} camera={camera} width={460} height={420} centerX={260} centerY={245}/>

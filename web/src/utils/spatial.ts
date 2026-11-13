@@ -1,5 +1,5 @@
 import { ModelConfig } from '../types/aquifer';
-import { orientPoint, SpatialCamera } from './spatialCamera';
+import { spatialOrientation, SpatialCamera } from './spatialCamera';
 
 /** Apply camera pan/zoom in SVG units after equal-scale world projection. */
 export function spatialCameraProjection(c:ModelConfig,camera:SpatialCamera,w=440,h=410,cx=w/2,cy=h/2) {
@@ -64,12 +64,11 @@ export function spatialIssues(c: ModelConfig, inversion = false) {
 /** Orthographic camera with one physical scale on all three axes. No depth
  * exaggeration: project all box corners to fit the chosen viewport. */
 export function spatialProjection(c: ModelConfig, yaw: number, pitch: number, w = 440, h = 410, roll = 0) {
-  const raw = (x: number, y: number, z: number) => {
-    const X = x - (c.minX + c.maxX) / 2,
-      Y = y - (c.minY + c.maxY) / 2,
-      Z = z - ((c.minZ ?? -40) + (c.maxZ ?? 40)) / 2;
-    return orientPoint(X,Y,Z,yaw,pitch,roll);
-  };
+  const orient = spatialOrientation(yaw, pitch, roll);
+  const centerX = (c.minX + c.maxX) / 2;
+  const centerY = (c.minY + c.maxY) / 2;
+  const centerZ = ((c.minZ ?? -40) + (c.maxZ ?? 40)) / 2;
+  const raw = (x: number, y: number, z: number) => orient(x - centerX, y - centerY, z - centerZ);
   const corners = [c.minX, c.maxX].flatMap((x) =>
     [c.minY, c.maxY].flatMap((y) => [c.minZ ?? -40, c.maxZ ?? 40].map((z) => ({ x, y, z }))),
   );

@@ -1,3 +1,4 @@
+import { ExperimentLibrary } from './components/ExperimentLibrary';
 import { ExportExperiment, ImportExperiment } from './components/ExperimentExchange';
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { StepId, TestCaseType, ExampleType, ModelConfig, AnalysisResult } from './types/aquifer';
@@ -23,7 +24,7 @@ import {
   testIssues,
 } from './utils/experimentWorkflow';
 
-type View = 'project' | 'examples' | 'example';
+type View = 'project' | 'examples' | 'example' | 'folders';
 type Sessions = { project: ExperimentSession; example: ExperimentSession };
 
 /** Personal work and practice are separate sessions. Navigating to Examples
@@ -35,6 +36,8 @@ export default function App() {
     example: createExample('black_kipp'),
   }));
   const [view, setView] = useState<View>('project');
+  const [savedExperimentId, setSavedExperimentId] = useState<string | null>(null);
+  const [saveOnOpen, setSaveOnOpen] = useState(false);
   const key = view === 'example' ? 'example' : 'project';
   const session = sessions[key];
   const { step: currentStep, config, result, selectedTestId } = session;
@@ -90,6 +93,7 @@ export default function App() {
   };
   const openView = (target: View) => {
     if (running) return;
+    setSaveOnOpen(false);
     setView(target);
     setNotice('');
     setFocusTestId(null);
@@ -154,12 +158,13 @@ export default function App() {
     finally { setLoadingPreview(false); }
   };
   const approveProjectReplacement = () =>
-    !(sessions.project.config.wells.length || sessions.project.result) ||
+    !(sessions.project.config.wells.length || sessions.project.result || sessions.project.name !== 'Untitled experiment') ||
     window.confirm(
       'Replace Your experiment with this configuration? The current personal configuration and results will be discarded. Practice will remain available.',
     );
   const copyExample = () => {
     if (!approveProjectReplacement()) return;
+    setSavedExperimentId(null);
     setSessions((previous) => ({
       ...previous,
       project: { ...structuredClone(previous.example), name: 'Experiment from example', step: 1 },
@@ -167,13 +172,14 @@ export default function App() {
     openView('project');
   };
   const handleResetWorkflow = () => {
-    if (running || view === 'examples') return;
+    if (running || view === 'examples' || view === 'folders') return;
     if (
       !window.confirm(
         'Reset this workspace?\n\nThis will discard its current configuration and results. Your other workspace is preserved. This cannot be undone.',
       )
     )
       return;
+    if (key === 'project') setSavedExperimentId(null);
     setSessions((previous) => ({
       ...previous,
       [key]: key === 'project' ? createExperiment() : createExample(previous.example.config.examplePreset ?? previous.example.config.testCase),
@@ -185,6 +191,7 @@ export default function App() {
   };
   const completeTransfer = (prepared: ExperimentSession) => {
     if (key === 'example' && !approveProjectReplacement()) return;
+    if (key === 'example') setSavedExperimentId(null);
     setSessions((previous) => ({
       ...previous,
       project: {
@@ -206,9 +213,9 @@ export default function App() {
     <div className="h-dvh min-h-0 overflow-hidden bg-[#F7F7F7] flex flex-col text-[#121212]">
       <Header
         title={
-          view === 'examples' ? 'Example library' : key === 'example' ? 'Example practice' : 'Your experiment'
+          view === 'folders' ? 'Folders' : view === 'examples' ? 'Example library' : key === 'example' ? 'Example practice' : 'Your experiment'
         }
-        disabled={running || view === 'examples'}
+        disabled={running || view === 'examples' || view === 'folders'}
         onReset={handleResetWorkflow}
         onToggleHelp={() => setIsHelpOpen(!isHelpOpen)}
         isHelpOpen={isHelpOpen}
@@ -218,6 +225,7 @@ export default function App() {
           view={view}
           disabled={running}
           onOpenProject={() => openView('project')}
+          onOpenFolders={() => openView('folders')}
           onOpenExamples={() => openView('examples')}
           onOpenDocs={() => setIsDocsOpen(true)}
           onOpenAbout={() => setIsAboutOpen(true)}
@@ -232,7 +240,24 @@ export default function App() {
             className="min-h-0 flex-1 min-w-0 overflow-y-auto outline-none"
           >
             <div className="p-4 sm:p-6">
-              {view === 'examples' ? (
+              {view === 'folders' ? (
+                <ExperimentLibrary
+                  session={sessions.project}
+                  activeId={savedExperimentId}
+                  startSaving={saveOnOpen}
+                  onSaved={(id, name) => {
+                    setSavedExperimentId(id);
+                    setSaveOnOpen(false);
+                    update({ name });
+                  }}
+                  onOpen={(id, saved) => {
+                    if (!approveProjectReplacement()) return;
+                    setSessions(previous => ({ ...previous, project: saved }));
+                    setSavedExperimentId(id);
+                    openView('project');
+                  }}
+                />
+              ) : view === 'examples' ? (
                 <>
                   {notice && <p role="status" className="max-w-5xl mx-auto mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">{notice}</p>}
                   <div className="max-w-5xl mx-auto mb-4 rounded-xl border bg-white p-4 text-sm text-[#4B4F52]">
@@ -288,11 +313,16 @@ export default function App() {
                             </option>
                           </select>
                       </label>}
+                      {key === 'project' && <button data-tour="save-experiment" type="button" disabled={running}
+                        onClick={() => { openView('folders'); setSaveOnOpen(true); }}
+                        className="studio-button studio-button-secondary focus-ring">
+                        Save to Folders
+                      </button>}
                       {key === 'example' && (
                         <button
                           disabled={running}
                           onClick={copyExample}
-                          className="rounded-lg border bg-white px-3 py-2 text-xs font-semibold focus-ring"
+                          className="studio-button studio-button-secondary focus-ring"
                         >
                           Copy configuration to Your experiment
                         </button>
@@ -317,8 +347,8 @@ export default function App() {
                       </div>
                     )}
                     {currentStep === 1 && <details className="experiment-pathway-help"><summary>About the model pathways</summary><p>Both pathways use your wells and tests. Black–Kipp compares a homogeneous, infinite-aquifer analytical solution with the finite-domain model. Forward outputs from either pathway can become synthetic inversion input. Periods and pumping amplitudes are configurable; no period is fixed at 10 seconds.</p></details>}
-                    {currentStep === 1 && key === 'project' && <ImportExperiment onImport={imported => { if(!approveProjectReplacement())return; setSessions(previous=>({...previous,project:imported}));setFocusTestId(null);setNotice('Experiment imported. Review inputs before running; saved results are retained as historical outputs.');window.history.replaceState(null,'',window.location.pathname+window.location.search);resetWorkspaceScroll(); }} />}
-                    {currentStep === 3 && result && <button onClick={()=>navigate(5)} className="w-fit rounded-lg border bg-white px-4 py-2 text-sm font-semibold focus-ring">View saved results</button>}
+                    {currentStep === 1 && key === 'project' && <ImportExperiment onImport={imported => { if(!approveProjectReplacement())return; setSavedExperimentId(null); setSessions(previous=>({...previous,project:imported}));setFocusTestId(null);setNotice('Experiment imported. Review inputs before running; saved results are retained as historical outputs.');window.history.replaceState(null,'',window.location.pathname+window.location.search);resetWorkspaceScroll(); }} />}
+                    {currentStep < 4 && result && <button type="button" onClick={() => navigate(5)} className="studio-button studio-button-secondary focus-ring">View saved results</button>}
                   </section>
                   {(currentStep === 1 || currentStep === 2) && (
                     <Step2ConfigureModel
@@ -407,7 +437,7 @@ export default function App() {
               )}
             </div>
           </main>
-          {view !== 'examples' && !isHelpOpen && (
+          {view !== 'examples' && view !== 'folders' && !isHelpOpen && (
             <div className="relative h-16 shrink-0" aria-label="Workflow navigation tools">
             <JourneyGuide
               minimized={isGuideMinimized}

@@ -202,7 +202,7 @@ export const Step5ExploreResults: React.FC<Props> = ({
                 ? 'Forward response explorer'
                 : 'Interactive inversion explorer'}
           </div>
-          <h2 className="text-xl font-bold mt-2">
+          <h2 className="workspace-title mt-2">
             {blackKipp
               ? 'Black–Kipp analytical comparison'
               : result.mode === 'inversion'
@@ -217,13 +217,13 @@ export const Step5ExploreResults: React.FC<Props> = ({
         <div data-tour="result-export" className="flex flex-wrap gap-2">
           <button
             onClick={() => downloadCsv(result)}
-            className="flex items-center gap-2 px-3 py-2 border rounded-md text-sm"
+            className="studio-button studio-button-secondary focus-ring"
           >
             <Download size={16} /> Response-only CSV
           </button>
           <button
             onClick={onOpenReport}
-            className="flex items-center gap-2 px-3 py-2 bg-[#C5050C] text-white rounded-md text-sm"
+            className="studio-button studio-button-primary focus-ring"
           >
             <FileText size={16} /> Generate report
           </button>

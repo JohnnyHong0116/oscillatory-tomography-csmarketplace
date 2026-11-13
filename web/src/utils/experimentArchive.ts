@@ -8,7 +8,7 @@ const VERSION = 1;
 const manifest = () => ({
   format: FORMAT,
   version: VERSION,
-  appVersion: '1.5.2',
+  appVersion: '1.6.0',
   solver: 'oscillatory-tomography-python',
   exportedAt: new Date().toISOString(),
 });

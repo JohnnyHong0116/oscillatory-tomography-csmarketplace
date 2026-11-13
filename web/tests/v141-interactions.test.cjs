@@ -202,3 +202,19 @@ test('period sweep exposes every input method and starts from the selected test 
   assert.match(html, /<option value="active" selected=""/);
   assert.ok(html.includes('1 well setups × 2 periods'));
 });
+
+test("the full MATLAB 3D acquisition can add tests from All periods up to the forward limit", () => {
+  const { PeriodGroupControls } = load(
+    path.join(root, "components/steps/PeriodGroupControls.tsx"),
+  );
+  const config = createExample("matlab_3d").config;
+  assert.equal(config.tests.length, 104);
+  const render = current => renderToStaticMarkup(React.createElement(PeriodGroupControls, {
+    config: current, selected: "all", compact: true, onSelect() {}, onChange() {}, onAddTest() {},
+  }));
+  const addButton = html => html.match(/<button[^>]*aria-label="Add pumping test"[^>]*>/)[0];
+  assert.doesNotMatch(addButton(render(config)), /disabled/);
+  const full = render({ ...config, tests: [...config.tests, ...config.tests.slice(0, 4)] });
+  assert.match(addButton(full), /disabled/);
+  assert.match(full, /All 108 test slots are used/);
+});

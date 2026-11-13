@@ -5,14 +5,14 @@ export const WORKFLOW_HELP = [
     category: 'Workflow',
     definition: 'Organize independent pumping tests by their common cycle period.',
     details:
-      'Tests & periods groups equal numeric periods without changing test IDs or solver ordering. Choose a period in the dropdown, then Add test to group; it inherits that period, while pump, observers and Qmax remain editable per test. New period group creates an empty organizational group, not observations or a solver run. Changing a test period moves that test after editing. Invalid drafts remain visible. The optional sweep builder repeats well setups across periods and explicitly replaces the test list after confirmation.',
+      'Tests & periods groups equal numeric periods without changing test IDs or solver ordering. Select a period group in the toolbar, then Add test; it inherits that period, while pump, observers and Qmax remain editable per test. New period group creates an empty organizational group, not observations or a solver run. Changing a test period moves that test after editing. Invalid drafts remain visible. The optional sweep builder repeats well setups across periods and explicitly replaces the test list after confirmation.',
   },
   {
     term: 'Well signal map',
     category: 'Results',
     definition: 'Inspect amplitudes and phasor phases at actual observation locations for one pumping test.',
     details:
-      'Circles mark observers; the pump is a triangle in 2D and a black square in 3D. The numerical size legend matches the markers: logarithmic radius or linear area above a minimum visible size. Amplitude size scales are fixed across tests for each data source. The 2D map uses cyclic raw phasor phase. The 3D map defaults to relative phase delay in seconds, modulo one cycle, with an automatic or selected receiver reference; raw phase is also available. This delay is not groundwater travel time. The 3D delay color range is per test. Numeric XYZ axes, vertical port guides and camera controls show spatial geometry; XY/XZ/YZ projections may overlap ports. Optional site elevations are display annotations only. Unused wells are gray. The pumping well is not assigned an invented head value. Switch tests with the dropdown or arrows; select predictions or available imported/synthetic observations. Hover, keyboard focus, click-to-pin and full-screen inspection are supported. No contour interpolation is implied between wells.',
+      'Circles mark observers; the pump is a triangle in 2D and a black square in 3D. The numerical size legend matches the markers: logarithmic radius or linear area above a minimum visible size. Amplitude size scales are fixed across tests for each data source. The 2D map uses cyclic raw phasor phase. The 3D map defaults to relative phase delay in seconds, modulo one cycle, with an automatic or selected receiver reference; raw phase is also available. This delay is not groundwater travel time. The 3D delay color range is per test. Drag to orbit, Ctrl-drag to pan, or scroll to zoom. Use the view cube for standard views. Numeric XYZ axes and vertical port guides show spatial geometry; XY/XZ/YZ projections may overlap ports. Optional site elevations are display annotations only. Unused wells are gray. The pumping well is not assigned an invented head value. Switch tests with the dropdown or arrows; select predictions or available imported/synthetic observations. Hover, keyboard focus, click-to-pin and full-screen inspection are supported. No contour interpolation is implied between wells.',
   },
   {
     term: 'Synthetic field selection',
@@ -26,7 +26,7 @@ export const WORKFLOW_HELP = [
     category: 'Workflow',
     definition: 'Personal experiments start with your own well locations, not a preset choice.',
     details:
-      'The home workspace starts empty. Define wells and model assumptions, configure tests and periods, review, run, then inspect results. Examples in the sidebar open a separate practice session: Black–Kipp first, P=10 checkerboard second. Browsing examples does not overwrite Your experiment. Copying a practice configuration or transferring its forward data into an existing personal project requires confirmation. Work is retained only during this browser session, not permanently saved.',
+      'The home workspace starts empty. Define wells and model assumptions, configure tests and periods, review, run, then inspect results. Examples in the sidebar open a separate practice session: Black–Kipp first, P=10 checkerboard second. Browsing examples does not overwrite Your experiment. Copying a practice configuration or transferring its forward data into an existing personal project requires confirmation. Use Save to Folders to keep the current configuration, observations and results in this browser. Reopen saved experiments from Folders. Export a complete experiment to move it to another browser or keep a backup.',
   },
   {
     term: 'Forward responses to inversion',
@@ -62,7 +62,7 @@ export const WORKFLOW_HELP = [
     category: 'Workflow',
     definition: 'Review the configured experiment before running the solver.',
     details:
-      'Use the screen’s Continue buttons to advance. The bottom journey guide allows backward navigation only; future stages stay locked. The sidebar switches between personal work, examples and resources. Review Inputs lists configuration issues and lets you return directly to the selected test. Resolve errors before proceeding. Reset requires confirmation. It clears only the active workspace: a personal project returns to empty wells, while practice returns to its selected preset.',
+      'Use the screen’s Continue buttons to advance. The bottom journey guide allows backward navigation only; future stages stay locked. The sidebar switches between personal work, saved folders, examples and resources. Review Inputs lists configuration issues and lets you return directly to the selected test. Resolve errors before proceeding. Reset requires confirmation. It clears only the active workspace: a personal project returns to empty wells, while practice returns to its selected preset.',
   },
   {
     term: 'Synthetic demo',

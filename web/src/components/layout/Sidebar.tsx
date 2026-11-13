@@ -1,10 +1,11 @@
 import React from 'react';
-import { BookOpen, BookOpenCheck, ChevronLeft, ChevronRight, FlaskConical, Info } from 'lucide-react';
+import { BookOpen, BookOpenCheck, ChevronLeft, ChevronRight, FlaskConical, Folder, Info } from 'lucide-react';
 
 interface Props {
-  view: 'project' | 'examples' | 'example';
+  view: 'project' | 'examples' | 'example' | 'folders';
   disabled: boolean;
   onOpenProject: () => void;
+  onOpenFolders: () => void;
   onOpenExamples: () => void;
   onOpenDocs: () => void;
   onOpenAbout: () => void;
@@ -19,6 +20,7 @@ export function Sidebar({
   disabled,
   onOpenProject,
   onOpenExamples,
+  onOpenFolders,
   onOpenDocs,
   onOpenAbout,
   isCollapsed,
@@ -41,7 +43,8 @@ export function Sidebar({
       <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 space-y-2">
         {[
           { label: 'Your experiment', icon: FlaskConical, active: view === 'project', action: onOpenProject },
-          { label: 'Examples', icon: BookOpenCheck, active: view !== 'project', action: onOpenExamples },
+          { label: 'Folders', icon: Folder, active: view === 'folders', action: onOpenFolders },
+          { label: 'Examples', icon: BookOpenCheck, active: view === 'examples' || view === 'example', action: onOpenExamples },
         ].map(({ label, icon: Icon, active, action }) => (
           <button
             key={label}
@@ -75,7 +78,7 @@ export function Sidebar({
         <footer className="shrink-0 border-t border-[#2A2A2A] p-4 text-[11px] leading-5">
           <strong className="text-white">UW–Madison Geoscience</strong>
           <p>Oscillatory Tomography</p>
-          <p className="mt-2 text-[10px] text-[#777]">Projects stay in this browser session.</p>
+          <p className="mt-2 text-[10px] text-[#777]">Saved experiments are stored in this browser.</p>
         </footer>
       )}
     </aside>

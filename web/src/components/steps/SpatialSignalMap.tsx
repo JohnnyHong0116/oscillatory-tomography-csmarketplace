@@ -1,4 +1,4 @@
-import React, { useId, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { AnalysisResult, ModelConfig, Well } from '../../types/aquifer';
 import { matchesScope, periodGroups } from '../../utils/periodGroups';
 import { spatialCameraProjection } from '../../utils/spatial';
@@ -27,6 +27,7 @@ import { SpatialBackdrop } from './SpatialBackdrop';
 
 const PAPER =
   'https://www.boisestate.edu/wp-content/uploads/sites/290/2020/01/Cardiff-et-al-2019-OHT-field-scale-online-gwat.12960.pdf#page=7';
+const sceneBounds = { left: 0, top: 66, width: 612, height: 462 };
 const short = (n: number) => Number(n.toPrecision(4)).toString();
 
 /** Figure-4-inspired spatial diagnostics, using only configured ports and the
@@ -41,9 +42,18 @@ export function SpatialSignalMap({
   result: AnalysisResult;
   scope: string;
 }) {
-  const tests = c.tests.filter(
-    (t) => matchesScope(c, scope, t.id) && result.pairs.some((p) => p.testId === t.id),
-  );
+  const responsesByTest = useMemo(() => {
+    const groups = new Map<string, AnalysisResult['pairs']>();
+    for (const pair of result.pairs) {
+      const group = groups.get(pair.testId);
+      if (group) group.push(pair);
+      else groups.set(pair.testId, [pair]);
+    }
+    return groups;
+  }, [result.pairs]);
+  const tests = useMemo(() => c.tests.filter(
+    test => matchesScope(c, scope, test.id) && responsesByTest.has(test.id),
+  ), [c, scope, responsesByTest]);
   const [testId, setTestId] = useState(tests[0]?.id ?? '');
   const [source, setSource] = useState<SignalSource>(
     result.pairs.some((p) => p.measured != null) ? 'measured' : 'predicted',
@@ -51,26 +61,29 @@ export function SpatialSignalMap({
   const [scale, setScale] = useState<'log' | 'area'>('area');
   const [metric, setMetric] = useState<SignalColor>('relative_delay');
   const [reference, setReference] = useState('auto');
-  const controller = useSpatialCamera(720,650,325,265);
+  const controller = useSpatialCamera(720,650,330,277);
   const {yaw,pitch} = controller.camera;
   const [labels, setLabels] = useState(c.wells.length <= 12),
     [guides, setGuides] = useState(true),
     [planes, setPlanes] = useState(true);
   const gradient = `signal-${useId().replace(/[^a-z0-9]/gi, '')}`;
   const test = tests.find((t) => t.id === testId) ?? tests[0];
-  if (!test) return null;
-  const pairs = result.pairs.filter((p) => p.testId === test.id),
-    index = tests.indexOf(test);
-  const period = test.pumpingPeriod ?? c.pumpingPeriod;
-  const delays = signalDelays(pairs, source, reference, period);
+  const pairs = responsesByTest.get(test?.id ?? '');
+  const period = test?.pumpingPeriod ?? c.pumpingPeriod;
+  const delays = useMemo(() => signalDelays(pairs ?? [], source, reference, period), [pairs, source, reference, period]);
+  const amplitudeValues = useMemo(() => result.pairs
+    .map(pair => signalValue(pair, source)?.amplitude)
+    .filter((value): value is number => value !== undefined), [result.pairs, source]);
+  const wellResponses = useMemo(() => new Map((pairs ?? []).map(pair => [
+    pair.observationWellId, { pair, value: signalValue(pair, source) },
+  ])), [pairs, source]);
+  const columns = useMemo(() => portColumns(c.wells), [c.wells]);
+  const annotations = useMemo(() => referencePlanes(c), [c]);
+  if (!test || !pairs) return null;
+  const index = tests.indexOf(test);
   const referenceName = c.wells.find((w) => w.id === delays.referenceId)?.name ?? 'unavailable';
   const delayValues = [...delays.values.values()].filter((v): v is number => v !== null);
   const colorMax = metric === 'phase' ? 180 : Math.max(0, ...delayValues) || period;
-  const amplitudeValues = result.pairs
-    .map((p) => signalValue(p, source)?.amplitude)
-    .filter((v): v is number => v !== undefined);
-  const columns = portColumns(c.wells),
-    annotations = referencePlanes(c);
   const synthetic = result.analysisMode === 'synthetic_demo' || result.observationSource === 'synthetic';
   const sourceLabel =
     source === 'predicted'
@@ -79,7 +92,7 @@ export function SpatialSignalMap({
         ? 'Synthetic observations'
         : 'Imported measurements';
   const pump = c.wells.find((w) => w.id === test.pumpingWellId);
-  const {project} = spatialCameraProjection(c,controller.camera,560,450,325,265);
+  const {project} = spatialCameraProjection(c,controller.camera,600,505,330,277);
   const zmin = c.minZ ?? -40,
     zmax = c.maxZ ?? 40;
   const floor = [c.minX, c.maxX].flatMap((x) => [c.minY, c.maxY].map((y) => ({ x, y, z: zmin })));
@@ -99,9 +112,8 @@ export function SpatialSignalMap({
       })
       .join(' ');
   const details = (well: Well): PlotDetails => {
-    const pair = pairs.find((p) => p.observationWellId === well.id),
-      value = pair ? signalValue(pair, source) : null,
-      isPump = well.id === test.pumpingWellId;
+    const { pair, value } = wellResponses.get(well.id) ?? {};
+    const isPump = well.id === test.pumpingWellId;
     return {
       id: `${test.id}-${well.id}-${source}-${metric}-${delays.referenceId}`,
       heading: `${test.name} · ${well.name}${isPump ? ' (pump)' : ''}`,
@@ -132,6 +144,9 @@ export function SpatialSignalMap({
       ] as [string, string][],
     };
   };
+  const projectedWells = c.wells.map(well => ({
+    well, point: project(well.x, well.y, well.z ?? 0), details: details(well),
+  })).sort((a, b) => b.point.depth - a.point.depth);
   const tickLine = (a: number[], b: number[], key: string, color = '#D7E1EB') => {
     const p = project(a[0], a[1], a[2]),
       q = project(b[0], b[1], b[2]);
@@ -164,7 +179,7 @@ export function SpatialSignalMap({
     <section className="studio-panel space-y-4" aria-label="Spatial response map">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-bold text-base">3D well signal map</h3>
+          <h3 className="workspace-section-title">3D well signal map</h3>
           <p className="mt-1 text-xs text-slate-600">
             One pumping test · response amplitude and phase at physical ports
           </p>
@@ -177,7 +192,7 @@ export function SpatialSignalMap({
               setTestId(tests[index - 1].id);
               setReference('auto');
             }}
-            className="min-h-11 rounded-lg border px-3 disabled:opacity-30 focus-ring"
+            className="studio-button studio-button-secondary focus-ring"
           >
             ←
           </button>
@@ -188,7 +203,7 @@ export function SpatialSignalMap({
               setTestId(e.target.value);
               setReference('auto');
             }}
-            className="min-w-0 max-w-64 min-h-11 rounded-lg border bg-white p-2 text-sm focus-ring"
+            className="studio-input max-w-64 focus-ring"
           >
             {periodGroups(c).map((g) => (
               <optgroup key={g.period} label={`P = ${g.period} s`}>
@@ -209,7 +224,7 @@ export function SpatialSignalMap({
               setTestId(tests[index + 1].id);
               setReference('auto');
             }}
-            className="min-h-11 rounded-lg border px-3 disabled:opacity-30 focus-ring"
+            className="studio-button studio-button-secondary focus-ring"
           >
             →
           </button>
@@ -225,7 +240,7 @@ export function SpatialSignalMap({
               setSource(e.target.value as SignalSource);
               setReference('auto');
             }}
-            className="mt-1 min-h-11 block w-full rounded-lg border bg-white p-2 focus-ring"
+            className="studio-input mt-1 block w-full focus-ring"
           >
             <option value="predicted">Predicted heads</option>
             {result.pairs.some((p) => p.measured != null) && (
@@ -241,7 +256,7 @@ export function SpatialSignalMap({
             aria-label="Map amplitude scale"
             value={scale}
             onChange={(e) => setScale(e.target.value as 'log' | 'area')}
-            className="mt-1 min-h-11 block w-full rounded-lg border bg-white p-2 focus-ring"
+            className="studio-input mt-1 block w-full focus-ring"
           >
             <option value="area">Linear area + minimum size</option>
             <option value="log">Log-scaled radius</option>
@@ -253,7 +268,7 @@ export function SpatialSignalMap({
             aria-label="Map color metric"
             value={metric}
             onChange={(e) => setMetric(e.target.value as SignalColor)}
-            className="mt-1 min-h-11 block w-full rounded-lg border bg-white p-2 focus-ring"
+            className="studio-input mt-1 block w-full focus-ring"
           >
             <option value="relative_delay">Relative phase delay (s)</option>
             <option value="phase">Raw phasor phase (°)</option>
@@ -266,7 +281,7 @@ export function SpatialSignalMap({
             value={reference}
             disabled={metric === 'phase'}
             onChange={(e) => setReference(e.target.value)}
-            className="mt-1 min-h-11 block w-full rounded-lg border bg-white p-2 disabled:opacity-40 focus-ring"
+            className="studio-input mt-1 block w-full disabled:opacity-40 focus-ring"
           >
             <option value="auto">Leading phase · this test</option>
             {pairs
@@ -325,6 +340,7 @@ export function SpatialSignalMap({
           <svg
             viewBox="0 0 720 650"
             data-spatial-scene
+            data-signal-scene
             role="group"
             aria-label={`${sourceLabel} amplitude and ${metric === 'phase' ? 'raw phase' : 'relative phase delay'} map for ${test.name}`}
             className="w-full rounded-b-xl border bg-white"
@@ -340,7 +356,7 @@ export function SpatialSignalMap({
                 ))}
               </linearGradient>
               <clipPath id={`${gradient}-clip`}>
-                <rect x="18" y="74" width="594" height="440" />
+                <rect x={sceneBounds.left} y={sceneBounds.top} width={sceneBounds.width} height={sceneBounds.height} />
               </clipPath>
             </defs>
             <text x="28" y="29" fontSize="18" fontWeight="700" fill="#18222D">
@@ -424,12 +440,8 @@ export function SpatialSignalMap({
                     </g>
                   );
                 })}
-              {[...c.wells]
-                .sort((a, b) => project(b.x, b.y, b.z ?? 0).depth - project(a.x, a.y, a.z ?? 0).depth)
-                .map((w) => {
-                  const p = project(w.x, w.y, w.z ?? 0),
-                    pair = pairs.find((p) => p.observationWellId === w.id),
-                    value = pair ? signalValue(pair, source) : null,
+              {projectedWells.map(({ well: w, point: p, details: inspection }) => {
+                  const value = wellResponses.get(w.id)?.value,
                     isPump = w.id === test.pumpingWellId,
                     r = value ? signalRadius(value.amplitude, amplitudeValues, scale) : 4;
                   const mark = (
@@ -492,12 +504,12 @@ export function SpatialSignalMap({
                     </>
                   );
                   return (
-                    <InspectablePoint key={w.id} cx={p.x} cy={p.y} details={details(w)}>
+                    <InspectablePoint key={w.id} cx={p.x} cy={p.y} details={inspection}
+                      marker={isPump ? { shape: "square", radius: 13 } : { shape: "circle", radius: r }}>
                       {mark}
                     </InspectablePoint>
                   );
                 })}
-            </g>
             {axes.map((axis, i) => {
               const a = project(...(axis.start as [number, number, number])),
                 b = project(...(axis.end as [number, number, number])),
@@ -506,7 +518,7 @@ export function SpatialSignalMap({
               let nx = -(b.y - a.y) / length,
                 ny = (b.x - a.x) / length;
               const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-              if (nx * (mid.x - 325) + ny * (mid.y - 265) < 0) {
+              if (nx * (mid.x - 330) + ny * (mid.y - 277) < 0) {
                 nx = -nx;
                 ny = -ny;
               }
@@ -556,6 +568,7 @@ export function SpatialSignalMap({
                 </g>
               );
             })}
+            </g>
             <text x="612" y="280" fontSize="15" fill="#334155">
               {metric === 'phase' ? 'Phase (°)' : 'Delay (s)'}
             </text>
@@ -600,15 +613,13 @@ export function SpatialSignalMap({
             </text>
             {(
               <PlotProbe
+                showSelectionMarker={false}
                 dark={false}
-                left={24}
-                top={78}
-                width={578}
-                height={430}
-                points={c.wells.map((w) => {
-                  const p = project(w.x, w.y, w.z ?? 0);
-                  return { cx: p.x, cy: p.y, details: details(w) };
-                })}
+                {...sceneBounds}
+                points={projectedWells.filter(({ point }) =>
+                  point.x >= sceneBounds.left && point.x <= sceneBounds.left + sceneBounds.width &&
+                  point.y >= sceneBounds.top && point.y <= sceneBounds.top + sceneBounds.height,
+                ).map(({ point, details }) => ({ cx: point.x, cy: point.y, details }))}
               />
             )}
           </svg>

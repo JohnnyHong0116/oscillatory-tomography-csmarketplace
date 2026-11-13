@@ -7,10 +7,26 @@ export const STANDARD_VIEWS: Record<StandardView, [number,number]> = {
 };
 export const wrapAngle = (v:number) => ((v+180)%360+360)%360-180;
 export const clampZoom = (v:number) => Math.max(.4,Math.min(5,v));
-export function orientPoint(x:number,y:number,z:number,yaw:number,pitch:number,roll=0) {
-  const a=yaw*Math.PI/180,b=pitch*Math.PI/180,r=roll*Math.PI/180;
-  const X=x*Math.cos(a)-y*Math.sin(a), Y=-(x*Math.sin(a)+y*Math.cos(a))*Math.sin(b)-z*Math.cos(b);
-  return {x:X*Math.cos(r)-Y*Math.sin(r),y:X*Math.sin(r)+Y*Math.cos(r),depth:(x*Math.sin(a)+y*Math.cos(a))*Math.cos(b)-z*Math.sin(b)};
+/** Cache the rotation basis when projecting many points at the same camera pose. */
+export function spatialOrientation(yaw: number, pitch: number, roll = 0) {
+  const radians = Math.PI / 180;
+  const sinYaw = Math.sin(yaw * radians), cosYaw = Math.cos(yaw * radians);
+  const sinPitch = Math.sin(pitch * radians), cosPitch = Math.cos(pitch * radians);
+  const sinRoll = Math.sin(roll * radians), cosRoll = Math.cos(roll * radians);
+  return (x: number, y: number, z: number) => {
+    const horizontal = x * cosYaw - y * sinYaw;
+    const forward = x * sinYaw + y * cosYaw;
+    const vertical = -forward * sinPitch - z * cosPitch;
+    return {
+      x: horizontal * cosRoll - vertical * sinRoll,
+      y: horizontal * sinRoll + vertical * cosRoll,
+      depth: forward * cosPitch - z * sinPitch,
+    };
+  };
+}
+
+export function orientPoint(x: number, y: number, z: number, yaw: number, pitch: number, roll = 0) {
+  return spatialOrientation(yaw, pitch, roll)(x, y, z);
 }
 /** Orient toward a cube face, edge or corner. +Z is always elevation. */
 export function poseToward(x:number,y:number,z:number): Pick<SpatialCamera,'yaw'|'pitch'|'roll'> {

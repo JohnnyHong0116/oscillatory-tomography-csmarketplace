@@ -1,3 +1,4 @@
+import { acquisitionLimits } from '../../utils/acquisitionLimits';
 import { SpatialWellMap } from './SpatialWellMap';
 import { spatialIssues } from '../../utils/spatial';
 import { periodGroups } from '../../utils/periodGroups';
@@ -88,8 +89,7 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
   const forwardStateMemoryMB = Math.round(((unknownParams * bytesPerFloat) / (1024 * 1024)) * 10) / 10;
 
   const issues: ValidationIssue[] = spatialIssues(config).map((message,i)=>({id:`spatial-${i}`,type:'error',title:'3D model check',message}));
-  const testLimit = config.dimension === 3 ? 108 : 30;
-  const pairLimit = config.dimension === 3 ? 1500 : 100;
+  const { testLimit, pairLimit } = acquisitionLimits(config.dimension);
   if (tests.length > testLimit || wells.length > 30)
     issues.push({
       id: 'api-count-limits',
@@ -378,40 +378,20 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 py-2">
-      {/* Header */}
-      <div className="bg-white border border-[#D6DADD] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
+      <header className="studio-panel workspace-page-heading">
         <div>
-          <h2 className="text-lg font-bold text-[#121212] tracking-tight">
-            Step 3: Review Model Inputs & Validation
-          </h2>
-          <p className="text-xs text-[#4B4F52] mt-0.5">
-            Verify experiment-level parameters, test role assignments, physical units, and computing resources
-            before running the solver.
-          </p>
+          <h2 className="workspace-title">Review model inputs</h2>
+          <p className="workspace-description">Check geometry, test roles, units, and computing requirements before running the solver.</p>
         </div>
-
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={onPrev}
-            className="flex items-center space-x-1 bg-white hover:bg-[#F1F2F3] text-[#121212] border border-[#D6DADD] text-xs font-semibold px-3 py-1.5 rounded transition focus-ring"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to Config</span>
+        <div className="workspace-actions">
+          <button type="button" onClick={onPrev} className="studio-button studio-button-secondary focus-ring">
+            <ArrowLeft size={16} /> Back to tests
           </button>
-          <button
-            onClick={onNext}
-            disabled={hasErrors}
-            className={`flex items-center space-x-1.5 text-xs font-bold px-5 py-2 rounded shadow-xs transition focus-ring ${
-              hasErrors
-                ? 'bg-[#E1E5E7] text-[#6B7074] cursor-not-allowed'
-                : 'bg-[#C5050C] hover:bg-[#9B0000] text-white'
-            }`}
-          >
-            <span>Proceed to Run Analysis</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+          <button type="button" onClick={onNext} disabled={hasErrors} className="studio-button studio-button-primary focus-ring">
+            Continue to Data &amp; run <ArrowRight size={16} />
           </button>
         </div>
-      </div>
+      </header>
 
       {/* REQUIREMENT 2: Experiment-Level Summary Metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -858,27 +838,12 @@ export const Step3ReviewInputs: React.FC<Step3Props> = ({
         </div>
       </div>
 
-      {/* Bottom Actions */}
-      <div className="flex items-center justify-between pt-2">
-        <button
-          onClick={onPrev}
-          className="flex items-center space-x-1.5 bg-white hover:bg-[#F1F2F3] text-[#121212] border border-[#D6DADD] text-xs font-semibold px-4 py-2 rounded transition focus-ring"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Configuration</span>
+      <div className="workspace-actions justify-between">
+        <button type="button" onClick={onPrev} className="studio-button studio-button-secondary focus-ring">
+          <ArrowLeft size={16} /> Back to tests
         </button>
-
-        <button
-          onClick={onNext}
-          disabled={hasErrors}
-          className={`flex items-center space-x-2 text-xs font-bold px-6 py-2.5 rounded-lg shadow-xs transition focus-ring ${
-            hasErrors
-              ? 'bg-[#E1E5E7] text-[#6B7074] cursor-not-allowed'
-              : 'bg-[#C5050C] hover:bg-[#9B0000] text-white'
-          }`}
-        >
-          <span>{testCase === 'black_kipp' ? 'Run Black–Kipp Comparison' : 'Run Tomographic Analysis'}</span>
-          <ArrowRight className="w-4 h-4" />
+        <button type="button" onClick={onNext} disabled={hasErrors} className="studio-button studio-button-primary focus-ring">
+          Continue to Data &amp; run <ArrowRight size={16} />
         </button>
       </div>
     </div>

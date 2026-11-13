@@ -206,7 +206,7 @@ export const Step4RunAnalysis: React.FC<Props> = ({
       <div className="bg-white border border-[#D6DADD] rounded-xl p-5 flex flex-wrap justify-between gap-3">
         <div>
           <div className="text-xs font-semibold text-[#C5050C] mb-1">Step 4 · Python solver</div>
-          <h2 className="text-xl font-bold">
+          <h2 className="workspace-title">
             Run {config.testCase === 'black_kipp' ? 'Black–Kipp comparison' : 'multi-test tomography'}
           </h2>
           <p className="text-xs text-[#4B4F52] mt-1">

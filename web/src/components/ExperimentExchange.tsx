@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { Download, Upload, Link, Copy } from 'lucide-react';
 import { ExperimentSession } from '../utils/experimentWorkflow';
 import {
@@ -103,7 +103,15 @@ export function ExportExperiment({ session }: { session: ExperimentSession }) {
   );
 }
 
-export function ImportExperiment({ onImport }: { onImport: (s: ExperimentSession) => void }) {
+export function ImportExperiment({ onImport, destination }: {
+  onImport: (session: ExperimentSession) => void | Promise<void>;
+  destination?: {
+    folders: { id: string; name: string }[];
+    folderId: string;
+    onChange: (id: string) => void;
+  };
+}) {
+  const linkInputId = useId();
   const [linkOpen, setLinkOpen] = useState(false);
   const [input, setInput] = useState(''),
     [pending, setPending] = useState<ExperimentSession | null>(null),
@@ -122,16 +130,29 @@ export function ImportExperiment({ onImport }: { onImport: (s: ExperimentSession
     }
   }
   useEffect(() => {
-    if (new URLSearchParams(window.location.hash.slice(1)).has('experiment')) {
+    if (!destination && new URLSearchParams(window.location.hash.slice(1)).has('experiment')) {
       setLinkOpen(true);
       setInput(window.location.href);
       void load(() => parseExperimentLink(window.location.href));
     }
   }, []);
+  async function confirmImport(session: ExperimentSession) {
+    setBusy(true);
+    setError('');
+    try {
+      await onImport(session);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not save the imported experiment.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="experiment-import" aria-label="Import experiment">
       <div className="experiment-import-heading">
-        <div><h3><Upload size={17} /> Open saved experiment</h3><p>Restore wells, settings and observations. Review before running.</p></div>
+        <div><h3><Upload size={17} /> {destination ? 'Import into Folders' : 'Open saved experiment'}</h3>
+          <p>{destination ? 'Import a complete experiment CSV or share link.' : 'Restore wells, settings and observations. Review before running.'}</p></div>
         <div className="experiment-import-actions">
           <label className="experiment-file-button"><Upload size={15}/> Choose CSV
           <input
@@ -151,10 +172,10 @@ export function ImportExperiment({ onImport }: { onImport: (s: ExperimentSession
             }}
           />
           </label>
-          <button type="button" aria-expanded={linkOpen} aria-controls="experiment-link-input" onClick={()=>setLinkOpen(!linkOpen)} className="experiment-link-toggle"><Link size={15}/> Paste link</button>
+          <button type="button" aria-expanded={linkOpen} aria-controls={linkInputId} onClick={()=>setLinkOpen(!linkOpen)} className="experiment-link-toggle"><Link size={15}/> Paste link</button>
         </div>
       </div>
-      {linkOpen && <div id="experiment-link-input" className="experiment-link-row">
+      {linkOpen && <div id={linkInputId} className="experiment-link-row">
         <label>Experiment share link<input aria-label="Paste experiment link" value={input} onChange={e=>setInput(e.target.value)} placeholder="https://…/#experiment=…" /></label>
         <button type="button" disabled={busy || !input.trim()} onClick={()=>void load(()=>parseExperimentLink(input))}>{busy?'Reading…':'Read link'}</button>
       </div>}
@@ -171,15 +192,26 @@ export function ImportExperiment({ onImport }: { onImport: (s: ExperimentSession
             {pending.config.tests.length} tests ·{' '}
             {pending.result ? 'saved results included' : 'configuration and observations'}.
           </p>
-          <button
-            onClick={() => onImport(pending)}
-            className="rounded-lg bg-[#C5050C] px-4 py-2 text-sm font-semibold text-white focus-ring"
-          >
-            Import & review inputs →
-          </button>
-          <p className="text-xs text-slate-600">
+          <div className="flex flex-wrap items-end gap-3">
+            {destination && (
+              <label className="block min-w-0 text-xs">
+                Destination folder
+                <select className="studio-input mt-1 block max-w-full focus-ring"
+                  value={destination.folderId} disabled={busy}
+                  onChange={event => destination.onChange(event.target.value)}>
+                  <option value="">Unfiled</option>
+                  {destination.folders.map(folder => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+                </select>
+              </label>
+            )}
+            <button type="button" disabled={busy} onClick={() => void confirmImport(pending)}
+              className="studio-button studio-button-primary focus-ring">
+              {destination ? 'Import to folder' : 'Import & review inputs →'}
+            </button>
+          </div>
+          {!destination && <p className="text-xs text-slate-600">
             Replaces Your experiment after confirmation. Examples remain separate.
-          </p>
+          </p>}
         </div>
       )}
     </section>
