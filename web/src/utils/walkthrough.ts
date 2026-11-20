@@ -113,7 +113,7 @@ export const pageTours: Record<StepId, TourStop[]> = {
     {
       selector: '[data-tour="save-experiment"]',
       title: "Save the experiment in a folder",
-      text: "Save the current setup, observations, and results. Choose a folder and add tags. Open Folders in the sidebar to find and resume experiments saved in this browser.",
+      text: "Save the current setup, observations, and results. Choose a folder and add tags. Open Folders in the sidebar to find and resume experiments saved on this computer.",
     },
     {
       selector: '[aria-label="Forward result actions"]',

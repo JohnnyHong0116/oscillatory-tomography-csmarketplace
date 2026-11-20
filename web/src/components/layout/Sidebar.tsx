@@ -78,7 +78,7 @@ export function Sidebar({
         <footer className="shrink-0 border-t border-[#2A2A2A] p-4 text-[11px] leading-5">
           <strong className="text-white">UW–Madison Geoscience</strong>
           <p>Oscillatory Tomography</p>
-          <p className="mt-2 text-[10px] text-[#777]">Saved experiments are stored in this browser.</p>
+          <p className="mt-2 text-[10px] text-[#777]">Saved experiments are stored on this computer.</p>
         </footer>
       )}
     </aside>

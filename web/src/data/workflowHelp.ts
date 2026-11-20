@@ -26,7 +26,7 @@ export const WORKFLOW_HELP = [
     category: 'Workflow',
     definition: 'Personal experiments start with your own well locations, not a preset choice.',
     details:
-      'The home workspace starts empty. Define wells and model assumptions, configure tests and periods, review, run, then inspect results. Examples in the sidebar open a separate practice session: Black–Kipp first, P=10 checkerboard second. Browsing examples does not overwrite Your experiment. Copying a practice configuration or transferring its forward data into an existing personal project requires confirmation. Use Save to Folders to keep the current configuration, observations and results in this browser. Reopen saved experiments from Folders. Export a complete experiment to move it to another browser or keep a backup.',
+      'The home workspace starts empty. Define wells and model assumptions, configure tests and periods, review, run, then inspect results. Examples in the sidebar open a separate practice session: Black–Kipp first, P=10 checkerboard second. Browsing examples does not overwrite Your experiment. Copying a practice configuration or transferring its forward data into an existing personal project requires confirmation. Use Save to Folders to keep the current configuration, observations and results on this computer. Reopen saved experiments from Folders. Export a complete experiment for a portable backup.',
   },
   {
     term: 'Forward responses to inversion',

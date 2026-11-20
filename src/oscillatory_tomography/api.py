@@ -23,6 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .library import router as library_router
 from .covariance import covariance_product_k_ss
 from .forward import run_distributed_k_ss
 from .grid import create_inputs, dimdist, plaid_cellcenter_coord
@@ -417,7 +418,8 @@ def analyze(request: AnalyzeRequest, progress: Progress | None = None) -> dict:
             "grid": {"nx": request.gridNx, "ny": request.gridNy, **({"nz": nz} if request.dimension == 3 else {})}}
 
 
-app = FastAPI(title="Oscillatory Tomography API", version="1.5.1")
+app = FastAPI(title="Oscillatory Tomography API", version="1.6.1")
+app.include_router(library_router)
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:1234", "http://127.0.0.1:1234"], allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
 

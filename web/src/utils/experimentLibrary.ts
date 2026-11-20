@@ -30,6 +30,7 @@ function openDatabase() {
       request.result.createObjectStore('sessions');
     };
     request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error('Close older experiment tabs to check browser saves.'));
     request.onsuccess = () => resolve(request.result);
   });
 }
@@ -58,7 +59,7 @@ async function transaction<T>(
   }
 }
 
-export function listExperimentLibrary() {
+function browserListExperimentLibrary() {
   return transaction<{ folders: ExperimentFolder[]; entries: SavedExperiment[] }>(
     ['folders', 'entries'], 'readonly', (tx, deliver) => {
       const folders = tx.objectStore('folders').getAll();
@@ -68,92 +69,112 @@ export function listExperimentLibrary() {
   );
 }
 
-export function saveExperimentFolder(folder: ExperimentFolder) {
-  return transaction<void>(['folders'], 'readwrite', tx => {
-    tx.objectStore('folders').put(folder);
-  });
-}
-
-export function removeExperimentFolder(id: string) {
-  return transaction<void>(['folders', 'entries'], 'readwrite', tx => {
-    const request = tx.objectStore('entries').openCursor();
-    request.onsuccess = () => {
-      const cursor = request.result;
-      if (!cursor) return;
-      if (cursor.value.folderId === id) cursor.update({ ...cursor.value, folderId: '' });
-      cursor.continue();
-    };
-    tx.objectStore('folders').delete(id);
-  });
-}
-
-export function saveLibraryExperiment(
-  details: Pick<SavedExperiment, 'id' | 'name' | 'folderId' | 'tags' | 'favorite'>,
-  session: ExperimentSession,
-) {
-  const entry: SavedExperiment = {
-    ...details,
-    updatedAt: Date.now(),
-    dimension: session.config.dimension ?? 2,
-    wellCount: session.config.wells.length,
-    testCount: session.config.tests.length,
-    hasResults: session.result !== null,
-  };
-  return transaction<void>(['entries', 'sessions', 'folders'], 'readwrite', tx => {
-    const save = () => {
-      tx.objectStore('entries').put(entry);
-      tx.objectStore('sessions').put({ ...session, name: entry.name }, entry.id);
-    };
-    if (entry.folderId) {
-      const folder = tx.objectStore('folders').get(entry.folderId);
-      folder.onsuccess = () => {
-        if (!folder.result) entry.folderId = '';
-        save();
-      };
-    } else save();
-  });
-}
-
-export function organizeLibraryExperiment(
-  id: string,
-  changes: Pick<SavedExperiment, 'name' | 'folderId' | 'tags'>,
-) {
-  return transaction<void>(['entries', 'folders'], 'readwrite', tx => {
-    const entries = tx.objectStore('entries');
-    const current = entries.get(id);
-    const folder = tx.objectStore('folders').get(changes.folderId);
-    folder.onsuccess = () => {
-      if (!current.result) return;
-      entries.put({
-        ...current.result,
-        ...changes,
-        folderId: folder.result ? changes.folderId : '',
-        updatedAt: Date.now(),
-      });
-    };
-  });
-}
-
-export function readLibraryExperiment(id: string) {
+function browserReadLibraryExperiment(id: string) {
   return transaction<ExperimentSession | undefined>(['sessions'], 'readonly', (tx, deliver) => {
     const request = tx.objectStore('sessions').get(id);
     request.onsuccess = () => deliver(request.result);
   });
 }
 
-export function setExperimentFavorite(id: string, favorite: boolean) {
-  return transaction<void>(['entries'], 'readwrite', tx => {
-    const entries = tx.objectStore('entries');
-    const request = entries.get(id);
-    request.onsuccess = () => {
-      if (request.result) entries.put({ ...request.result, favorite });
-    };
+type LibraryContents = { folders: ExperimentFolder[]; entries: SavedExperiment[]; recoveryMessage?: string };
+
+function endpoint() {
+  const location = window.location;
+  const origin = location.port === '1234' ? `${location.protocol}//${location.hostname}:8000` : '';
+  return `${origin}/api/v1/library`;
+}
+
+async function request<T>(path: string, body?: unknown): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${endpoint()}${path}`, body === undefined ? undefined : {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error('Could not reach the saved experiment library. Check that the Python server is running.');
+  }
+  if (response.status === 404 && path === '') {
+    throw new Error('Restart the Python server to enable persistent Folders storage.');
+  }
+  if (!response.ok) {
+    throw new Error('Could not read or save the experiment library. Check the Python server and available disk space.');
+  }
+  return response.json();
+}
+
+let migration: Promise<string | undefined> | undefined;
+
+async function migrateBrowserLibrary(): Promise<string | undefined> {
+  let legacy: LibraryContents;
+  try {
+    if (typeof indexedDB === 'undefined') return;
+    legacy = await browserListExperimentLibrary();
+  } catch {
+    return 'Browser storage could not be checked for older saves. Reopen the browser and address used to save them to recover any previous experiments.';
+  }
+  if (!legacy.folders.length && !legacy.entries.length) return;
+  const imported = await request<{ folders: string[]; experiments: string[] }>('/browser-imports');
+  const folderIds = new Set(imported.folders);
+  const experimentIds = new Set(imported.experiments);
+  legacy = {
+    folders: legacy.folders.filter(folder => !folderIds.has(folder.id)),
+    entries: legacy.entries.filter(entry => !experimentIds.has(entry.id)),
+  };
+  if (!legacy.folders.length && !legacy.entries.length) return;
+  // Read all sessions before saving anything. A partial browser read remains
+  // recoverable, and the backend transaction makes repeated migration safe.
+  const experiments = await Promise.all(legacy.entries.map(async details => {
+    const session = await browserReadLibraryExperiment(details.id);
+    if (!session) throw new Error('An older browser save is missing its session. Keep this browser data and import a complete experiment backup.');
+    return { details, session };
+  }));
+  await request('/import-browser', { folders: legacy.folders, experiments });
+  return 'Recovered previous browser saves into persistent Folders storage.';
+}
+
+export async function listExperimentLibrary(): Promise<LibraryContents> {
+  // Check the backend first. An unavailable server must never resemble an empty library.
+  await request<LibraryContents>('');
+  migration ??= migrateBrowserLibrary().catch(error => {
+    migration = undefined;
+    throw error;
   });
+  const recoveryMessage = await migration;
+  return { ...await request<LibraryContents>(''), recoveryMessage };
+}
+
+export function saveExperimentFolder(folder: ExperimentFolder) {
+  return request<void>('/folders', folder);
+}
+
+export function removeExperimentFolder(id: string) {
+  return request<void>(`/folders/${encodeURIComponent(id)}/remove`, {});
+}
+
+export function saveLibraryExperiment(
+  details: Pick<SavedExperiment, 'id' | 'name' | 'folderId' | 'tags' | 'favorite'>,
+  session: ExperimentSession,
+) {
+  return request<void>('/experiments', { details, session });
+}
+
+export function organizeLibraryExperiment(
+  id: string,
+  changes: Pick<SavedExperiment, 'name' | 'folderId' | 'tags'>,
+) {
+  return request<void>(`/experiments/${encodeURIComponent(id)}/organize`, changes);
+}
+
+export function readLibraryExperiment(id: string) {
+  return request<ExperimentSession>(`/experiments/${encodeURIComponent(id)}`);
+}
+
+export function setExperimentFavorite(id: string, favorite: boolean) {
+  return request<void>(`/experiments/${encodeURIComponent(id)}/favorite`, { favorite });
 }
 
 export function removeLibraryExperiment(id: string) {
-  return transaction<void>(['entries', 'sessions'], 'readwrite', tx => {
-    tx.objectStore('entries').delete(id);
-    tx.objectStore('sessions').delete(id);
-  });
+  return request<void>(`/experiments/${encodeURIComponent(id)}/remove`, {});
 }

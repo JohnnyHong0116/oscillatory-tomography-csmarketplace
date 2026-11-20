@@ -78,12 +78,25 @@ do not launch a second copy. To refresh an already-open UI after rebuilding,
 export any results you need first, then use Ctrl+Shift+R. Project state is
 held in memory until you use **Save to Folders**. Reopen saved work from **Folders** after refreshing.
 
+### v1.6.1 persistent Folders storage
+
+Saved folders and complete experiments are stored on disk at
+`%USERPROFILE%\.aquifer-imaging-studio\experiments.sqlite3`. Restart the
+Python server after updating. The frontend on ports 8000 and 1234 shares this
+library. To relocate the database, set `AQUIFER_LIBRARY_PATH` before starting
+the backend.
+
+Older browser saves are automatically copied when Folders is opened at the
+browser address where they were saved. If a previous library appears empty,
+open that original browser and URL once to recover it. Migration retains the
+original browser records and preserves existing disk saves. Complete experiment
+CSV exports remain available as portable backups.
+
 ### v1.6.0 update (webapp-playground)
 
 Use **Save to Folders** to keep the complete experiment, including its
 configuration, observations, and results. **Folders** in the sidebar lets you
-reopen, move, tag, search, favorite, or export saved experiments. Saves belong
-to this browser and site address. Use a complete CSV export to back up or move
+reopen, move, tag, search, favorite, or export saved experiments. Saves are stored by the Python backend on this computer. Use a complete CSV export to back up or move
 an experiment.
 
 The journey guide covers 2D and 3D setup, period groups, result inspection and

@@ -35,9 +35,12 @@ export function ExperimentLibrary({ session, activeId, startSaving, onSaved, onO
   useEffect(() => {
     let live = true;
     listExperimentLibrary().then(data => {
-      if (live) setLibrary(data);
-    }).catch(() => {
-      if (live) setError('Could not open browser storage. Check whether this browser allows site storage.');
+      if (live) {
+        setLibrary(data);
+        if (data.recoveryMessage) setStatus(data.recoveryMessage);
+      }
+    }).catch(cause => {
+      if (live) setError(cause instanceof Error ? cause.message : 'Could not open the saved experiment library.');
     }).finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
   }, []);
@@ -109,7 +112,7 @@ export function ExperimentLibrary({ session, activeId, startSaving, onSaved, onO
   return (
     <div className="mx-auto max-w-7xl space-y-4">
       <header className="studio-panel workspace-page-heading">
-        <div><h2 className="workspace-title">Folders</h2><p className="workspace-description">Save experiments, organize them by project, and reopen them on this browser.</p></div>
+        <div><h2 className="workspace-title">Folders</h2><p className="workspace-description">Save experiments to this computer and organize them by project.</p></div>
         <div className="workspace-actions">
           <button type="button" className={button} disabled={loading || busy}
             aria-expanded={importFolderId !== null}
@@ -200,7 +203,9 @@ export function ExperimentLibrary({ session, activeId, startSaving, onSaved, onO
             <label><Search size={16}/><input className="studio-input" type="search" aria-label="Search experiments" placeholder="Search by name or tag" value={query} onChange={event => setQuery(event.target.value)}/></label>
             {!!tags.length && <select className="studio-input" aria-label="Filter by tag" value={tag} onChange={event => setTag(event.target.value)}><option value="">All tags</option>{tags.map(value => <option key={value}>{value}</option>)}</select>}
           </div>
-          {loading ? <p role="status" className="workspace-description">Loading experiments…</p> : visible.length === 0 ? (
+          {loading ? <p role="status" className="workspace-description">Loading experiments…</p> : error && !entries.length ? (
+            <p className="workspace-description">The saved library could not be loaded. Check the message above and reopen Folders.</p>
+          ) : visible.length === 0 ? (
             <p className="library-empty">{entries.length ? 'No experiments match this view.' : 'No saved experiments yet. Save your current experiment to get started.'}</p>
           ) : <ul className="library-entries">{visible.map(entry => (
             <li key={entry.id} className="library-entry">
